@@ -1,0 +1,51 @@
+# Configuration du Transformer from scratch
+# Architecture encodeur-décodeur personnalisée
+
+model:
+  type: "transformer"
+  vocab_size: 32000
+  d_model: 512
+  num_heads: 8
+  num_encoder_layers: 6
+  num_decoder_layers: 6
+  d_ff: 2048
+  dropout: 0.1
+  
+  # Positional encoding
+  positional_encoding: "sinusoidal"
+  max_position_embeddings: 1024
+  
+  # Initialisation
+  initialization: "xavier_uniform"
+  
+  # Embeddings
+  share_embeddings: true  # Partage entre encodeur et décodeur
+  
+  # Generation
+  generation:
+    strategy: "greedy"
+    max_length: 128
+    min_length: 10
+    num_beams: 4
+    early_stopping: true
+    no_repeat_ngram_size: 3
+
+training:
+  # Paramètres spécifiques au Transformer from scratch
+  learning_rate: 0.0001
+  batch_size: 8
+  num_epochs: 30
+  warmup_steps: 4000
+  
+  # Régularisation
+  label_smoothing: 0.1
+  dropout: 0.1
+  
+  # Optimiseur
+  optimizer: "adamw"
+  betas: [0.9, 0.98]
+  eps: 1e-9
+
+paths:
+  checkpoint_dir: "outputs/checkpoints/transformer"
+  best_model: "outputs/checkpoints/transformer/best_model.pt"

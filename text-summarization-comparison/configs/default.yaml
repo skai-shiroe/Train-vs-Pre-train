@@ -1,0 +1,53 @@
+# Configuration par défaut du projet
+# Ce fichier contient les paramètres communs à tous les modèles
+
+project:
+  name: "text-summarization-comparison"
+  version: "0.1.0"
+  description: "Comparaison de modèles de résumé automatique"
+
+data:
+  dataset_name: "cnn_dailymail"
+  dataset_version: "3.0.0"
+  max_input_length: 512
+  max_target_length: 128
+  train_split: "train[:1%]"
+  validation_split: "validation[:1%]"
+  test_split: "test[:1%]"
+
+model:
+  vocab_size: 32000
+  d_model: 512
+  num_heads: 8
+  num_encoder_layers: 6
+  num_decoder_layers: 6
+  d_ff: 2048
+  dropout: 0.1
+
+training:
+  batch_size: 8
+  num_epochs: 10
+  learning_rate: 0.0001
+  warmup_steps: 1000
+  weight_decay: 0.01
+  gradient_accumulation_steps: 4
+  max_grad_norm: 1.0
+  seed: 42
+
+evaluation:
+  metrics:
+    - "rouge1"
+    - "rouge2"
+    - "rougeL"
+    - "bleu"
+  batch_size: 16
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  data_tokenized: "data/tokenized"
+  data_cache: "data/cache"
+  outputs_checkpoints: "outputs/checkpoints"
+  outputs_figures: "outputs/figures"
+  outputs_predictions: "outputs/predictions"
+  outputs_reports: "outputs/reports"
