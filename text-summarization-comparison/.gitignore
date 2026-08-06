@@ -43,6 +43,7 @@ Thumbs.db
 
 # Data
 data/raw/*
+notebooks/data*
 data/processed/*
 data/tokenized/*
 data/cache/*

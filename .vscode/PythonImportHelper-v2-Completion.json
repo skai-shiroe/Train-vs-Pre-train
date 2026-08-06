@@ -65,6 +65,30 @@
         "documentation": {}
     },
     {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
         "label": "Dict",
         "importPath": "typing",
         "description": "typing",
@@ -377,6 +401,262 @@
         "documentation": {}
     },
     {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Dict",
         "importPath": "typing",
         "description": "typing",
@@ -425,6 +705,118 @@
         "documentation": {}
     },
     {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Optional",
         "importPath": "typing",
         "description": "typing",
@@ -442,6 +834,62 @@
     },
     {
         "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -536,6 +984,51 @@
         "importPath": "re",
         "description": "re",
         "detail": "re",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
+        "label": "matplotlib.pyplot",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "matplotlib.pyplot",
+        "description": "matplotlib.pyplot",
+        "detail": "matplotlib.pyplot",
+        "documentation": {}
+    },
+    {
+        "label": "seaborn",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "seaborn",
+        "description": "seaborn",
+        "detail": "seaborn",
+        "documentation": {}
+    },
+    {
+        "label": "numpy",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "numpy",
+        "description": "numpy",
+        "detail": "numpy",
+        "documentation": {}
+    },
+    {
+        "label": "json",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "json",
+        "description": "json",
+        "detail": "json",
         "documentation": {}
     },
     {
@@ -755,6 +1248,24 @@
         "documentation": {}
     },
     {
+        "label": "ModelBenchmark",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.evaluation.benchmark",
+        "description": "text-summarization-comparison.src.evaluation.benchmark",
+        "peekOfCode": "class ModelBenchmark:\n    \"\"\"\n    Classe pour benchmarker les modèles.\n    Compare les performances des modèles sur différents critères.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le benchmark.\n        Args:\n            config: Configuration du benchmark",
+        "detail": "text-summarization-comparison.src.evaluation.benchmark",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.evaluation.benchmark",
+        "description": "text-summarization-comparison.src.evaluation.benchmark",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass ModelBenchmark:\n    \"\"\"\n    Classe pour benchmarker les modèles.\n    Compare les performances des modèles sur différents critères.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le benchmark.\n        Args:",
+        "detail": "text-summarization-comparison.src.evaluation.benchmark",
+        "documentation": {}
+    },
+    {
         "label": "Evaluator",
         "kind": 6,
         "importPath": "text-summarization-comparison.src.evaluation.metrics",
@@ -770,6 +1281,132 @@
         "description": "text-summarization-comparison.src.evaluation.metrics",
         "peekOfCode": "logger = logging.getLogger(__name__)\nclass Evaluator:\n    \"\"\"Classe pour évaluer les modèles de résumé automatique.\"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser l'évaluateur.\n        Args:\n            config: Configuration contenant les métriques à utiliser\n        TODO: Implémenter l'initialisation\n        \"\"\"",
         "detail": "text-summarization-comparison.src.evaluation.metrics",
+        "documentation": {}
+    },
+    {
+        "label": "QualitativeEvaluator",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.evaluation.qualitative",
+        "description": "text-summarization-comparison.src.evaluation.qualitative",
+        "peekOfCode": "class QualitativeEvaluator:\n    \"\"\"\n    Évaluateur qualitatif des résumés.\n    Permet une analyse humaine et automatique de la qualité des résumés.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser l'évaluateur qualitatif.\n        Args:\n            config: Configuration d'évaluation",
+        "detail": "text-summarization-comparison.src.evaluation.qualitative",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.evaluation.qualitative",
+        "description": "text-summarization-comparison.src.evaluation.qualitative",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass QualitativeEvaluator:\n    \"\"\"\n    Évaluateur qualitatif des résumés.\n    Permet une analyse humaine et automatique de la qualité des résumés.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser l'évaluateur qualitatif.\n        Args:",
+        "detail": "text-summarization-comparison.src.evaluation.qualitative",
+        "documentation": {}
+    },
+    {
+        "label": "ROUGECalculator",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.evaluation.rouge",
+        "description": "text-summarization-comparison.src.evaluation.rouge",
+        "peekOfCode": "class ROUGECalculator:\n    \"\"\"\n    Calculateur de métriques ROUGE.\n    Calcule ROUGE-1, ROUGE-2, ROUGE-L et autres variantes.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le calculateur ROUGE.\n        Args:\n            config: Configuration d'évaluation",
+        "detail": "text-summarization-comparison.src.evaluation.rouge",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.evaluation.rouge",
+        "description": "text-summarization-comparison.src.evaluation.rouge",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass ROUGECalculator:\n    \"\"\"\n    Calculateur de métriques ROUGE.\n    Calcule ROUGE-1, ROUGE-2, ROUGE-L et autres variantes.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le calculateur ROUGE.\n        Args:",
+        "detail": "text-summarization-comparison.src.evaluation.rouge",
+        "documentation": {}
+    },
+    {
+        "label": "ResultsVisualizer",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.evaluation.visualization",
+        "description": "text-summarization-comparison.src.evaluation.visualization",
+        "peekOfCode": "class ResultsVisualizer:\n    \"\"\"\n    Classe pour visualiser les résultats d'évaluation.\n    Génère des graphiques et visualisations pour analyser\n    les performances des modèles.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le visualisateur.\n        Args:",
+        "detail": "text-summarization-comparison.src.evaluation.visualization",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.evaluation.visualization",
+        "description": "text-summarization-comparison.src.evaluation.visualization",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass ResultsVisualizer:\n    \"\"\"\n    Classe pour visualiser les résultats d'évaluation.\n    Génère des graphiques et visualisations pour analyser\n    les performances des modèles.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le visualisateur.",
+        "detail": "text-summarization-comparison.src.evaluation.visualization",
+        "documentation": {}
+    },
+    {
+        "label": "AblationStudy",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.experiments.ablation",
+        "description": "text-summarization-comparison.src.experiments.ablation",
+        "peekOfCode": "class AblationStudy:\n    \"\"\"\n    Classe pour les études d'ablation.\n    Mène des expériences systématiques pour évaluer l'impact\n    de différents hyperparamètres et composants.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser l'étude d'ablation.\n        Args:",
+        "detail": "text-summarization-comparison.src.experiments.ablation",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.experiments.ablation",
+        "description": "text-summarization-comparison.src.experiments.ablation",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass AblationStudy:\n    \"\"\"\n    Classe pour les études d'ablation.\n    Mène des expériences systématiques pour évaluer l'impact\n    de différents hyperparamètres et composants.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser l'étude d'ablation.",
+        "detail": "text-summarization-comparison.src.experiments.ablation",
+        "documentation": {}
+    },
+    {
+        "label": "ModelComparator",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.experiments.compare_models",
+        "description": "text-summarization-comparison.src.experiments.compare_models",
+        "peekOfCode": "class ModelComparator:\n    \"\"\"\n    Classe pour comparer les modèles.\n    Compare les performances des modèles sur différentes métriques.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le comparateur de modèles.\n        Args:\n            config: Configuration de comparaison",
+        "detail": "text-summarization-comparison.src.experiments.compare_models",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.experiments.compare_models",
+        "description": "text-summarization-comparison.src.experiments.compare_models",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass ModelComparator:\n    \"\"\"\n    Classe pour comparer les modèles.\n    Compare les performances des modèles sur différentes métriques.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le comparateur de modèles.\n        Args:",
+        "detail": "text-summarization-comparison.src.experiments.compare_models",
+        "documentation": {}
+    },
+    {
+        "label": "DatasetSplitManager",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.experiments.dataset_split",
+        "description": "text-summarization-comparison.src.experiments.dataset_split",
+        "peekOfCode": "class DatasetSplitManager:\n    \"\"\"\n    Gestionnaire de splits de dataset.\n    Crée et gère les différents splits de données pour les expériences.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le gestionnaire de splits.\n        Args:\n            config: Configuration des splits",
+        "detail": "text-summarization-comparison.src.experiments.dataset_split",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.experiments.dataset_split",
+        "description": "text-summarization-comparison.src.experiments.dataset_split",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass DatasetSplitManager:\n    \"\"\"\n    Gestionnaire de splits de dataset.\n    Crée et gère les différents splits de données pour les expériences.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le gestionnaire de splits.\n        Args:",
+        "detail": "text-summarization-comparison.src.experiments.dataset_split",
+        "documentation": {}
+    },
+    {
+        "label": "ExperimentManager",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.experiments.experiment_manager",
+        "description": "text-summarization-comparison.src.experiments.experiment_manager",
+        "peekOfCode": "class ExperimentManager:\n    \"\"\"\n    Gestionnaire d'expériences.\n    Orchestre l'exécution des expériences et la gestion des résultats.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le gestionnaire d'expériences.\n        Args:\n            config: Configuration des expériences",
+        "detail": "text-summarization-comparison.src.experiments.experiment_manager",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.experiments.experiment_manager",
+        "description": "text-summarization-comparison.src.experiments.experiment_manager",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass ExperimentManager:\n    \"\"\"\n    Gestionnaire d'expériences.\n    Orchestre l'exécution des expériences et la gestion des résultats.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le gestionnaire d'expériences.\n        Args:",
+        "detail": "text-summarization-comparison.src.experiments.experiment_manager",
         "documentation": {}
     },
     {
@@ -791,6 +1428,42 @@
         "documentation": {}
     },
     {
+        "label": "T5FineTuning",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "description": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "peekOfCode": "class T5FineTuning:\n    \"\"\"\n    Classe pour le fine-tuning de T5.\n    Gère le fine-tuning du modèle T5 pré-entraîné sur le dataset\n    de résumé automatique.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module de fine-tuning.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "description": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass T5FineTuning:\n    \"\"\"\n    Classe pour le fine-tuning de T5.\n    Gère le fine-tuning du modèle T5 pré-entraîné sur le dataset\n    de résumé automatique.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module de fine-tuning.",
+        "detail": "text-summarization-comparison.src.models.t5.fine_tuning",
+        "documentation": {}
+    },
+    {
+        "label": "T5Inference",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.t5.inference",
+        "description": "text-summarization-comparison.src.models.t5.inference",
+        "peekOfCode": "class T5Inference:\n    \"\"\"\n    Classe pour l'inférence de T5.\n    Gère la génération de résumés avec le modèle T5 fine-tuné.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module d'inférence.\n        Args:\n            config: Configuration du modèle",
+        "detail": "text-summarization-comparison.src.models.t5.inference",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.t5.inference",
+        "description": "text-summarization-comparison.src.models.t5.inference",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass T5Inference:\n    \"\"\"\n    Classe pour l'inférence de T5.\n    Gère la génération de résumés avec le modèle T5 fine-tuné.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module d'inférence.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.t5.inference",
+        "documentation": {}
+    },
+    {
         "label": "T5Model",
         "kind": 6,
         "importPath": "text-summarization-comparison.src.models.t5.model",
@@ -806,6 +1479,42 @@
         "description": "text-summarization-comparison.src.models.t5.model",
         "peekOfCode": "logger = logging.getLogger(__name__)\nclass T5Model:\n    \"\"\"\n    Wrapper pour le modèle T5 pré-entraîné.\n    Utilise les modèles T5 de Hugging Face pour le résumé automatique.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le modèle T5.\n        Args:",
         "detail": "text-summarization-comparison.src.models.t5.model",
+        "documentation": {}
+    },
+    {
+        "label": "T5Trainer",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.t5.trainer",
+        "description": "text-summarization-comparison.src.models.t5.trainer",
+        "peekOfCode": "class T5Trainer:\n    \"\"\"\n    Classe pour le fine-tuning de T5.\n    Gère la boucle de fine-tuning, la validation et le checkpointing.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: nn.Module,\n                 train_dataloader: Any, val_dataloader: Any):\n        \"\"\"\n        Initialiser le trainer de T5.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.t5.trainer",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.t5.trainer",
+        "description": "text-summarization-comparison.src.models.t5.trainer",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass T5Trainer:\n    \"\"\"\n    Classe pour le fine-tuning de T5.\n    Gère la boucle de fine-tuning, la validation et le checkpointing.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: nn.Module,\n                 train_dataloader: Any, val_dataloader: Any):\n        \"\"\"\n        Initialiser le trainer de T5.",
+        "detail": "text-summarization-comparison.src.models.t5.trainer",
+        "documentation": {}
+    },
+    {
+        "label": "T5ZeroShot",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.t5.zero_shot",
+        "description": "text-summarization-comparison.src.models.t5.zero_shot",
+        "peekOfCode": "class T5ZeroShot:\n    \"\"\"\n    Classe pour l'inférence zero-shot de T5.\n    Utilise T5 pré-entraîné sans fine-tuning pour générer des résumés.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module zero-shot.\n        Args:\n            config: Configuration du modèle",
+        "detail": "text-summarization-comparison.src.models.t5.zero_shot",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.t5.zero_shot",
+        "description": "text-summarization-comparison.src.models.t5.zero_shot",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass T5ZeroShot:\n    \"\"\"\n    Classe pour l'inférence zero-shot de T5.\n    Utilise T5 pré-entraîné sans fine-tuning pour générer des résumés.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le module zero-shot.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.t5.zero_shot",
         "documentation": {}
     },
     {
@@ -926,6 +1635,24 @@
         "documentation": {}
     },
     {
+        "label": "TransformerInference",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.transformer.inference",
+        "description": "text-summarization-comparison.src.models.transformer.inference",
+        "peekOfCode": "class TransformerInference:\n    \"\"\"\n    Classe pour l'inférence du Transformer.\n    Gère la génération de résumés avec différentes stratégies\n    (greedy, beam search, sampling).\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: torch.nn.Module, tokenizer: Any):\n        \"\"\"\n        Initialiser le module d'inférence.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.transformer.inference",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.transformer.inference",
+        "description": "text-summarization-comparison.src.models.transformer.inference",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass TransformerInference:\n    \"\"\"\n    Classe pour l'inférence du Transformer.\n    Gère la génération de résumés avec différentes stratégies\n    (greedy, beam search, sampling).\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: torch.nn.Module, tokenizer: Any):\n        \"\"\"\n        Initialiser le module d'inférence.",
+        "detail": "text-summarization-comparison.src.models.transformer.inference",
+        "documentation": {}
+    },
+    {
         "label": "FeedForward",
         "kind": 6,
         "importPath": "text-summarization-comparison.src.models.transformer.layers",
@@ -1013,6 +1740,24 @@
         "description": "text-summarization-comparison.src.models.transformer.positional_encoding",
         "peekOfCode": "logger = logging.getLogger(__name__)\nclass PositionalEncoding(nn.Module):\n    \"\"\"\n    Encodage positionnel sinusoidal.\n    Ajoute des informations de position aux embeddings de tokens\n    pour permettre au modèle de comprendre l'ordre des séquences.\n    \"\"\"\n    def __init__(self, d_model: int, max_len: int = 5000, dropout: float = 0.1):\n        \"\"\"\n        Initialiser l'encodage positionnel.",
         "detail": "text-summarization-comparison.src.models.transformer.positional_encoding",
+        "documentation": {}
+    },
+    {
+        "label": "TransformerTrainer",
+        "kind": 6,
+        "importPath": "text-summarization-comparison.src.models.transformer.trainer",
+        "description": "text-summarization-comparison.src.models.transformer.trainer",
+        "peekOfCode": "class TransformerTrainer:\n    \"\"\"\n    Classe pour l'entraînement du Transformer.\n    Gère la boucle d'entraînement, la validation et le checkpointing.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: nn.Module, \n                 train_dataloader: Any, val_dataloader: Any):\n        \"\"\"\n        Initialiser le trainer du Transformer.\n        Args:",
+        "detail": "text-summarization-comparison.src.models.transformer.trainer",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.models.transformer.trainer",
+        "description": "text-summarization-comparison.src.models.transformer.trainer",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass TransformerTrainer:\n    \"\"\"\n    Classe pour l'entraînement du Transformer.\n    Gère la boucle d'entraînement, la validation et le checkpointing.\n    \"\"\"\n    def __init__(self, config: Dict[str, Any], model: nn.Module, \n                 train_dataloader: Any, val_dataloader: Any):\n        \"\"\"\n        Initialiser le trainer du Transformer.",
+        "detail": "text-summarization-comparison.src.models.transformer.trainer",
         "documentation": {}
     },
     {
