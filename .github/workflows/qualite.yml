@@ -1,0 +1,52 @@
+---
+# Etape qualite. Les quatre jobs sont independants et tournent en parallele :
+# un depot qui a la fois mal formate et mal orthographie doit rapporter les deux
+# en une seule execution, pas l'un puis l'autre a l'execution suivante.
+
+name: Qualite
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  format-et-style:
+    name: format et style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: make lint
+
+  orthographe:
+    name: orthographe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: make spell
+
+  typage-statique:
+    name: typage statique
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: make typecheck
+
+  # docs/contributing.md refuse --no-verify au motif que la CI rejoue les memes
+  # hooks sur tout le depot. Ce job est ce qui rend la phrase vraie : sans lui,
+  # contourner un hook localement suffisait a le contourner tout court.
+  #
+  # --all-files et non les seuls fichiers modifies : un hook peut echouer sur un
+  # fichier que personne n'a touche, par exemple quand la montee d'un outil change
+  # son verdict, et c'est precisement ce qu'une verification par fichier rate.
+  hooks:
+    name: hooks sur tout le depot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: pre-commit run --all-files --show-diff-on-failure

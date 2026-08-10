@@ -1,0 +1,14 @@
+---
+extends: existence
+message: "Formulation promotionnelle interdite : '%s'. Preferer une description factuelle."
+level: warning
+ignorecase: true
+tokens:
+  - revolutionnaire
+  - incroyable
+  - extraordinaire
+  - state of the art
+  - best in class
+  - tres puissant
+  - ultra performant
+  - sans egal

@@ -1,0 +1,79 @@
+---
+# Etape conteneur. docs/deployment.md annonce que la CI sera le premier build
+# reel de l'image : c'est ce job.
+#
+# **L'image est construite une fois et scannee depuis son archive.** Un scan qui
+# reconstruirait l'image verifierait une image voisine, pas celle qui a ete
+# produite : les couches apt et pip se resolvent au moment du build, donc deux
+# builds a quelques minutes d'ecart peuvent embarquer deux jeux de paquets.
+#
+# Aucun service Docker in Docker n'est declare : le runner ubuntu-latest porte
+# deja un demon Docker utilisable tel quel.
+
+name: Conteneur
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: image backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction et archivage de l'image
+        run: |
+          revision="${GITHUB_SHA::7}"
+          docker build -f backend/Dockerfile --build-arg VCS_REF="$revision" -t "syntra-backend:$revision" .
+          docker save "syntra-backend:$revision" -o image.tar
+      - name: Archive de l'image
+        uses: actions/upload-artifact@v4
+        with:
+          name: image
+          path: image.tar
+          retention-days: 1
+
+  scan:
+    name: scan de l'image
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      # Le depot est repris pour .trivyignore, que trivy lit dans le repertoire
+      # de travail. L'image, elle, vient de l'archive et n'est pas reconstruite.
+      - uses: actions/checkout@v4
+      - name: Archive de l'image
+        uses: actions/download-artifact@v4
+        with:
+          name: image
+
+      # --exit-code 1 sur CRITICAL seulement, et --ignore-unfixed : ce sont les
+      # memes reglages que make docker-scan. Echouer sur une vulnerabilite sans
+      # correctif disponible bloquerait le depot sur une decision qui
+      # n'appartient pas au projet.
+      - name: Scan de l'archive
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/depot" -w /depot aquasec/trivy:0.58.1 image \
+            --input image.tar --exit-code 1 --severity CRITICAL --ignore-unfixed --format table
+
+      # Etape distincte et non seconde commande de la precedente : sur une
+      # vulnerabilite CRITICAL, le scan echoue et c'est precisement la que le
+      # rapport detaille sert. Enchainee, la production du JSON n'aurait jamais
+      # eu lieu dans ce cas.
+      - name: Rapport JSON
+        if: always()
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/depot" -w /depot aquasec/trivy:0.58.1 image \
+            --input image.tar --format json --output reports/trivy.json
+      - name: Rapport trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy
+          path: reports/trivy.json
+          if-no-files-found: warn
+          retention-days: 7

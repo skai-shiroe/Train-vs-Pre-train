@@ -1,0 +1,50 @@
+---
+# Etape tests. Le seul job qui execute du code metier.
+#
+# **Le seuil de couverture n'est pas redefini ici.** Les 80 pour cent vivent
+# dans COV_ARGS du Makefile. Un pipeline qui porterait sa propre barre pourrait
+# la baisser sans que make coverage change d'avis, et le verdict local cesserait
+# de valoir celui du pipeline.
+#
+# Les smoke tests sont exclus par make coverage : ils interrogent un
+# deploiement, pas un arbre de sources, et n'ont rien a mesurer ici.
+#
+# GitHub ne rend nativement ni JUnit ni Cobertura. Les deux rapports sont donc
+# televerses tels quels, et le taux de couverture est recopie dans le resume du
+# job depuis coverage.xml, le fichier sur lequel le seuil s'est deja prononce.
+
+name: Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests et couverture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: make coverage
+      - name: Couverture dans le resume du job
+        if: always()
+        run: |
+          test -f reports/coverage.xml || exit 0
+          python - >> "$GITHUB_STEP_SUMMARY" <<'RESUME'
+          import xml.etree.ElementTree as ET
+          rate = float(ET.parse("reports/coverage.xml").getroot().get("line-rate", "0"))
+          print(f"Couverture des lignes : {rate * 100:.2f} pour cent")
+          RESUME
+      - name: Rapports de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests
+          path: |
+            reports/junit.xml
+            reports/coverage.xml
+          if-no-files-found: warn
+          retention-days: 7

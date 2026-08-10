@@ -1,0 +1,49 @@
+---
+# Corpus de travail du projet. Voir section 2.2 du cahier des charges.
+#
+# Le « 100 % » des ablations designe les 20 000 exemples definis ici, jamais
+# XSum complet qui en compte environ 204 000. Cette convention est rappelee
+# dans chaque tableau de resultats et sur chaque figure.
+
+name: xsum
+
+dataset:
+  hf_id: EdinburghNLP/xsum
+  hf_config: null
+  revision: null
+  source_column: document
+  target_column: summary
+  id_column: id
+
+working_corpus:
+  # Tirage unique, fige par cette graine. Ne jamais la modifier : les splits
+  # doivent rester identiques pour toutes les comparaisons.
+  seed: 42
+  train_size: 20000
+  validation_size: 1000
+  test_size: 1000
+
+# Sous-ensembles emboites : 10 % est un prefixe de 50 %, lui-meme prefixe de
+# 100 %. L'emboitement isole l'effet de la taille de celui de la composition.
+proportions: [10, 50, 100]
+
+preprocess:
+  # XSum contient des documents tres courts, souvent des fragments tronques.
+  # Le plancher les ecarte sans toucher a la distribution utile.
+  min_source_chars: 200
+  max_source_chars: 20000
+  min_target_chars: 20
+  max_target_chars: 1000
+  normalise_unicode: true
+  collapse_whitespace: true
+
+tokenizer:
+  # Tokenizer partage par le modele from scratch et par la baseline.
+  hf_id: t5-small
+  source_prefix: "summarize: "
+  max_source_tokens: 512
+  max_target_tokens: 64
+
+paths:
+  raw: data/raw/xsum
+  processed: data/processed/xsum

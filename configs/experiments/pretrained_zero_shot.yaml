@@ -1,0 +1,36 @@
+---
+# Baseline pre-entrainee en zero-shot, section 9. Un seul run.
+#
+# Le zero-shot ne depend pas de la taille du corpus d'entrainement : ses poids
+# ne bougent pas. Le cahier des charges, section 11, interdit explicitement de
+# creer trois experiences zero-shot identiques pour remplir la courbe. Le
+# chargeur refuse d'ailleurs un bloc training ou une proportion sur ce fichier.
+#
+# La revision est epinglee : la section 14 ne tolere une revision non epinglee
+# qu'en dehors d'une experience reportee, et cette mesure est publiee.
+
+experiment:
+  name: pretrained_zero_shot
+  seed: 42
+  studies: [dataset_size]
+  description: t5-small en zero-shot, mesure de reference du jeu de test.
+
+dataset:
+  config: configs/data/xsum.yaml
+
+model:
+  type: pretrained
+  baseline: t5
+  # hf_id absent : l'identifiant du tokenizer partage fait foi.
+  revision: df1b051c49625cf57a3d0d8d3863ed4d13564fe4  # pragma: allowlist secret
+  mode: zero_shot
+
+evaluation:
+  split: test
+  batch_size: 8
+  max_new_tokens: 64
+  min_new_tokens: 0
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  bootstrap_samples: 1000
+  confidence: 0.95

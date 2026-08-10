@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Outillage
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+# Caches d'outils ecrits dans le repertoire de travail plutot que sous HOME.
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# Rapports generes
+reports/junit.xml
+reports/coverage.xml
+reports/bandit.json
+reports/trivy.json
+reports/interrogate.txt
+metrics.json
+
+# Resultats d'experiences : produits par un run, publies comme artefacts de
+# pipeline (section 33), jamais edites a la main (section 17).
+reports/results/*
+reports/figures/*
+!reports/**/.gitkeep
+
+# Verification de la chaine : make reproduce MODE=quick ecrit tout ici, records
+# plafonnes, tableaux et figures compris. Rien de ce qui s'y trouve n'est un
+# resultat, et rien ne doit entrer dans le depot.
+reports/quick/
+
+# Donnees : versionnees par DVC, jamais par git
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+!data/**/.gitkeep
+
+# Artefacts ML : stockes dans MLflow, MinIO ou le remote DVC
+mlruns/
+mlartifacts/
+mlflow.db
+checkpoints/
+runs/
+
+# Registre local de modeles : rempli par src.experiments.publish a partir d'un
+# run. Ce sont des poids et leur fiche, pas des sources.
+artifacts/
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Documentation generee
+public/
+site/
+
+# Environnement local
+.env
+.env.local
+
+# Systeme et editeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

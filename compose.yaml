@@ -1,0 +1,176 @@
+---
+# Stack locale. Section 29 du cahier des charges.
+#
+# docker compose up ne lance aucun entrainement : le service training vit
+# derriere un profil et sa commande par defaut affiche l'aide du lanceur.
+#
+#   docker compose up -d backend mlflow postgres minio
+#   docker compose --profile training run --rm training -m src.experiments.run \
+#     --config configs/experiments/scratch_10.yaml
+#
+# Aucune valeur secrete n'est ecrite ici. Les mots de passe sont interpoles
+# depuis .env, copie de .env.example, et une variable absente arrete compose
+# avec le nom de la variable manquante plutot que de demarrer sur un defaut.
+
+name: syntra
+
+services:
+  # -------------------------------------------------------------------------
+  # Magasin de metadonnees de MLflow
+  # -------------------------------------------------------------------------
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?definir POSTGRES_USER dans .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-mlflow}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-mlflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    # Aucun port publie : seul mlflow parle a la base, et il est sur le reseau
+    # du projet. Publier 5432 exposerait la base a tout le poste.
+
+  # -------------------------------------------------------------------------
+  # Stockage objet des artefacts
+  # -------------------------------------------------------------------------
+  minio:
+    # MinIO ne publie pas de tag de version stable, seulement des tags de date.
+    # Le defaut n'est donc pas epingle ; MINIO_IMAGE doit porter un tag
+    # RELEASE.* avant tout deploiement. Voir docs/deployment.md.
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?definir MINIO_ROOT_USER dans .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?definir MINIO_ROOT_PASSWORD dans .env}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Creation du bucket d'artefacts, une fois, avant le serveur de tracking
+  # -------------------------------------------------------------------------
+  minio-init:
+    image: ${MC_IMAGE:-minio/mc:latest}
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?definir MINIO_ROOT_USER dans .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?definir MINIO_ROOT_PASSWORD dans .env}
+      MLFLOW_BUCKET: ${MLFLOW_BUCKET:-mlflow}
+    # Les doubles dollars laissent le shell du conteneur lire ses propres
+    # variables : les identifiants ne passent pas par la ligne de commande.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$$MLFLOW_BUCKET"
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  # Serveur de tracking
+  # -------------------------------------------------------------------------
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    image: ${MLFLOW_IMAGE_TAG:-syntra-mlflow:dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?definir MINIO_ROOT_USER dans .env}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?definir MINIO_ROOT_PASSWORD dans .env}
+    # --serve-artifacts : les clients passent par le serveur pour lire et ecrire
+    # leurs artefacts. Sans cette option, chaque client aurait besoin des
+    # identifiants MinIO, donc du secret, pour telecharger une figure.
+    command:
+      - --backend-store-uri=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mlflow}
+      - --serve-artifacts
+      - --artifacts-destination=s3://${MLFLOW_BUCKET:-mlflow}
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # API de service
+  # -------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        VCS_REF: ${VCS_REF:-unknown}
+    image: ${IMAGE_TAG:-syntra-backend:dev}
+    environment:
+      SYNTRA_ENVIRONMENT: ${SYNTRA_ENVIRONMENT:-local}
+      SYNTRA_LOG_LEVEL: ${SYNTRA_LOG_LEVEL:-INFO}
+      SYNTRA_LOG_JSON: "true"
+      SYNTRA_DOCS_ENABLED: ${SYNTRA_DOCS_ENABLED:-true}
+      SYNTRA_CORS_ORIGINS: ${SYNTRA_CORS_ORIGINS:-}
+      SYNTRA_REGISTRY_BACKEND: ${SYNTRA_REGISTRY_BACKEND:-local}
+      SYNTRA_MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      # Le registre est monte en lecture seule : l'instance sert des versions,
+      # elle n'en publie pas. Le repertoire est vide tant qu'aucun run n'a ete
+      # publie, et /ready repond alors 503.
+      - ./artifacts/registry:/srv/registry:ro
+      # Cache du tokenizer, partage avec l'entrainement. Les deux images ont le
+      # meme uid 10001, sinon le volume serait illisible pour l'une des deux.
+      - hf-cache:/var/cache/huggingface
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+    # Pas de depends_on sur mlflow : le registre par defaut est local, et une
+    # API qui attendrait une base dont elle n'a pas besoin ne demarrerait pas
+    # sur un poste ou seule l'API est lancee. La sonde de l'image suffit.
+
+  # -------------------------------------------------------------------------
+  # Chaine d'entrainement, a la demande
+  # -------------------------------------------------------------------------
+  training:
+    profiles: ["training"]
+    build:
+      context: .
+      dockerfile: docker/training.Dockerfile
+      args:
+        TORCH_INDEX: ${TORCH_INDEX:-https://download.pytorch.org/whl/cpu}
+        VCS_REF: ${VCS_REF:-unknown}
+    image: ${TRAINING_IMAGE_TAG:-syntra-training:dev}
+    depends_on:
+      mlflow:
+        condition: service_started
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./artifacts:/app/artifacts
+      - hf-cache:/var/cache/huggingface
+    # Aucun redemarrage : un entrainement qui echoue doit rester echoue. Le
+    # relancer en boucle brulerait un GPU sur une erreur de configuration.
+    restart: "no"
+
+volumes:
+  postgres-data:
+  minio-data:
+  hf-cache:

@@ -1,0 +1,28 @@
+[flake8]
+# Longueur alignee sur black (section 4 du cahier des charges).
+max-line-length = 100
+
+# E203 et W503 entrent en conflit avec le formatage de black.
+extend-ignore = E203, W503
+
+# Complexite cyclomatique : une fonction trop ramifiee doit etre decoupee.
+max-complexity = 12
+
+exclude =
+    .git,
+    .venv,
+    __pycache__,
+    build,
+    dist,
+    data,
+    reports,
+    site,
+    public
+
+per-file-ignores =
+    __init__.py:F401
+    tests/*:E501
+    backend/tests/*:E501
+
+count = True
+statistics = True

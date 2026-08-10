@@ -1,0 +1,25 @@
+---
+extends: substitution
+message: "Terminologie du projet : utiliser '%s' plutot que '%s'."
+level: error
+ignorecase: false
+swap:
+  # Un seul terme pour un concept (section 37.5).
+  "modele maison": "modele from scratch"
+  "modele fait main": "modele from scratch"
+  "modele custom": "modele from scratch"
+  "pre entraine": "pre-entraine"
+  # Casse coherente des noms propres.
+  "Pytorch": "PyTorch"
+  "pytorch": "PyTorch"
+  "Fastapi": "FastAPI"
+  "fastapi": "FastAPI"
+  "Github": "GitHub"
+  "github": "GitHub"
+  "Mlflow": "MLflow"
+  "mlflow": "MLflow"
+  "docker": "Docker"
+  "Hugging face": "Hugging Face"
+  "huggingface": "Hugging Face"
+  "Postgres": "PostgreSQL"
+  "postgresql": "PostgreSQL"

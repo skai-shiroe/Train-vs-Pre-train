@@ -1,0 +1,241 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "syntra"
+version = "0.1.0"
+description = "Backend NLP experimental de resume automatique, Transformer from scratch face a T5"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Syntra" }]
+keywords = ["nlp", "transformer", "summarization", "mlops", "fastapi"]
+
+# Dependances partagees par l'API et par la chaine d'entrainement.
+# Volontairement minimales : l'image backend ne doit pas embarquer l'outillage ML complet.
+dependencies = [
+  "pydantic>=2.9,<3.0",
+  "pydantic-settings>=2.5,<3.0",
+  "numpy>=1.26,<3.0",
+  "PyYAML>=6.0,<7.0",
+]
+
+[project.optional-dependencies]
+# Image backend : inference seulement.
+# rouge-score y figure parce que /compare de la section 24 renvoie un bloc
+# metrics des qu'une reference est fournie : sans lui l'endpoint leverait une
+# ImportError au premier appel.
+# starlette y figure alors que fastapi le tire deja : main.py et le middleware
+# l'importent directement, et une dependance directe se declare. L'image backend
+# n'installe que cet extra, donc un import non declare ne se verrait qu'au
+# demarrage du conteneur.
+# Le plancher torch est a 2.13 : GHSA-rrmf-rvhw-rf47 touche toute la serie
+# inferieure. Consequence pour le poste GPU, l'index CUDA du Makefile passe en
+# cu130, seul index a publier cette version. Voir docs/security.md.
+api = [
+  "fastapi>=0.115,<1.0",
+  "starlette>=0.40,<2.0",
+  "uvicorn[standard]>=0.32,<1.0",
+  "torch>=2.13,<3.0",
+  "transformers>=4.46,<5.0",
+  "sentencepiece>=0.2,<1.0",
+  "anyio>=4.6,<5.0",
+  "rouge-score>=0.1.2,<1.0",
+  "absl-py>=2.1,<3.0",
+  "nltk>=3.9,<4.0",
+]
+
+# Image d'entrainement : donnees, entrainement, evaluation, tracking.
+train = [
+  "torch>=2.13,<3.0",
+  "transformers>=4.46,<5.0",
+  "datasets>=3.0,<5.0",
+  "sentencepiece>=0.2,<1.0",
+  "rouge-score>=0.1.2,<1.0",
+  "absl-py>=2.1,<3.0",
+  "nltk>=3.9,<4.0",
+  "mlflow>=2.17,<4.0",
+  "pandas>=2.2,<3.0",
+  "matplotlib>=3.9,<4.0",
+  "tqdm>=4.66,<5.0",
+]
+
+dev = [
+  "black==26.5.1",
+  "flake8==7.1.1",
+  "ruff==0.8.4",
+  "mypy==1.13.0",
+  "bandit[toml]==1.8.0",
+  "pip-audit==2.7.3",
+  "codespell==2.3.0",
+  "yamllint==1.35.1",
+  "interrogate==1.7.0",
+  "pre-commit==4.0.1",
+  "detect-secrets==1.5.0",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "pytest-asyncio==1.4.0",
+  "httpx>=0.27,<1.0",
+  "types-PyYAML",
+  "types-requests",
+]
+
+# mkdocs-material est monte pour tirer pymdown-extensions 11 : la serie 10 porte
+# PYSEC-2026-3609 et GHSA-gm37-52c6-37mw, et rien d'autre ne contraint ce paquet.
+docs = [
+  "mkdocs==1.6.1",
+  "mkdocs-material==9.7.7",
+  "mkdocstrings[python]==1.0.6",
+]
+
+# Analyse exploratoire. Groupe separe du reste : le notebook lit le corpus deja
+# prepare et n'entre dans aucune image, donc rien en production ne doit tirer
+# une chaine Jupyter. Voir notebooks/01_eda_xsum.ipynb.
+eda = [
+  "jupyterlab==4.5.5",
+  "ipykernel==6.31.0",
+  "nbconvert==7.16.6",
+]
+
+[project.urls]
+Documentation = "https://example.github.io/syntra"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "backend*"]
+
+# ---------------------------------------------------------------------------
+# Formatage
+# ---------------------------------------------------------------------------
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+# ---------------------------------------------------------------------------
+# Linting complementaire (ruff). flake8 couvre PEP8, ruff couvre le reste.
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["data", "reports", ".venv"]
+
+[tool.ruff.lint]
+select = [
+  "F",    # pyflakes
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # bugbear
+  "C4",   # comprehensions
+  "SIM",  # simplifications
+  "RET",  # returns
+  "PTH",  # pathlib plutot que os.path
+  "ARG",  # arguments inutilises
+  "N",    # conventions de nommage
+  "D",    # docstrings
+]
+ignore = [
+  "D203",  # incompatible avec D211
+  "D213",  # incompatible avec D212
+  "N812",  # import torch.nn.functional as F : convention universelle de PyTorch
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ARG"]
+"backend/tests/**" = ["D", "ARG"]
+# Les callbacks implementent une interface fixe : un observateur qui n'utilise
+# pas l'etat de la boucle garde quand meme l'argument dans sa signature.
+"src/training/callbacks.py" = ["ARG002"]
+# Meme raison : NullTracker implemente le protocole Tracker et ignore la charge
+# utile par construction. C'est ce qui distingue "ne rien tracer" de "tracer".
+"src/tracking/client.py" = ["ARG002"]
+# Les deux raisons a la fois : NullLiveRun ignore ce qu'il recoit, et
+# LiveMetricsCallback est un observateur qui n'a pas besoin de tout l'etat.
+"src/tracking/live.py" = ["ARG002"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ---------------------------------------------------------------------------
+# Typage statique
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "backend/app"]
+strict = true
+warn_unreachable = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Ces bibliotheques n'exposent pas de stubs complets.
+module = [
+  "transformers.*",
+  "datasets.*",
+  "sacrebleu.*",
+  "rouge_score.*",
+  "mlflow.*",
+  "matplotlib.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests", "backend/tests"]
+addopts = "--strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "unit: test unitaire rapide et isole",
+  "integration: test d'integration entre deux composants",
+  "e2e: test de bout en bout sur l'API",
+  "smoke: test fonctionnel contre un environnement deploye",
+  "slow: test long, exclu des hooks pre-push",
+  "gpu: test necessitant un GPU CUDA",
+]
+filterwarnings = ["error::DeprecationWarning:src.*"]
+
+[tool.coverage.run]
+branch = true
+source = ["src", "backend/app"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]
+
+# ---------------------------------------------------------------------------
+# Securite statique
+# ---------------------------------------------------------------------------
+
+[tool.bandit]
+exclude_dirs = ["tests", "backend/tests", ".venv", "data", "reports"]
+
+# ---------------------------------------------------------------------------
+# Couverture de docstrings
+# ---------------------------------------------------------------------------
+
+[tool.interrogate]
+fail-under = 90
+exclude = ["tests", "backend/tests", "setup.py", ".venv", "data", "reports"]
+ignore-init-module = false
+ignore-magic = true
+ignore-private = false
+verbose = 1
