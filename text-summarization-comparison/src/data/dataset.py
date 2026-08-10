@@ -1,36 +1,51 @@
-"""
-Module des datasets PyTorch.
+﻿"""
+Module des datasets PyTorch pour le rsum automatique.
 
-Ce module contient les classes de datasets PyTorch pour l'entraînement
-et l'évaluation des modèles de résumé automatique.
+Ce module contient les classes de datasets PyTorch pour charger
+et manipuler les donnes tokenisres.
 """
 
 from typing import Dict, Any, Optional
 from pathlib import Path
 import logging
+import torch
+from datasets import load_from_disk
 
 logger = logging.getLogger(__name__)
 
 
-class SummarizationDataset:
-    """Dataset pour la tâche de résumé automatique."""
+class SummarizationDataset(torch.utils.data.Dataset):
+    """
+    Dataset PyTorch pour la tche de rsum automatique.
     
-    def __init__(self, config: Dict[str, Any], split: str = "train"):
+    Ce dataset charge les donnes tokenisres depuis HuggingFace Datasets
+    et les convertit en tenseurs PyTorch.
+    
+    Args:
+        data_path: Chemin vers le dossier parent (ex: notebooks/data)
+        split: Nom du split (ex: transformer/train_10 ou t5/train_50)
+    """
+    
+    def __init__(self, data_path: Path, split: str = "train"):
         """
-        Initialiser le dataset de résumé automatique.
+        Initialiser le dataset de rsum automatique.
         
         Args:
-            config: Configuration contenant les paramètres du dataset
-            split: Split du dataset (train, validation, test)
+            data_path: Chemin vers le dossier parent des donnes
+            split: Nom du split (ex: transformer/train_10)
         """
-        self.config = config
+        self.data_path = Path(data_path)
         self.split = split
-        self.max_input_length = config.get("max_input_length", 512)
-        self.max_target_length = config.get("max_target_length", 128)
         
-        # TODO: Charger le dataset
-        # self.dataset = load_dataset(...)
-        # self.tokenizer = load_tokenizer(...)
+        # Construire le chemin complet
+        self.full_path = self.data_path / split
+        
+        logger.info(f"Chargement du dataset depuis {self.full_path}...")
+        
+        # Charger le dataset HuggingFace
+        self.dataset = load_from_disk(str(self.full_path))
+        
+        logger.info(f"Dataset chargr: {len(self.dataset):,} exemples")
         
     def __len__(self) -> int:
         """
@@ -38,56 +53,40 @@ class SummarizationDataset:
         
         Returns:
             Nombre d'exemples dans le dataset
-            
-        TODO: Implémenter la longueur du dataset
         """
-        pass
+        return len(self.dataset)
     
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-        Récupérer un exemple du dataset.
+        Rcupérer un exemple du dataset.
         
         Args:
             idx: Index de l'exemple
             
         Returns:
             Dictionnaire contenant input_ids, attention_mask, labels
-            
-        TODO: Implémenter la récupération d'un exemple
+            en tenseurs PyTorch
         """
-        # Récupérer l'article et le résumé
-        # Tokenizer l'article et le résumé
-        # Retourner un dictionnaire avec les tokens
-        pass
+        # Rcupurer l'exemple
+        example = self.dataset[idx]
+        
+        # Convertir en tenseurs PyTorch
+        return {
+            'input_ids': torch.tensor(example['input_ids'], dtype=torch.long),
+            'attention_mask': torch.tensor(example['attention_mask'], dtype=torch.long),
+            'labels': torch.tensor(example['labels'], dtype=torch.long)
+        }
 
 
-class DataCollatorForSummarization:
-    """Collateur de données pour le résumé automatique."""
+def load_dataset(data_path: Path, split: str = "train") -> SummarizationDataset:
+    """
+    Fonction utilitaire pour charger un dataset.
     
-    def __init__(self, tokenizer: Any, config: Dict[str, Any]):
-        """
-        Initialiser le collateur de données.
+    Args:
+        data_path: Chemin vers le dossier parent des donnes
+        split: Nom du split (ex: transformer/train_10)
         
-        Args:
-            tokenizer: Tokenizer à utiliser
-            config: Configuration contenant les paramètres
-        """
-        self.tokenizer = tokenizer
-        self.config = config
-        
-    def __call__(self, batch: list) -> Dict[str, Any]:
-        """
-        Collater un batch de données.
-        
-        Args:
-            batch: Liste d'exemples
-            
-        Returns:
-            Batch collaté
-            
-        TODO: Implémenter le collationnement du batch
-        """
-        # Combiner les exemples en un batch
-        # Padding dynamique
-        # Retourner le batch formaté
-        pass
+    Returns:
+        Instance de SummarizationDataset
+    """
+    return SummarizationDataset(data_path, split)

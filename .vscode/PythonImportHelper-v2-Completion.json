@@ -89,6 +89,14 @@
         "documentation": {}
     },
     {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
         "label": "Dict",
         "importPath": "typing",
         "description": "typing",
@@ -257,6 +265,30 @@
         "documentation": {}
     },
     {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Optional",
         "importPath": "typing",
         "description": "typing",
@@ -306,14 +338,6 @@
     },
     {
         "label": "Optional",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Tuple",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -426,70 +450,6 @@
     },
     {
         "label": "List",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Dict",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Any",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "List",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Optional",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Dict",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Any",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "List",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Optional",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -673,23 +633,7 @@
         "documentation": {}
     },
     {
-        "label": "Optional",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Dict",
-        "importPath": "typing",
-        "description": "typing",
-        "isExtraImport": true,
-        "detail": "typing",
-        "documentation": {}
-    },
-    {
-        "label": "Any",
+        "label": "List",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -817,6 +761,86 @@
         "documentation": {}
     },
     {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Optional",
         "importPath": "typing",
         "description": "typing",
@@ -966,6 +990,23 @@
         "description": "typing",
         "isExtraImport": true,
         "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
+        "label": "create_dataloader",
+        "importPath": "src.data",
+        "description": "src.data",
+        "isExtraImport": true,
+        "detail": "src.data",
         "documentation": {}
     },
     {
@@ -975,6 +1016,31 @@
         "importPath": "logging",
         "description": "logging",
         "detail": "logging",
+        "documentation": {}
+    },
+    {
+        "label": "torch",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "torch",
+        "description": "torch",
+        "detail": "torch",
+        "documentation": {}
+    },
+    {
+        "label": "load_from_disk",
+        "importPath": "datasets",
+        "description": "datasets",
+        "isExtraImport": true,
+        "detail": "datasets",
+        "documentation": {}
+    },
+    {
+        "label": "DataLoader",
+        "importPath": "torch.utils.data",
+        "description": "torch.utils.data",
+        "isExtraImport": true,
+        "detail": "torch.utils.data",
         "documentation": {}
     },
     {
@@ -1029,15 +1095,6 @@
         "importPath": "json",
         "description": "json",
         "detail": "json",
-        "documentation": {}
-    },
-    {
-        "label": "torch",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "torch",
-        "description": "torch",
-        "detail": "torch",
         "documentation": {}
     },
     {
@@ -1131,6 +1188,33 @@
         "documentation": {}
     },
     {
+        "label": "BASE_PATH",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.scripts.test_dataloaders",
+        "description": "text-summarization-comparison.scripts.test_dataloaders",
+        "peekOfCode": "BASE_PATH = Path(__file__).parent.parent / \"notebooks\" / \"data\" / \"processed\"\nprint(\"=\" * 70)\nprint(\" TEST DATALOADER: TRANSFORMER | train_10\")\nprint(\"=\" * 70)\n# Creer le DataLoader\ndataloader = create_dataloader(\n    data_path=BASE_PATH,\n    split=\"transformer/train_10\",\n    model_type=\"transformer\",\n    batch_size=8,",
+        "detail": "text-summarization-comparison.scripts.test_dataloaders",
+        "documentation": {}
+    },
+    {
+        "label": "dataloader",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.scripts.test_dataloaders",
+        "description": "text-summarization-comparison.scripts.test_dataloaders",
+        "peekOfCode": "dataloader = create_dataloader(\n    data_path=BASE_PATH,\n    split=\"transformer/train_10\",\n    model_type=\"transformer\",\n    batch_size=8,\n    shuffle=True,\n    num_workers=0\n)\nprint(f\"\\nDataLoader cree: {len(dataloader)} batches\")\nprint(f\"\\n1. INFORMATIONS:\")",
+        "detail": "text-summarization-comparison.scripts.test_dataloaders",
+        "documentation": {}
+    },
+    {
+        "label": "batch",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.scripts.test_dataloaders",
+        "description": "text-summarization-comparison.scripts.test_dataloaders",
+        "peekOfCode": "batch = next(iter(dataloader))\nprint(f\"   • input_ids shape: {batch['input_ids'].shape}\")\nprint(f\"   • attention_mask shape: {batch['attention_mask'].shape}\")\nprint(f\"   • labels shape: {batch['labels'].shape}\")\nprint(f\"\\n3. VERIFICATION DES TYPES:\")\nprint(f\"   • input_ids dtype: {batch['input_ids'].dtype}\")\nprint(f\"   • attention_mask dtype: {batch['attention_mask'].dtype}\")\nprint(f\"   • labels dtype: {batch['labels'].dtype}\")\nprint(f\"\\n4. EXEMPLES DU PREMIER BATCH:\")\nfor i in range(min(3, 8)):",
+        "detail": "text-summarization-comparison.scripts.test_dataloaders",
+        "documentation": {}
+    },
+    {
         "label": "main",
         "kind": 2,
         "importPath": "text-summarization-comparison.scripts.train_t5",
@@ -1149,20 +1233,56 @@
         "documentation": {}
     },
     {
+        "label": "transformer_collator",
+        "kind": 2,
+        "importPath": "text-summarization-comparison.src.data.collator",
+        "description": "text-summarization-comparison.src.data.collator",
+        "peekOfCode": "def transformer_collator(batch: List[Dict[str, Any]], pad_token_id: int = 0) -> Dict[str, torch.Tensor]:\n    \"\"\"\n    Collator personnalisr pour le Transformer from scratch (SentencePiece).\n    Args:\n        batch: Liste d'exemples (chaque exemple est un dict avec input_ids, attention_mask, labels)\n        pad_token_id: ID du token de padding (0 pour SentencePiece)\n    Returns:\n        Batch collatr avec padding dynamique\n    \"\"\"\n    # Sparer les champs et convertir en listes si nressaire",
+        "detail": "text-summarization-comparison.src.data.collator",
+        "documentation": {}
+    },
+    {
+        "label": "t5_collator",
+        "kind": 2,
+        "importPath": "text-summarization-comparison.src.data.collator",
+        "description": "text-summarization-comparison.src.data.collator",
+        "peekOfCode": "def t5_collator(batch: List[Dict[str, Any]], pad_token_id: int = 0) -> Dict[str, torch.Tensor]:\n    \"\"\"\n    Collator pour T5.\n    Args:\n        batch: Liste d'exemples\n        pad_token_id: ID du token de padding\n    Returns:\n        Batch collatr avec padding dynamique\n    \"\"\"\n    # Meme logique que transformer_collator",
+        "detail": "text-summarization-comparison.src.data.collator",
+        "documentation": {}
+    },
+    {
+        "label": "create_collator",
+        "kind": 2,
+        "importPath": "text-summarization-comparison.src.data.collator",
+        "description": "text-summarization-comparison.src.data.collator",
+        "peekOfCode": "def create_collator(model_type: str = \"transformer\", pad_token_id: int = 0):\n    \"\"\"\n    Fabrique de collator selon le type de modrle.\n    Args:\n        model_type: Type de modrle (\"transformer\" ou \"t5\")\n        pad_token_id: ID du token de padding\n    Returns:\n        Fonction de collation appropriee\n    \"\"\"\n    if model_type == \"transformer\":",
+        "detail": "text-summarization-comparison.src.data.collator",
+        "documentation": {}
+    },
+    {
+        "label": "logger",
+        "kind": 5,
+        "importPath": "text-summarization-comparison.src.data.collator",
+        "description": "text-summarization-comparison.src.data.collator",
+        "peekOfCode": "logger = logging.getLogger(__name__)\ndef transformer_collator(batch: List[Dict[str, Any]], pad_token_id: int = 0) -> Dict[str, torch.Tensor]:\n    \"\"\"\n    Collator personnalisr pour le Transformer from scratch (SentencePiece).\n    Args:\n        batch: Liste d'exemples (chaque exemple est un dict avec input_ids, attention_mask, labels)\n        pad_token_id: ID du token de padding (0 pour SentencePiece)\n    Returns:\n        Batch collatr avec padding dynamique\n    \"\"\"",
+        "detail": "text-summarization-comparison.src.data.collator",
+        "documentation": {}
+    },
+    {
         "label": "SummarizationDataset",
         "kind": 6,
         "importPath": "text-summarization-comparison.src.data.dataset",
         "description": "text-summarization-comparison.src.data.dataset",
-        "peekOfCode": "class SummarizationDataset:\n    \"\"\"Dataset pour la tâche de résumé automatique.\"\"\"\n    def __init__(self, config: Dict[str, Any], split: str = \"train\"):\n        \"\"\"\n        Initialiser le dataset de résumé automatique.\n        Args:\n            config: Configuration contenant les paramètres du dataset\n            split: Split du dataset (train, validation, test)\n        \"\"\"\n        self.config = config",
+        "peekOfCode": "class SummarizationDataset(torch.utils.data.Dataset):\n    \"\"\"\n    Dataset PyTorch pour la tche de rsum automatique.\n    Ce dataset charge les donnes tokenisres depuis HuggingFace Datasets\n    et les convertit en tenseurs PyTorch.\n    Args:\n        data_path: Chemin vers le dossier parent (ex: notebooks/data)\n        split: Nom du split (ex: transformer/train_10 ou t5/train_50)\n    \"\"\"\n    def __init__(self, data_path: Path, split: str = \"train\"):",
         "detail": "text-summarization-comparison.src.data.dataset",
         "documentation": {}
     },
     {
-        "label": "DataCollatorForSummarization",
-        "kind": 6,
+        "label": "load_dataset",
+        "kind": 2,
         "importPath": "text-summarization-comparison.src.data.dataset",
         "description": "text-summarization-comparison.src.data.dataset",
-        "peekOfCode": "class DataCollatorForSummarization:\n    \"\"\"Collateur de données pour le résumé automatique.\"\"\"\n    def __init__(self, tokenizer: Any, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le collateur de données.\n        Args:\n            tokenizer: Tokenizer à utiliser\n            config: Configuration contenant les paramètres\n        \"\"\"\n        self.tokenizer = tokenizer",
+        "peekOfCode": "def load_dataset(data_path: Path, split: str = \"train\") -> SummarizationDataset:\n    \"\"\"\n    Fonction utilitaire pour charger un dataset.\n    Args:\n        data_path: Chemin vers le dossier parent des donnes\n        split: Nom du split (ex: transformer/train_10)\n    Returns:\n        Instance de SummarizationDataset\n    \"\"\"\n    return SummarizationDataset(data_path, split)",
         "detail": "text-summarization-comparison.src.data.dataset",
         "documentation": {}
     },
@@ -1171,7 +1291,7 @@
         "kind": 5,
         "importPath": "text-summarization-comparison.src.data.dataset",
         "description": "text-summarization-comparison.src.data.dataset",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nclass SummarizationDataset:\n    \"\"\"Dataset pour la tâche de résumé automatique.\"\"\"\n    def __init__(self, config: Dict[str, Any], split: str = \"train\"):\n        \"\"\"\n        Initialiser le dataset de résumé automatique.\n        Args:\n            config: Configuration contenant les paramètres du dataset\n            split: Split du dataset (train, validation, test)\n        \"\"\"",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nclass SummarizationDataset(torch.utils.data.Dataset):\n    \"\"\"\n    Dataset PyTorch pour la tche de rsum automatique.\n    Ce dataset charge les donnes tokenisres depuis HuggingFace Datasets\n    et les convertit en tenseurs PyTorch.\n    Args:\n        data_path: Chemin vers le dossier parent (ex: notebooks/data)\n        split: Nom du split (ex: transformer/train_10 ou t5/train_50)\n    \"\"\"",
         "detail": "text-summarization-comparison.src.data.dataset",
         "documentation": {}
     },
@@ -1194,11 +1314,20 @@
         "documentation": {}
     },
     {
-        "label": "DataLoader",
-        "kind": 6,
+        "label": "create_dataloader",
+        "kind": 2,
         "importPath": "text-summarization-comparison.src.data.loader",
         "description": "text-summarization-comparison.src.data.loader",
-        "peekOfCode": "class DataLoader:\n    \"\"\"Classe pour charger les datasets.\"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le chargeur de données.\n        Args:\n            config: Configuration contenant les paramètres de chargement\n        \"\"\"\n        self.config = config\n        self.data_raw_path = Path(config.get(\"data_raw\", \"data/raw\"))",
+        "peekOfCode": "def create_dataloader(\n    data_path: Path,\n    split: str = \"train\",\n    model_type: str = \"transformer\",\n    batch_size: int = 8,\n    shuffle: bool = True,\n    num_workers: int = 0,\n    pad_token_id: int = 0\n) -> DataLoader:\n    \"\"\"",
+        "detail": "text-summarization-comparison.src.data.loader",
+        "documentation": {}
+    },
+    {
+        "label": "create_dataloaders",
+        "kind": 2,
+        "importPath": "text-summarization-comparison.src.data.loader",
+        "description": "text-summarization-comparison.src.data.loader",
+        "peekOfCode": "def create_dataloaders(\n    data_path: Path,\n    model_type: str = \"transformer\",\n    batch_size: int = 8,\n    num_workers: int = 0,\n    pad_token_id: int = 0\n) -> Dict[str, DataLoader]:\n    \"\"\"\n    Créer tous les DataLoaders (train, validation, test).\n    Args:",
         "detail": "text-summarization-comparison.src.data.loader",
         "documentation": {}
     },
@@ -1207,7 +1336,7 @@
         "kind": 5,
         "importPath": "text-summarization-comparison.src.data.loader",
         "description": "text-summarization-comparison.src.data.loader",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nclass DataLoader:\n    \"\"\"Classe pour charger les datasets.\"\"\"\n    def __init__(self, config: Dict[str, Any]):\n        \"\"\"\n        Initialiser le chargeur de données.\n        Args:\n            config: Configuration contenant les paramètres de chargement\n        \"\"\"\n        self.config = config",
+        "peekOfCode": "logger = logging.getLogger(__name__)\ndef create_dataloader(\n    data_path: Path,\n    split: str = \"train\",\n    model_type: str = \"transformer\",\n    batch_size: int = 8,\n    shuffle: bool = True,\n    num_workers: int = 0,\n    pad_token_id: int = 0\n) -> DataLoader:",
         "detail": "text-summarization-comparison.src.data.loader",
         "documentation": {}
     },
