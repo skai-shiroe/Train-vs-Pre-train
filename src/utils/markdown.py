@@ -1,15 +1,15 @@
-"""Markdown rendering shared by the generators of the documentation.
+"""Markdown rendering shared by the table generators.
 
-Two modules emit tables into ``docs/_generated``, and they read different
+Two modules emit tables into ``reports/_generated``, and they read different
 records. :mod:`src.experiments.fragments` reads the run records a campaign
 wrote; :mod:`src.data.fragments` reads the corpus record ``python -m
 src.data.build`` wrote beside the frozen corpus. What they have in common is
-not what they measure, it is how a measurement reaches a page.
+not what they measure, it is how a measurement reaches a table.
 
 That part lives here rather than in a copy on each side. A thousands separator,
 the banner marking a file as generated, and the comparison deciding whether a
 fragment on disk is stale are not two decisions that happen to agree. Two
-spellings of twenty thousand on two pages of one site is the defect the
+spellings of twenty thousand in two tables read side by side is the defect the
 generators exist to remove, and reintroducing it one level below them would be
 a strange place to stop caring.
 
@@ -32,11 +32,10 @@ from pathlib import Path
 #: forbids presenting a missing result as a measured one.
 MISSING = ""
 
-#: Where the fragments go, for every generator. Under ``docs`` so that
-#: ``pymdownx.snippets`` reaches them with a path relative to the documentation
-#: root, and under a name starting with an underscore so the directory reads as
-#: generated. MkDocs is told to exclude it: these files are includes, not pages.
-FRAGMENTS_DIR = Path("docs") / "_generated"
+#: Where the fragments go, for every generator. Beside the records they are
+#: rendered from, under a name starting with an underscore so the directory
+#: reads as generated rather than written.
+FRAGMENTS_DIR = Path("reports") / "_generated"
 
 
 def banner(command: str) -> str:

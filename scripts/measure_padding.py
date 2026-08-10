@@ -17,7 +17,7 @@ Run it against the frozen corpus:
 python -m scripts.measure_padding --processed-dir data/processed/xsum
 ```
 
-The figures quoted in ``docs/ml/training.md`` come from this command. Nothing
+The padding figures behind the batching decision come from this command. Nothing
 in the table is typed by hand.
 """
 

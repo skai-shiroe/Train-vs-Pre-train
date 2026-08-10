@@ -1,19 +1,22 @@
 """Detect drift between the code and the artifacts derived from it.
 
-Section 38.4 of the specification states that a wrong documentation is worse
+Section 38.4 of the specification states that a wrong derived artefact is worse
 than a missing one, and that the synchronisation must be checked mechanically.
 
 Checks performed:
 
 1. ``.env.example`` exposes exactly the fields declared by ``Settings``.
-2. ``docs/api/openapi.json`` and ``docs/api/syntra.postman_environment.json``
+2. ``backend/openapi.json`` and ``backend/syntra.postman_environment.json``
    match what the FastAPI application and its settings regenerate.
-3. ``docs/_generated`` and the marked region of ``README.md`` match what the
-   run records produce, which is what keeps a page from stating the scores of
+3. ``reports/_generated`` and the marked region of ``README.md`` match what the
+   run records produce, which is what keeps a table from stating the scores of
    the previous campaign.
-4. The generated tables of the corpus page match what ``make data`` wrote
-   beside the corpus, which is what keeps that page from describing the
-   previous build.
+4. The generated tables of the corpus match what ``make data`` wrote beside the
+   corpus, which is what keeps them from describing the previous build.
+
+``RAPPORT.md`` is not covered: its numbers are written into its prose by hand
+and re-read against ``reports/results/experiments.csv``, which no check here
+does.
 
 A check whose target does not exist yet is reported as ``PENDING`` and does not
 fail the run. It is never reported as passing: section 44 forbids presenting a
@@ -31,12 +34,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
-OPENAPI_REFERENCE = REPO_ROOT / "docs" / "api" / "openapi.json"
-POSTMAN_ENVIRONMENT = REPO_ROOT / "docs" / "api" / "syntra.postman_environment.json"
+OPENAPI_REFERENCE = REPO_ROOT / "backend" / "openapi.json"
+POSTMAN_ENVIRONMENT = REPO_ROOT / "backend" / "syntra.postman_environment.json"
 EXPORT_SCRIPT = REPO_ROOT / "scripts" / "export_openapi.py"
 FRAGMENTS_MODULE = REPO_ROOT / "src" / "experiments" / "fragments.py"
 CORPUS_FRAGMENTS_MODULE = REPO_ROOT / "src" / "data" / "fragments.py"
-FRAGMENTS_DIR = REPO_ROOT / "docs" / "_generated"
+FRAGMENTS_DIR = REPO_ROOT / "reports" / "_generated"
 EXPERIMENTS_DIR = REPO_ROOT / "configs" / "experiments"
 RESULTS_DIR = REPO_ROOT / "reports" / "results"
 PROCESSED_DIR = REPO_ROOT / "data" / "processed" / "xsum"
@@ -118,7 +121,7 @@ def check_openapi_freshness() -> tuple[str, str]:
         if not path.is_file()
     ]
     if missing:
-        return FAILED, f"{', '.join(missing)} missing, run: make docs-sync"
+        return FAILED, f"{', '.join(missing)} missing, run: make api-sync"
 
     with tempfile.TemporaryDirectory() as tmp:
         generated_document = Path(tmp) / "openapi.json"
@@ -152,11 +155,11 @@ def check_openapi_freshness() -> tuple[str, str]:
 
     if not stale_files:
         return OK, "openapi.json and the Postman environment match the application."
-    return FAILED, f"{', '.join(stale_files)} stale, run: make docs-sync"
+    return FAILED, f"{', '.join(stale_files)} stale, run: make api-sync"
 
 
 def check_report_freshness() -> tuple[str, str]:
-    """Compare the fragments the report includes with the run records.
+    """Compare the generated campaign tables with the run records.
 
     The records are deliberately not versioned: section 17 keeps
     ``reports/results`` out of git and publishes it as a pipeline artefact. So
@@ -164,8 +167,8 @@ def check_report_freshness() -> tuple[str, str]:
     which is also the only machine where a stale fragment can be produced.
     Anywhere else it reports ``PENDING`` rather than passing over an empty
     directory: a comparison with nothing to compare must not read as a match,
-    and regenerating from no records at all would rewrite every table of the
-    report as an unrun experiment.
+    and regenerating from no records at all would rewrite every generated table
+    as an unrun experiment.
 
     Returns:
         A ``(status, message)`` pair.
@@ -198,7 +201,7 @@ def check_report_freshness() -> tuple[str, str]:
 
 
 def check_corpus_freshness() -> tuple[str, str]:
-    """Compare the fragments the corpus page includes with the corpus record.
+    """Compare the generated corpus tables with the corpus record.
 
     The corpus is no more versioned than the run records are: ``.gitignore``
     keeps ``data/`` out of the repository and ``make data`` rebuilds it from the
@@ -239,8 +242,8 @@ def main() -> int:
     checks = {
         "settings vs .env.example": check_settings_parity,
         "OpenAPI and Postman vs application": check_openapi_freshness,
-        "report vs run records": check_report_freshness,
-        "corpus page vs corpus record": check_corpus_freshness,
+        "generated tables vs run records": check_report_freshness,
+        "corpus tables vs corpus record": check_corpus_freshness,
     }
 
     failed = 0

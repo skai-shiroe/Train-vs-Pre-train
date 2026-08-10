@@ -104,8 +104,7 @@ backend/app/     application FastAPI : api, core, schemas, services, inference, 
 src/             code de recherche : data, models, training, evaluation, experiments, metrics, tracking, utils
 configs/         configuration des données, des modèles, de l'entraînement et des expériences
 data/            corpus, versionné par DVC et non par git
-reports/         résultats et figures produits automatiquement
-docs/            documentation publiée sur GitHub Pages, rapport compris
+reports/         résultats, tableaux et figures produits automatiquement
 notebooks/       vérification de l'environnement et analyse exploratoire du corpus
 scripts/         outils de contrôle et d'export
 tests/           tests unitaires, d'intégration, de bout en bout et smoke
@@ -153,7 +152,7 @@ deploy/          déploiement conteneurisé
 | `make train-pretrained` | Fine-tune T5 sur 100 % du corpus |
 | `make evaluate` | Évalue tous les modèles sur le jeu de test commun |
 | `make ablation` | Rejoue les ablations taille de corpus et architecture |
-| `make figures` | Trace les quatre figures de la section 18 |
+| `make figures` | Trace les quatre figures dans `reports/figures` |
 | `make reproduce MODE=quick` | Vérifie la chaîne complète sur un budget plafonné, sans produire de résultat |
 | `make reproduce MODE=full` | Rejoue la chaîne scientifique complète |
 | `make mlflow-ui` | Sert l'interface MLflow du magasin local sur <http://localhost:5000> |
@@ -180,19 +179,18 @@ Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-t
 | `make docker-train CONFIG=...` | Lance un entraînement dans la stack |
 | `make docker-down` | Arrête la stack locale |
 
-La stack locale demande un fichier `.env` : `cp .env.example .env`. Les trois images, les ports publiés et ce qui est vérifié sans Docker sont décrits dans [la documentation de déploiement](docs/deployment.md).
+La stack locale demande un fichier `.env` : `cp .env.example .env`. Les trois images et les ports publiés sont décrits dans `compose.yaml` et `deploy/`.
 
-L'API expose `/api/v1` : `health`, `ready`, `models`, `predict` et `compare`. Le contrat est décrit dans [la documentation de l'API](docs/api/index.md) et versionné dans `docs/api/openapi.json`, régénéré par `make docs-sync`.
+L'API expose `/api/v1` : `health`, `ready`, `models`, `predict` et `compare`. Le contrat est versionné dans `backend/openapi.json`, régénéré par `make api-sync`, et servi sur `/docs` quand l'API tourne.
 
-### Documentation et déploiement
+### Artefacts dérivés et déploiement
 
 | Cible | Effet |
 | --- | --- |
-| `make docs-sync` | Régénère les contenus dérivés du code |
-| `make report-sync` | Régénère les tableaux du rapport depuis les enregistrements de runs |
-| `make docs-lint` | Orthographe, Markdown et contrôle de synchronisation |
-| `make docs` | Construit le site en mode strict |
-| `make docs-serve` | Sert la documentation en local |
+| `make api-sync` | Régénère le contrat d'API et l'environnement Postman |
+| `make report-sync` | Régénère les tableaux de résultats depuis les enregistrements de runs |
+| `make corpus-sync` | Régénère les tableaux du corpus depuis le manifeste |
+| `make report-lint` | Orthographe, Markdown et contrôle de synchronisation |
 | `make deploy` | Déploie l'image taggée |
 
 ### Agrégats
@@ -204,7 +202,7 @@ L'API expose `/api/v1` : `health`, `ready`, `models`, `predict` et `compare`. Le
 
 ## Intégrité scientifique
 
-Aucune expérience n'a été exécutée à ce jour. Aucun résultat n'est publié.
+Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Aucun chiffre n'est saisi à la main : les tableaux sont générés depuis les enregistrements de runs par `make report-sync`.
 
 Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Une valeur factice ne devient jamais un résultat scientifique.
 
@@ -222,13 +220,13 @@ Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples
 | 14 | API FastAPI | Fait, `champion` et `challenger` servis |
 | 15 | Docker et scan Trivy | Écrit, aucune image construite |
 | 16 et 17 | CI/CD GitHub Actions, déploiement | Pipeline écrit et validé localement, jamais exécuté sur un runner ; déploiement à faire |
-| 18 | Documentation et GitHub Pages | En cours |
+| 18 | Rapport | Fait, `RAPPORT.md` |
 
 Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compris. Le mode `quick` a été joué de bout en bout sur ce poste le 9 août 2026 : cinq étapes, 51 secondes, neuf enregistrements `PARTIAL` écrits sous `reports/quick/` et aucun fichier touché hors de ce répertoire. Le mode `full` rejoue la campagne réelle.
 
 ## Résultats
 
-Les neuf expériences ont tourné le 8 août 2026, sur GPU NVIDIA GeForce RTX 5060 portable, pour 127 minutes de calcul cumulé. Toutes portent le statut `OK`.
+Les neuf expériences ont tourné le 8 août 2026, sur GPU NVIDIA GeForce RTX 5060 portable, pour 125 minutes de calcul cumulé. Toutes portent le statut `OK`.
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
@@ -244,19 +242,17 @@ Les neuf expériences ont tourné le 8 août 2026, sur GPU NVIDIA GeForce RTX 50
 | from scratch | 10 % | 0,1250 | [0,1207, 0,1293] |
 <!-- syntra:end headline -->
 
-Le modèle pré-entraîné fine-tuné sur 2 000 exemples devance le Transformer from scratch entraîné sur 20 000, et l'écart entre les deux familles reste stable autour de 40 % sur toute la plage. L'ablation d'architecture, elle, ne montre aucun gain à augmenter la profondeur.
+Le modèle pré-entraîné fine-tuné sur 2 000 exemples devance le Transformer from scratch entraîné sur 20 000, et l'écart absolu entre les deux familles grandit au lieu de se réduire quand le corpus augmente. L'ablation d'architecture, elle, ne montre aucun gain à augmenter la profondeur.
 
-Ces chiffres sont reproductibles par un tiers : les quatre mesures `t5-small` ont été refaites sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`. Voir [Conformité aux requirements](docs/conformity.md).
+Ces chiffres sont reproductibles par un tiers : les quatre mesures `t5-small` ont été refaites sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`.
 
 ## Documentation
 
-Le [rapport](docs/report.md) est le document à lire en premier : il présente l'architecture du Transformer from scratch, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
+Le [rapport](RAPPORT.md) est le document à lire, et le seul : il présente le corpus, l'architecture du Transformer from scratch, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
 
-L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_xsum.ipynb`, dont les conclusions durables sont recopiées sur la page [Corpus](docs/ml/data.md). Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
+L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_xsum.ipynb`. Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
 
-Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi. Il est décrit sur la page [Reproductibilité](docs/reproducibility.md).
-
-La documentation complète se construit avec `make docs` et se consulte avec `make docs-serve`. Elle couvre la reproductibilité, les tests, la sécurité, la contribution et le glossaire terminologique.
+Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi.
 
 ## Rédaction
 

@@ -1,4 +1,4 @@
-"""Unit tests of the report freshness check.
+"""Unit tests of the generated table freshness check.
 
 The check is the reason the fragments are worth writing: without it a stale
 table is only a convention nobody enforces. What it must never do is pass. It
@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 import yaml
 
-from scripts.check_docs_sync import FAILED, OK, PENDING, check_report_freshness
+from scripts.check_sync import FAILED, OK, PENDING, check_report_freshness
 from src.experiments.fragments import (
     HEADLINE_REGION,
     REGION_BEGIN,
@@ -93,10 +93,10 @@ def campaign(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     declare(configs, "a_run")
     write_record(record("a_run"), run_directory(results, "a_run"))
 
-    monkeypatch.setattr("scripts.check_docs_sync.EXPERIMENTS_DIR", configs)
-    monkeypatch.setattr("scripts.check_docs_sync.RESULTS_DIR", results)
-    monkeypatch.setattr("scripts.check_docs_sync.FRAGMENTS_DIR", fragments)
-    monkeypatch.setattr("scripts.check_docs_sync.README", readme_at(tmp_path))
+    monkeypatch.setattr("scripts.check_sync.EXPERIMENTS_DIR", configs)
+    monkeypatch.setattr("scripts.check_sync.RESULTS_DIR", results)
+    monkeypatch.setattr("scripts.check_sync.FRAGMENTS_DIR", fragments)
+    monkeypatch.setattr("scripts.check_sync.README", readme_at(tmp_path))
     return fragments
 
 
@@ -108,8 +108,8 @@ def test_a_machine_without_records_reports_pending_never_ok(
     # regenerating would rewrite every table of the report as NOT_RUN.
     configs, results = tmp_path / "configs", tmp_path / "results"
     declare(configs, "a_run")
-    monkeypatch.setattr("scripts.check_docs_sync.EXPERIMENTS_DIR", configs)
-    monkeypatch.setattr("scripts.check_docs_sync.RESULTS_DIR", results)
+    monkeypatch.setattr("scripts.check_sync.EXPERIMENTS_DIR", configs)
+    monkeypatch.setattr("scripts.check_sync.RESULTS_DIR", results)
 
     status, message = check_report_freshness()
 
@@ -126,7 +126,7 @@ def test_fragments_matching_the_records_pass(campaign: Path) -> None:
     assert "10 generated tables" in message
 
 
-def test_a_page_whose_table_was_retyped_fails(campaign: Path) -> None:
+def test_a_file_whose_table_was_retyped_fails(campaign: Path) -> None:
     # The README is compared like a fragment even though it is injected rather
     # than included: it is the one page nothing else would catch, because
     # MkDocs never builds it and no strict mode ever sees it.
@@ -166,7 +166,7 @@ def test_runs_measured_differently_fail_the_check(
     configs, results = campaign.parent / "configs", campaign.parent / "results"
     declare(configs, "b_run")
     write_record(record("b_run", beams=1), run_directory(results, "b_run"))
-    monkeypatch.setattr("scripts.check_docs_sync.EXPERIMENTS_DIR", configs)
+    monkeypatch.setattr("scripts.check_sync.EXPERIMENTS_DIR", configs)
 
     status, message = check_report_freshness()
 

@@ -39,7 +39,7 @@ TORCH_CPU_INDEX ?= https://download.pytorch.org/whl/cpu
 GIT_REF := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 # Vulnerabilites connues, tracees et acceptees. Chaque identifiant doit etre
-# justifie dans docs/security.md : une entree sans justification est une
+# justifie dans le commit qui l'ajoute : une entree sans justification est une
 # vulnerabilite masquee, pas une vulnerabilite traitee. La liste se relit a
 # chaque montee de transformers.
 AUDIT_IGNORES := --ignore-vuln PYSEC-2025-217 \
@@ -54,7 +54,7 @@ AUDIT_IGNORES := --ignore-vuln PYSEC-2025-217 \
         data train-scratch train-pretrained evaluate ablation figures mlflow-ui \
         api docker-build docker-build-training docker-size docker-scan \
         docker-up docker-down docker-train \
-        docs docs-lint docs-sync docs-serve report-sync corpus-sync deploy ci reproduce clean
+        api-sync report-sync report-lint corpus-sync deploy ci reproduce clean
 
 help: ## Affiche les cibles disponibles
 	@echo "Cibles disponibles :"
@@ -68,7 +68,7 @@ help: ## Affiche les cibles disponibles
 install: ## Installe les dependances et pose les hooks
 	$(PIP) install --upgrade pip
 	$(PIP) install "torch>=2.13,<3.0" --index-url $(TORCH_INDEX)
-	$(PIP) install -e ".[api,train,dev,docs]"
+	$(PIP) install -e ".[api,train,dev]"
 	$(MAKE) hooks
 
 hooks: ## Installe les hooks pre-commit, commit-msg et pre-push
@@ -92,14 +92,14 @@ lint: ## Verifie le formatage et le style, sans rien modifier
 	$(PY) scripts/check_dashes.py $$(git ls-files '*.py' '*.md' '*.yml' '*.yaml' '*.toml')
 
 spell: ## Verifie l'orthographe avec codespell
-	$(PY) -m codespell_lib src backend docs scripts README.md \
+	$(PY) -m codespell_lib src backend scripts RAPPORT.md README.md \
 	  --skip="*.lock,*.svg,*.png,data/*,.git" \
 	  --ignore-words=.codespell-ignore
 
-prose: ## Verifie la grammaire, le style et la terminologie de la documentation
+prose: ## Verifie la grammaire, le style et la terminologie du rapport
 	@command -v vale >/dev/null 2>&1 || { \
-	  echo "vale n'est pas installe. Voir docs/contributing.md."; exit 1; }
-	vale docs README.md
+	  echo "vale n'est pas installe : https://vale.sh/docs/install"; exit 1; }
+	vale RAPPORT.md README.md
 
 typecheck: ## Verifie le typage statique avec mypy
 	$(PY) -m mypy
@@ -156,14 +156,13 @@ ablation: ## Rejoue les ablations taille de corpus et architecture
 
 # Les figures lisent les memes enregistrements que les tableaux, pas les CSV
 # qu'ils produisent : une figure tracee depuis une valeur arrondie ne dit plus
-# la meme chose que le tableau a cote. Voir docs/experiments/index.md.
-figures: ## Trace les quatre figures de la section 18 dans reports/figures
+# la meme chose que le tableau a cote.
+figures: ## Trace les quatre figures dans reports/figures
 	$(PY) -m src.experiments.figures
-	$(PY) -m src.experiments.figures --output docs/assets/figures
 
 # Le magasin est passe explicitement : sans argument, la commande bascule vers
 # ./mlruns des que ce repertoire existe, alors que le client de tracking ecrit
-# dans la base SQLite dans tous les cas. Voir docs/ml/tracking.md.
+# dans la base SQLite dans tous les cas.
 mlflow-ui: ## Sert l'interface MLflow sur le magasin local, port 5000
 	$(PY) -m mlflow ui --backend-store-uri sqlite:///mlflow.db
 
@@ -173,7 +172,7 @@ mlflow-ui: ## Sert l'interface MLflow sur le magasin local, port 5000
 
 # --no-access-log : l'application journalise elle-meme chaque requete, sans la
 # query string. Le log d'acces d'uvicorn ecrit l'URL complete, donc un document
-# passe en parametre finirait sur disque. Voir docs/api/index.md.
+# passe en parametre finirait sur disque.
 api: ## Lance l'API en local avec rechargement automatique
 	$(PY) -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000 --no-access-log
 
@@ -212,19 +211,19 @@ docker-train: ## Lance un entrainement dans la stack. CONFIG=configs/experiments
 	  -m src.experiments.run --config $(CONFIG)
 
 # ---------------------------------------------------------------------------
-# Documentation
+# Artefacts derives
 # ---------------------------------------------------------------------------
 
-docs-sync: ## Regenere le contrat d'API et l'environnement Postman
+api-sync: ## Regenere le contrat d'API et l'environnement Postman
 	$(PY) scripts/export_openapi.py \
-	  --output docs/api/openapi.json \
-	  --environment-output docs/api/syntra.postman_environment.json
+	  --output backend/openapi.json \
+	  --environment-output backend/syntra.postman_environment.json
 
-# Separee de docs-sync : celle-ci lit reports/results, que .gitignore garde hors
-# du depot. Sur un runner sans campagne elle reecrirait tous les tableaux du
-# rapport en experiences NOT_RUN. C'est pour la meme raison que la verification
+# Separee de api-sync : celle-ci lit reports/results, que .gitignore garde hors
+# du depot. Sur un runner sans campagne elle reecrirait tous les tableaux en
+# experiences NOT_RUN. C'est pour la meme raison que la verification
 # correspondante rend PENDING plutot que OK quand il n'y a aucun run.
-report-sync: ## Regenere les tableaux du rapport a partir des enregistrements de runs
+report-sync: ## Regenere les tableaux de resultats a partir des enregistrements de runs
 	$(PY) -m src.experiments.fragments
 
 # Separee de report-sync pour la meme raison, avec une autre source : celle-ci
@@ -233,16 +232,12 @@ report-sync: ## Regenere les tableaux du rapport a partir des enregistrements de
 corpus-sync: ## Regenere les tableaux du corpus a partir du manifeste et des statistiques
 	$(PY) -m src.data.fragments
 
-docs-lint: ## Valide la documentation avant sa construction
-	$(PY) -m codespell_lib docs README.md --ignore-words=.codespell-ignore
-	npx --yes markdownlint-cli --config .markdownlint.yaml "docs/**/*.md" README.md
-	$(PY) scripts/check_docs_sync.py
-
-docs: ## Construit le site en mode strict
-	$(PY) -m mkdocs build --strict --site-dir public
-
-docs-serve: ## Sert la documentation en local
-	$(PY) -m mkdocs serve
+# markdownlint n'existe qu'en paquet npm : la cible reste separee de make ci
+# pour que le verdict local ne depende pas d'une chaine node.
+report-lint: ## Valide le rapport et le README
+	$(PY) -m codespell_lib RAPPORT.md README.md --ignore-words=.codespell-ignore
+	npx --yes markdownlint-cli --config .markdownlint.yaml RAPPORT.md README.md
+	$(PY) scripts/check_sync.py
 
 # ---------------------------------------------------------------------------
 # Deploiement
@@ -255,21 +250,21 @@ deploy: ## Deploie l'image taggee sur l'hote Docker cible
 # Agregats
 # ---------------------------------------------------------------------------
 
-# check_docs_sync et non docs-lint : la cible complete appelle markdownlint, qui
+# check_sync et non report-lint : la cible complete appelle markdownlint, qui
 # n'existe qu'en paquet npm. Faire dependre le verdict local d'une chaine node
 # le rendrait injouable sur un poste qui n'en a pas, alors que la verification
-# de derive est du Python pur. Le pipeline, lui, joue docs-lint en entier.
+# de derive est du Python pur.
 ci: ## Reproduit localement la sequence complete du pipeline
 	$(MAKE) lint
 	$(MAKE) spell
 	$(MAKE) typecheck
 	$(MAKE) security
-	$(PY) scripts/check_docs_sync.py
+	$(PY) scripts/check_sync.py
 	$(MAKE) coverage
 
 reproduce: ## Reproduit la chaine scientifique complete. MODE=full ou quick
 	$(PY) -m src.experiments.reproduce --mode $(or $(MODE),quick)
 
 clean: ## Supprime les caches et les rapports generes
-	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov public site
+	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov
 	rm -f .coverage reports/junit.xml reports/coverage.xml reports/bandit.json

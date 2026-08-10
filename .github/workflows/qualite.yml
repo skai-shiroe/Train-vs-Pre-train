@@ -1,5 +1,5 @@
 ---
-# Etape qualite. Les quatre jobs sont independants et tournent en parallele :
+# Etape qualite. Les cinq jobs sont independants et tournent en parallele :
 # un depot qui a la fois mal formate et mal orthographie doit rapporter les deux
 # en une seule execution, pas l'un puis l'autre a l'execution suivante.
 
@@ -36,7 +36,23 @@ jobs:
       - uses: ./.github/actions/environnement-python
       - run: make typecheck
 
-  # docs/contributing.md refuse --no-verify au motif que la CI rejoue les memes
+  # **C'est ici que la derive du contrat est arretee.** make report-lint appelle
+  # scripts/check_sync.py, qui regenere openapi.json et l'environnement Postman
+  # depuis l'application et les compare aux fichiers versionnes. Une route
+  # ajoutee sans make api-sync echoue ici plutot que d'atteindre un client sous
+  # la forme d'un contrat qui ne decrit plus le service.
+  #
+  # node n'est installe nulle part : markdownlint n'existe qu'en paquet npm, et
+  # l'image ubuntu-latest porte deja node et npx.
+  rapport-et-contrat:
+    name: rapport et contrat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environnement-python
+      - run: make report-lint
+
+  # Le projet refuse --no-verify au motif que la CI rejoue les memes
   # hooks sur tout le depot. Ce job est ce qui rend la phrase vraie : sans lui,
   # contourner un hook localement suffisait a le contourner tout court.
   #

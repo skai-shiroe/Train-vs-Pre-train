@@ -2,7 +2,7 @@
 
 Section 22 asks for a versioned contract, and section 38.4 asks for every
 artifact derived from the code to be regenerated rather than maintained by hand.
-``scripts/check_docs_sync.py`` runs this script into a temporary file and
+``scripts/check_sync.py`` runs this script into a temporary file and
 compares the result with the committed one, so a route added without a
 ``make docs-sync`` fails the pipeline instead of reaching a client as a
 surprise.

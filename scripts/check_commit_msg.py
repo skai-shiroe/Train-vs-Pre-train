@@ -1,7 +1,7 @@
 """Enforce the Conventional Commits format on commit messages.
 
 Section 37.4 of the specification requires an exploitable commit message
-format. The accepted types are listed in ``docs/contributing.md`` and mirrored
+format. The accepted types are listed in ``.pre-commit-config.yaml`` and mirrored
 here so the hook stays the single mechanical source of truth.
 """
 
@@ -68,7 +68,7 @@ def explain() -> str:
         "  feat(api): add the compare endpoint\n"
         "  fix(scratch): correct the causal mask shape\n"
         "  docs(ml): document the ablation protocol\n"
-        "See docs/contributing.md.\n"
+        "See the Conventional Commits specification.\n"
     )
 
 

@@ -7,11 +7,11 @@
 # d'origine.
 #
 # Les jobs appellent les cibles du Makefile plutot que de reecrire les
-# commandes. docs/contributing.md promet que make ci produit le meme verdict
+# commandes. Le README promet que make ci produit le meme verdict
 # que le pipeline : deux listes de commandes maintenues en parallele auraient
 # fini par diverger, et c'est la promesse qui serait devenue fausse.
 #
-# Six etapes, du moins cher au plus cher. Le style echoue en une minute, la
+# Quatre etapes, du moins cher au plus cher. Le style echoue en une minute, la
 # couverture prend plusieurs minutes et l'image davantage : les faire tourner
 # dans cet ordre rend la boucle courte pour l'erreur la plus frequente.
 
@@ -28,12 +28,9 @@ on:
 # verification. head_ref vaut le nom de la branche source d'une pull request et
 # ref_name celui de la branche poussee : les deux tombent dans le meme groupe,
 # et la plus recente annule l'autre.
-#
-# Sauf sur la branche par defaut, ou annuler une execution en cours annulerait
-# la publication du site qu'elle porte.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -50,21 +47,6 @@ jobs:
     needs: securite
     uses: ./.github/workflows/tests.yml
 
-  documentation:
-    needs: tests
-    uses: ./.github/workflows/documentation.yml
-
-  # conteneur et publication dependent tous deux de documentation et tournent
-  # donc en parallele : le site est deja verifie et n'attend pas l'image.
   conteneur:
-    needs: documentation
+    needs: tests
     uses: ./.github/workflows/conteneur.yml
-
-  publication:
-    needs: documentation
-    if: github.ref_name == github.event.repository.default_branch
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/publication.yml

@@ -1,6 +1,6 @@
 """Unit tests of the Markdown primitives shared by the documentation generators.
 
-Two modules render tables into ``docs/_generated`` and both reach a page through
+Two modules render tables into ``reports/_generated`` and both reach a reader through
 these functions, so a defect here is a defect on every generated table at once.
 Four properties carry that: a fragment must name the command that rewrites it
 and not the other one, a missing measurement must not render as a value, an

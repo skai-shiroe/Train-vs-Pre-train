@@ -19,10 +19,6 @@ repos:
     hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
-        # mkdocs.yml porte un tag !!python/name pour les blocs Mermaid, que le
-        # chargeur sur de PyYAML refuse par construction. yamllint et
-        # mkdocs build --strict le valident deja.
-        exclude: ^mkdocs\.yml$
       - id: check-json
       - id: check-toml
       - id: check-added-large-files
@@ -60,7 +56,7 @@ repos:
   # mypy tourne dans l'environnement du projet, pas dans un environnement isole.
   # PyTorch pese plusieurs gigaoctets : le dupliquer dans un environnement de
   # hook serait absurde, et sans lui le typage du code ML n'a aucune valeur.
-  # L'environnement virtuel doit donc etre actif. Voir docs/contributing.md.
+  # L'environnement virtuel doit donc etre actif.
   - repo: local
     hooks:
       - id: mypy
@@ -131,7 +127,7 @@ repos:
         language: system
         types_or: [python, markdown, yaml, toml, json]
 
-      # Conventional Commits. Format documente dans docs/contributing.md.
+      # Conventional Commits, verifie par scripts/check_commit_msg.py.
       - id: conventional-commit
         name: format du message de commit
         entry: python scripts/check_commit_msg.py
@@ -149,9 +145,9 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: docs-sync-check
-        name: synchronisation de la documentation generee
-        entry: python scripts/check_docs_sync.py
+      - id: sync-check
+        name: synchronisation des artefacts generes
+        entry: python scripts/check_sync.py
         language: system
         stages: [pre-push]
         pass_filenames: false

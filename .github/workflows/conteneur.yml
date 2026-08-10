@@ -1,5 +1,5 @@
 ---
-# Etape conteneur. docs/deployment.md annonce que la CI sera le premier build
+# Etape conteneur. La CI est le premier build
 # reel de l'image : c'est ce job.
 #
 # **L'image est construite une fois et scannee depuis son archive.** Un scan qui

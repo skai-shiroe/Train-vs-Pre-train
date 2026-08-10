@@ -6,7 +6,7 @@
 #
 # **Les roues CPU de torch, pas l'index CUDA du Makefile.** Un runner partage
 # n'a pas de GPU, et cu130 y telechargerait deux gigaoctets de bibliotheques
-# CUDA que rien n'executerait. docs/testing.md pose deja la regle dont ceci est
+# CUDA que rien n'executerait. C'est la mise en oeuvre de la regle dont ceci est
 # la consequence : tout composant doit rester testable sans GPU, sinon la CI ne
 # peut pas le valider.
 #

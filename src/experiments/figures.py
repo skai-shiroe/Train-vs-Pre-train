@@ -39,7 +39,7 @@ apply is applied here too, and by the same function. A gap between two models
 scored under different decoding settings reports the settings, and a curve shows
 that even less than a table does.
 
-The labels are French because the figures are read from the documentation site;
+The labels are French because the figures are read beside the French report;
 the code around them stays English like the rest of ``src``.
 """
 

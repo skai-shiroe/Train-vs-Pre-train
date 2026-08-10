@@ -1,6 +1,6 @@
 """Unit tests for the padding measurement script.
 
-The figures of ``docs/ml/training.md`` come from this script, so its arithmetic
+The padding figures behind the batching decision come from this script, so its arithmetic
 is checked rather than trusted.
 """
 

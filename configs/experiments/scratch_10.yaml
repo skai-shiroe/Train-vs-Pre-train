@@ -1,7 +1,7 @@
 ---
 # Ablation principale, section 11. 10 % du corpus de travail, soit 2 000
 # exemples d'entrainement. Le protocole complet est documente dans
-# docs/experiments/index.md.
+# la section 5 de RAPPORT.md.
 #
 # Les trois points scratch_10, scratch_50 et scratch_100 ne different que par
 # dataset.percentage. Toute autre variation ferait mesurer autre chose que la

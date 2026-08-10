@@ -1,6 +1,6 @@
 # Syntra, présentation du travail
 
-Le détail scientifique est dans [le rapport](docs/report.md), le détail technique dans le [README](README.md).
+Le détail scientifique est dans [le rapport](RAPPORT.md), le détail technique dans le [README](README.md).
 
 ## 1. Le projet en une phrase
 
@@ -44,7 +44,7 @@ Deux propriétés comptent pour la suite :
 
 ## 5. Les deux modèles
 
-**Le Transformer from scratch**, 15,6 M de paramètres, écrit pièce par pièce en PyTorch : attention, masques, encodage de position, encodeur, décodeur. Rien n'est repris d'une bibliothèque de haut niveau. Une page de documentation [l'explique sans formule](docs/ml/transformer-eli5.md), une autre [avec les formules](docs/ml/transformer.md).
+**Le Transformer from scratch**, 15,6 M de paramètres, écrit pièce par pièce en PyTorch : attention, masques, encodage de position, encodeur, décodeur. Rien n'est repris d'une bibliothèque de haut niveau. La [section 2 du rapport](RAPPORT.md#2-le-transformer-from-scratch) le détaille bloc par bloc, formules comprises.
 
 **`t5-small`**, 60,5 M de paramètres, déjà pré-entraîné sur environ 34 milliards de tokens. Il est mesuré deux fois : tel quel (zero-shot), puis adapté à la tâche (fine-tuné).
 
@@ -58,7 +58,7 @@ Chaque score porte un intervalle de confiance à 95 % calculé par bootstrap. Un
 
 ## 7. Les résultats
 
-Neuf expériences exécutées le 8 août 2026, sur GPU portable RTX 5060, pour 127 minutes de calcul cumulé.
+Neuf expériences exécutées le 8 août 2026, sur GPU portable RTX 5060, pour 125 minutes de calcul cumulé.
 
 | Modèle | Corpus | ROUGE-L | IC 95 % |
 | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ Ligne à retenir : le modèle pré-entraîné adapté sur 2 000 exemples fait mi
 
 ## 8. La réponse à la question
 
-**Contre le pré-entraîné adapté : jamais, sur la plage mesurée.** L'écart reste stable autour de 40 % aux trois tailles de corpus, et il ne se referme pas. En extrapolant la pente la plus favorable, il faudrait environ 753 000 exemples pour combler l'écart, soit près de quatre fois XSum complet.
+**Contre le pré-entraîné adapté : jamais, sur la plage mesurée.** L'écart relatif va de 47 % à 40 % selon la taille du corpus, et l'écart absolu grandit au lieu de se réduire. En extrapolant la pente la plus favorable, il faudrait environ 694 000 exemples pour combler l'écart, soit plus de trois fois XSum complet.
 
 **Contre le pré-entraîné non adapté : entre 2 000 et 10 000 exemples.** C'est le seul seuil réellement observé. Il donne un prix concret au pré-entraînement : quelques milliers d'exemples annotés, dès lors qu'on renonce à adapter le modèle.
 
@@ -123,7 +123,6 @@ make install                                  # dépendances et hooks
 make ci                                       # la séquence complète de vérification
 make api                                      # l'API en local, documentation sur /docs
 make mlflow-ui                                # les runs sur localhost:5000
-make docs-serve                               # le site et le rapport
 ```
 
 Pour rejouer la science, et non seulement la vérifier :

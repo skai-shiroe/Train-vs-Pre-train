@@ -216,8 +216,9 @@ def test_the_backend_declares_a_healthcheck_on_health() -> None:
 @pytest.mark.unit
 def test_the_backend_serves_without_the_uvicorn_access_log() -> None:
     # Le log d'acces d'uvicorn ecrit l'URL complete, query string comprise. Un
-    # document passe en parametre finirait sur disque, ce que docs/security.md
-    # interdit. L'application journalise elle-meme chaque requete.
+    # document passe en parametre finirait sur disque, ce que la politique de
+    # confidentialite du projet interdit. L'application journalise elle-meme
+    # chaque requete.
     commands = keyword_arguments(BACKEND_DOCKERFILE, "CMD")
 
     assert len(commands) == 1

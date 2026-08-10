@@ -1,31 +1,31 @@
-"""The numbers of the corpus page, emitted from the corpus record.
+"""The numbers of the corpus, emitted from the corpus record.
 
 Section 38.4 asks for the synchronisation between the code and what is derived
 from it to be checked mechanically. :mod:`src.experiments.fragments` did that
-for the tables the campaign produces, and left the corpus page out. Its
+for the tables the campaign produces, and left the corpus out. Its
 distributions, its truncation counts and its checksums were retyped from
 ``statistics.json`` and ``manifest.json`` by hand, so rebuilding the corpus
-moved the record and left the page describing the previous one::
+moved the record and left the tables describing the previous build::
 
     python -m src.data.fragments
 
-writes the Markdown fragments the corpus page includes::
+writes the Markdown tables of the corpus::
 
-    docs/_generated/checksums.md    the fingerprints of the built corpus
-    docs/_generated/statistics.md   the measured distributions, per split
-    docs/_generated/truncation.md   what the token ceilings cut off
+    reports/_generated/checksums.md    the fingerprints of the built corpus
+    reports/_generated/statistics.md   the measured distributions, per split
+    reports/_generated/truncation.md   what the token ceilings cut off
 
 **The record is what ``make data`` wrote, not a recomputation.** Nothing here
 opens a JSONL file, counts a word or loads a tokenizer. ``python -m
 src.data.build`` measured the corpus once and wrote what it measured beside it;
-this reads that file. A page rebuilt by remeasuring would be a second
+this reads that file. A table rebuilt by remeasuring would be a second
 measurement free to disagree with the first, which is the defect one level up
 from the one being fixed.
 
 **The notebook is a reader, like this module.** ``notebooks/01_eda_xsum.ipynb``
 reads the same two files rather than recomputing them, and its outputs are
-stripped at every commit. So the page cannot take its numbers from the notebook:
-it takes them from what the notebook itself reads.
+stripped at every commit. So these tables cannot take their numbers from the
+notebook: they take them from what the notebook itself reads.
 
 **Nothing here names a ceiling.** The truncation table counts what was cut and
 does not say at how many tokens, because the record holds the counts and not the
@@ -36,10 +36,10 @@ table, where they are a decision rather than a measurement.
 
 This module does not import the rest of :mod:`src.data`. Reaching the two
 filenames through :mod:`src.data.dataset` would pull Torch and Transformers into
-the freshness check, which has to run wherever the documentation is built, and
-that is not where a corpus is prepared. Two filenames are copied instead.
+the freshness check, which has to run wherever the repository is checked out,
+and that is not where a corpus is prepared. Two filenames are copied instead.
 
-The strings are French because the fragments are read on the documentation site,
+The strings are French because the tables are read beside the French report,
 and accented for the same reason :mod:`src.experiments.fragments` gives: they
 land in the middle of accented prose. The code around them stays English.
 """
@@ -73,7 +73,7 @@ COMMAND = "python -m src.data.fragments"
 #: gives to ``paths.processed``.
 DEFAULT_PROCESSED_DIR = Path("data") / "processed" / "xsum"
 
-#: Where the fragments go, shared with the generator of the report tables.
+#: Where the fragments go, shared with the generator of the campaign tables.
 DEFAULT_FRAGMENTS_DIR = FRAGMENTS_DIR
 
 #: The two files ``python -m src.data.build`` writes beside the corpus. Copied
@@ -82,17 +82,16 @@ DEFAULT_FRAGMENTS_DIR = FRAGMENTS_DIR
 MANIFEST_NAME = "manifest.json"
 STATISTICS_NAME = "statistics.json"
 
-#: The fingerprints of the corpus currently built, for the page section that
-#: explains what they cover.
+#: The fingerprints of the corpus currently built.
 CHECKSUMS_FRAGMENT = "checksums.md"
 
-#: The measured distributions, for the statistics section.
+#: The measured distributions, per split.
 STATISTICS_FRAGMENT = "statistics.md"
 
-#: What the token ceilings cut off, for the section justifying them.
+#: What the token ceilings cut off.
 TRUNCATION_FRAGMENT = "truncation.md"
 
-#: The splits, in the order every table of the page shows them. Train first
+#: The splits, in the order every table shows them. Train first
 #: because it is the one the ablations resize; test last because it is the one
 #: the scores are read on.
 SPLIT_NAMES = ("train", "validation", "test")
@@ -109,7 +108,7 @@ SPLIT_LABELS: dict[str, str] = {
 #: rather than translated.
 VERSION_LABEL = "`dataset_version`"
 
-#: Decimals kept for a length. One, which is what the page showed when the
+#: Decimals kept for a length. One, which is what the tables showed when the
 #: values were typed by hand, and one more than the quantity is read to: a
 #: median of thirty tokens is not measured to a hundredth.
 LENGTH_DECIMALS = 1
@@ -139,10 +138,10 @@ class Quantity:
     decimals: int
 
 
-#: The rows of the statistics table, in the order the page shows them: what a
-#: reader counts in words first, then what the model actually consumes, then the
-#: ratio the two make. Only the quantities the page argues from are here; the
-#: record holds minima and maxima that no decision reads.
+#: The rows of the statistics table, in the order they are shown: what a reader
+#: counts in words first, then what the model actually consumes, then the ratio
+#: the two make. Only the quantities the report argues from are here; the record
+#: holds minima and maxima that no decision reads.
 QUANTITIES: tuple[Quantity, ...] = (
     Quantity(
         "Mots par document, médiane",
@@ -185,7 +184,7 @@ def read_record(path: Path) -> dict[str, Any]:
     Raises:
         ValueError: If the file is missing, unreadable or not a JSON object. A
             generator that treated an absent record as an empty one would render
-            a page of empty cells and report success, which section 44 forbids
+            a table of empty cells and report success, which section 44 forbids
             more plainly than it forbids a wrong number.
     """
     if not path.is_file():
@@ -357,7 +356,7 @@ def statistics_table(statistics: dict[str, Any]) -> str:
 def truncation_table(statistics: dict[str, Any]) -> str:
     """Render what the token ceilings cut off, per split.
 
-    The targets sit beside the sources because the page argues that one ceiling
+    The targets sit beside the sources because the report argues that one ceiling
     is expensive and the other is essentially free. With the source column
     alone, half of that argument rests on a number no table carries.
 
@@ -384,7 +383,7 @@ def build(
     processed_dir: Path = DEFAULT_PROCESSED_DIR,
     output_dir: Path = DEFAULT_FRAGMENTS_DIR,
 ) -> dict[Path, str]:
-    """Render every generated table of the corpus page.
+    """Render every generated table of the corpus.
 
     Args:
         processed_dir: Directory holding the built corpus and its record.
@@ -421,7 +420,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m src.data.fragments",
         description=(
-            "Emit the Markdown fragments the corpus page includes, from the manifest and the "
+            "Emit the Markdown tables of the corpus, from the manifest and the "
             "statistics that python -m src.data.build wrote beside the corpus. Nothing is "
             "measured again."
         ),

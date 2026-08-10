@@ -1,45 +1,41 @@
-"""The numbers of the documentation, emitted from the run records.
+"""The result tables, emitted from the run records.
 
 Section 38.4 asks for the synchronisation between the code and what is derived
-from it to be checked mechanically. The pages were the one place where that did
-not hold. Their tables were retyped from the run records by hand, so a new
-campaign moved the records, the CSV tables and the figures, and left six pages
-stating the values of the previous one. Nothing failed, and a wrong number is
-worse than a missing one::
+from it to be checked mechanically. The tables were the one place where that did
+not hold. They were retyped from the run records by hand, so a new campaign
+moved the records, the CSV tables and the figures, and left the retyped ones
+stating the values of the previous campaign. Nothing failed, and a wrong number
+is worse than a missing one::
 
     python -m src.experiments.fragments
 
-writes the Markdown fragments the documentation includes::
+writes the Markdown tables a reader can put beside the records::
 
-    docs/_generated/campaign.md         the provenance stamp
-    docs/_generated/plan.md             every declared experiment
-    docs/_generated/dataset_size.md     the corpus size ablation
-    docs/_generated/architecture.md     the depth ablation
-    docs/_generated/capitalisation.md   the lowercase rates
-    docs/_generated/metrics.md          the three ROUGE variants, per run
-    docs/_generated/pretrained.md       the four ``t5-small`` runs
-    docs/_generated/families.md         the two families at each proportion
-    docs/_generated/headline.md         the result table of a landing page
+    reports/_generated/campaign.md         the provenance stamp
+    reports/_generated/plan.md             every declared experiment
+    reports/_generated/dataset_size.md     the corpus size ablation
+    reports/_generated/architecture.md     the depth ablation
+    reports/_generated/capitalisation.md   the lowercase rates
+    reports/_generated/metrics.md          the three ROUGE variants, per run
+    reports/_generated/pretrained.md       the four ``t5-small`` runs
+    reports/_generated/families.md         the two families at each proportion
+    reports/_generated/headline.md         the headline result table
 
 and refreshes the table ``README.md`` carries between its markers.
 
-**A number is computed or narrated, never both.** The prose of the report is
-the reading of the results and cannot be generated; it stays written by hand.
-What it stops holding is the values. Every table it used to carry is now one
-include, and :mod:`scripts.check_docs_sync` fails when a fragment on disk is
-not what these records produce.
+**A number is computed or narrated, never both.** ``RAPPORT.md`` reads the
+results and cannot be generated; it stays written by hand, and its figures are
+checked against ``reports/results/experiments.csv`` by a reader rather than by a
+script. What is generated is this set of tables, and the README region below.
 
-**The same table is included, not retyped, wherever it appears twice.** The
-baseline page and the conformity page both showed the four ``t5-small`` runs,
-and the landing page showed a subset of what the README showed. Two pages
-retyping one measurement is two chances to state the previous campaign, so they
-now share one fragment and the divergence has nowhere to live.
+**The same table is rendered once and placed wherever it appears twice.** Two
+copies of one measurement is two chances to state the previous campaign, so the
+divergence has nowhere to live.
 
-**The README is injected rather than included.** It is read on the forge, from
-the repository root, where no MkDocs extension runs and a ``--8<--`` line would
-render as itself. So the region between its markers is rewritten in place and
-compared like a fragment. The markers are HTML comments: they say the table is
-generated, and they render nowhere.
+**The README is injected in place.** It is read on the forge, from the
+repository root, where no include mechanism runs. So the region between its
+markers is rewritten in place and compared like a fragment. The markers are HTML
+comments: they say the table is generated, and they render nowhere.
 
 **The source is the run record, like the tables and the figures.** Same reader,
 same comparability check, one rounding. A fragment built from
@@ -56,12 +52,12 @@ number of the report that no run record carries, so it is recomputed from the
 ``predictions.jsonl`` each run wrote. That file is an artefact of the
 evaluation, not a rerun of it: nothing is generated, decoded or scored again.
 
-The strings are French because the fragments are read on the documentation
-site, and they are accented, which is the one module of ``src`` that departs
-from the plain ASCII the rest of the package holds to. A figure label carries
-its own frame and reads as a caption whatever its spelling; these lines land in
-the middle of the accented prose of the report, where an unaccented column
-header reads as a defect of the page. The code around them stays English.
+The strings are French because the tables are read beside the French report,
+and they are accented, which is the one module of ``src`` that departs from the
+plain ASCII the rest of the package holds to. A figure label carries its own
+frame and reads as a caption whatever its spelling; these lines land in the
+middle of accented prose, where an unaccented column header reads as a defect.
+The code around them stays English.
 """
 
 from __future__ import annotations
@@ -101,55 +97,51 @@ from src.utils.markdown import (
 #: What rewrites these fragments, for the banner they carry.
 COMMAND = "python -m src.experiments.fragments"
 
-#: Where the fragments go, shared with the generator of the corpus page.
+#: Where the fragments go, shared with the generator of the corpus tables.
 DEFAULT_FRAGMENTS_DIR = FRAGMENTS_DIR
 
-#: What the campaign as a whole is made of, for section 1 of the report.
+#: What the campaign as a whole is made of, for the head of the report.
 CAMPAIGN_FRAGMENT = "campaign.md"
 
-#: Performance against the training corpus size, for section 6.
+#: Performance against the training corpus size, for section 5 of the report.
 DATASET_SIZE_FRAGMENT = "dataset_size.md"
 
-#: Performance against the depth of the encoder decoder, for section 8.
+#: Performance against the depth of the encoder decoder, for section 5.
 ARCHITECTURE_FRAGMENT = "architecture.md"
 
-#: Share of predictions starting on a lowercase character, for section 9.
+#: Share of predictions starting on a lowercase character, for section 6.
 CAPITALISATION_FRAGMENT = "capitalisation.md"
 
-#: Every declared experiment and where it scored, for the plan of the
-#: experiments page.
+#: Every declared experiment and where it scored, for the campaign plan.
 PLAN_FRAGMENT = "plan.md"
 
-#: The three ROUGE variants of every run, for the evaluation page. The report
-#: reads ROUGE-L alone; the page that describes the metric shows all three,
-#: because the claim that fine tuning changes the format rather than the
-#: language is read on ROUGE-2.
+#: The three ROUGE variants of every run. The report reads ROUGE-L alone; this
+#: table shows all three, because the claim that fine tuning changes the format
+#: rather than the language is read on ROUGE-2.
 METRICS_FRAGMENT = "metrics.md"
 
-#: The four ``t5-small`` runs, for the baseline page and requirement 2 of the
-#: conformity page. One fragment, two includes.
+#: The four ``t5-small`` runs, zero-shot and fine tuned.
 PRETRAINED_FRAGMENT = "pretrained.md"
 
-#: The two families side by side at each proportion, for requirement 3 of the
-#: conformity page.
+#: The two families side by side at each proportion.
 FAMILIES_FRAGMENT = "families.md"
 
-#: The result table of a landing page, for the site index and the README.
+#: The headline result table, injected into the README.
 HEADLINE_FRAGMENT = "headline.md"
 
-#: The page that carries a generated table without being built by MkDocs.
+#: The hand written file that carries a generated table between markers.
 DEFAULT_README = Path("README.md")
 
 #: The name of the region the README reserves for the headline table.
 HEADLINE_REGION = "headline"
 
-#: How an injected region opens and closes. Named, so a page could carry a
+#: How an injected region opens and closes. Named, so a file could carry a
 #: second one, and so a mismatched pair is a parse error rather than a silently
-#: swallowed page.
+#: swallowed region.
 REGION_BEGIN = "<!-- syntra:begin {name} -->"
 REGION_END = "<!-- syntra:end {name} -->"
 
-#: How the ablation studies are named on a page. The experiment files carry the
+#: How the ablation studies are named in a table. The experiment files carry the
 #: keys, the reader gets the words.
 STUDY_LABELS: dict[str, str] = {
     "dataset_size": "taille du corpus",
@@ -174,8 +166,8 @@ MODE_LABELS: dict[str, str] = {
 
 #: How the ROUGE variants are named in a column header. Duplicated from
 #: :mod:`src.experiments.figures` rather than imported: that module pulls
-#: Matplotlib, and the freshness check has to run wherever the documentation is
-#: built, which is not where the figures are drawn.
+#: Matplotlib, and the freshness check has to run wherever the repository is
+#: checked out, which is not where the figures are drawn.
 ROUGE_LABELS: dict[str, str] = {
     "rouge1": "ROUGE-1",
     "rouge2": "ROUGE-2",

@@ -42,7 +42,7 @@ services:
   minio:
     # MinIO ne publie pas de tag de version stable, seulement des tags de date.
     # Le defaut n'est donc pas epingle ; MINIO_IMAGE doit porter un tag
-    # RELEASE.* avant tout deploiement. Voir docs/deployment.md.
+    # RELEASE.* avant tout deploiement. Voir deploy/.
     image: ${MINIO_IMAGE:-minio/minio:latest}
     command: ["server", "/data", "--console-address", ":9001"]
     environment:

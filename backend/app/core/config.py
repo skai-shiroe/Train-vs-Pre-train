@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     """Runtime configuration, loaded from the environment.
 
     Attributes are grouped by concern. Every attribute must have a counterpart
-    in ``.env.example``; ``scripts/check_docs_sync.py`` enforces the parity.
+    in ``.env.example``; ``scripts/check_sync.py`` enforces the parity.
     """
 
     model_config = SettingsConfigDict(

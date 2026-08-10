@@ -6,7 +6,7 @@ so a deployment behind a gateway can move it without touching any route.
 
 The order of inclusion is the order the operations appear in the generated
 specification, which is why the probes come first and inference last: a reader
-of ``docs/api/openapi.json`` meets the cheap routes before the expensive ones.
+of ``backend/openapi.json`` meets the cheap routes before the expensive ones.
 """
 
 from __future__ import annotations

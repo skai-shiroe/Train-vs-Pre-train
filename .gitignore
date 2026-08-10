@@ -30,8 +30,12 @@ metrics.json
 # Resultats d'experiences : produits par un run, publies comme artefacts de
 # pipeline (section 33), jamais edites a la main (section 17).
 reports/results/*
-reports/figures/*
 !reports/**/.gitkeep
+
+# Les figures font exception : RAPPORT.md les affiche, et un rapport lu sur la
+# forge avec des images manquantes ne montre pas ce qu'il argumente. Elles sont
+# versionnees, et make figures les reecrit depuis les memes enregistrements que
+# les tableaux.
 
 # Verification de la chaine : make reproduce MODE=quick ecrit tout ici, records
 # plafonnes, tableaux et figures compris. Rien de ce qui s'y trouve n'est un

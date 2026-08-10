@@ -2,7 +2,7 @@
 
 :mod:`backend.app.core.errors` owns the codes and the statuses. This module is
 the other half of that contract: it describes the same payload to the generated
-specification, so a client can be written against ``docs/api/openapi.json``
+specification, so a client can be written against ``backend/openapi.json``
 without reading the Python.
 
 **The two halves are checked against each other.** :func:`error_responses`

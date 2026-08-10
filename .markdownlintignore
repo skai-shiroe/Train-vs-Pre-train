@@ -1,20 +1,10 @@
-# instruction.md est le cahier des charges du projet, pas une page du site
-# publie. Sa structure d'origine utilise un titre de niveau 1 par section, ce
-# qui viole MD025. Le document est conserve dans cette forme pour rester
-# tracable face a l'enonce academique.
-#
-# Les regles de fond continuent de s'y appliquer : codespell, detect-secrets et
-# l'interdiction des tirets longs le controlent comme tout autre fichier.
-instruction.md
-
-# Fragments produits par python -m src.experiments.fragments. Ce sont des
-# morceaux de page, pas des pages : ils n'ont pas de titre de niveau 1, ce que
-# MD041 exige de tout fichier. Ils sont bien controles par le linter, mais une
-# fois inclus dans docs/report.md, qui est la forme sous laquelle ils sont lus.
-docs/_generated/
+# Tableaux produits par python -m src.experiments.fragments et
+# python -m src.data.fragments. Ce sont des morceaux de document, pas des
+# documents : ils n'ont pas de titre de niveau 1, ce que MD041 exige de tout
+# fichier. Leurs valeurs sont relues dans RAPPORT.md, qui est lui controle.
+reports/_generated/
 
 # Repertoires generes ou tiers.
 .venv/
-public/
-site/
+reports/
 node_modules/

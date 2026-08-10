@@ -1,6 +1,0 @@
-# Dependances de construction du site. Utilisees par le job documentation de
-# .github/workflows/documentation.yml. Doivent rester alignees sur l'extra
-# "docs" de pyproject.toml.
-mkdocs==1.6.1
-mkdocs-material==9.7.7
-mkdocstrings[python]==1.0.6

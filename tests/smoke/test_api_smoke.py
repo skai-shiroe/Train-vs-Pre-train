@@ -2,7 +2,7 @@
 
 Section 17 requires a deployment to be verified by requests against the real
 environment rather than against a mock, and the four checks below are the ones
-``docs/testing.md`` lists. They are driven by ``BASE_URL`` and skipped when it
+the test pyramid lists. They are driven by ``BASE_URL`` and skipped when it
 is not set, so ``make test`` collects them without needing a server.
 
 **Nothing here is mocked, and nothing here is loaded.** A smoke test that built
