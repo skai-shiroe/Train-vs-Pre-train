@@ -1,8 +1,0 @@
----
-extends: existence
-message: "Tiret long interdit. Utiliser un deux-points, une virgule, une parenthese ou deux phrases."
-level: error
-link: ../contributing.md
-scope: raw
-raw:
-  - '[\x{2014}\x{2013}\x{2012}\x{2015}]'

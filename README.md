@@ -1,8 +1,8 @@
 # Syntra
 
-Backend NLP expérimental de résumé automatique. Le projet compare un Transformer encodeur-décodeur implémenté à la main en PyTorch à un modèle pré-entraîné T5, en zero-shot puis fine-tuné, sur un jeu de test strictement identique.
+Chaîne ML expérimentale de résumé automatique. Le projet compare un Transformer encodeur-décodeur implémenté à la main en PyTorch à un modèle pré-entraîné T5, en zero-shot puis fine-tuné, sur un jeu de test strictement identique.
 
-Projet académique de niveau Master. Le périmètre couvre le backend, la chaîne ML, MLOps, Docker et l'intégration continue GitHub Actions. Aucun frontend n'est développé dans ce lot.
+Projet académique de niveau Master. Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow. Ni backend, ni conteneurs, ni frontend.
 
 ## Démarrage rapide
 
@@ -18,8 +18,7 @@ Quatre commandes depuis un dépôt fraîchement cloné. La dernière enchaîne t
 Le premier appel télécharge XSum et construit le corpus de travail, ce qui domine le temps total. Les appels suivants sautent cette étape : `make data` est idempotent, et la chaîne affiche le `dataset_version` du corpus qu'elle a lu.
 
 ```bash
-make ci                     # la séquence de vérification complète du pipeline
-make api                    # l'API sur http://127.0.0.1:8000, documentation sur /docs
+make coverage               # la suite de tests, seuil de couverture compris
 make reproduce MODE=full    # la campagne réelle, plusieurs heures de GPU
 ```
 
@@ -42,7 +41,6 @@ Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell. La rais
 ```text
 Python 3.12
 GPU NVIDIA avec pilote récent, optionnel mais recommandé
-Docker et Docker Compose, pour la stack locale
 GNU Make
 ```
 
@@ -54,14 +52,14 @@ winget install ezwinports.make
 
 Le PATH n'est mis à jour qu'au shell suivant.
 
-Il faut ensuite **appeler `make` depuis Git Bash, pas depuis PowerShell**. Les recettes de ce `Makefile` sont écrites pour un shell POSIX : `command -v`, `test -n`, `awk`, `rm -rf`, groupes d'accolades. GNU Make ne retient un shell POSIX que s'il trouve `sh.exe` dans le PATH, sinon il retombe sur `cmd.exe`. Or l'installation courante de Git pour Windows ne publie que `C:\Program Files\Git\cmd`, où `sh.exe` ne se trouve pas : il vit dans `C:\Program Files\Git\usr\bin`. Depuis PowerShell, la première cible venue échoue donc ainsi :
+Il faut ensuite **appeler `make` depuis Git Bash, pas depuis PowerShell**. Les recettes de ce `Makefile` sont écrites pour un shell POSIX : `test -n`, `awk`, `rm -rf`, `mkdir -p`. GNU Make ne retient un shell POSIX que s'il trouve `sh.exe` dans le PATH, sinon il retombe sur `cmd.exe`. Or l'installation courante de Git pour Windows ne publie que `C:\Program Files\Git\cmd`, où `sh.exe` ne se trouve pas : il vit dans `C:\Program Files\Git\usr\bin`. Depuis PowerShell, la première cible venue échoue donc ainsi :
 
 ```text
 'grep' n'est pas reconnu en tant que commande interne ou externe
-make: *** [Makefile:61: help] Error 255
+make: *** [Makefile:27: help] Error 255
 ```
 
-Depuis Git Bash, la même cible passe, et le `Makefile` retrouve seul l'interpréteur du `.venv`. Trois façons d'y arriver :
+Depuis Git Bash, la même cible passe. Trois façons d'y arriver :
 
 ```text
 VS Code       menu déroulant du terminal, profil Git Bash
@@ -75,9 +73,7 @@ Un terminal hérite du PATH du processus qui l'a lancé. VS Code transmet celui 
 export PATH="$PATH:$HOME/AppData/Local/Microsoft/WinGet/Packages/ezwinports.make_Microsoft.Winget.Source_8wekyb3d8bbwe/bin"
 ```
 
-Publier `C:\Program Files\Git\usr\bin` dans le PATH lève aussi la limite, au prix d'exposer les outils Unix de Git à tout le système.
-
-> Ne pas traiter ce point en fixant `SHELL` dans le `Makefile`. Les jobs GitHub Actions appellent les mêmes cibles sur des runners Linux : un chemin Windows codé en dur y casserait le pipeline pour arranger un poste.
+Le `Makefile` appelle l'interpréteur du `.venv`. Si cet environnement est absent ou incomplet, les cibles s'appellent directement : `python -m src.experiments.run --config ...`.
 
 ## Installation
 
@@ -87,60 +83,43 @@ source .venv/Scripts/activate
 make install
 ```
 
-`make install` installe PyTorch depuis l'index CUDA 12.8, puis les dépendances, puis pose les hooks `pre-commit`, `commit-msg` et `pre-push`.
+`make install` installe PyTorch depuis l'index CUDA 13.0, puis les dépendances de la chaîne et de la suite de tests.
 
-> Les cartes RTX 50 (architecture Blackwell, `sm_120`) exigent les roues PyTorch CUDA 12.8. L'index PyPI par défaut ne convient pas.
+> Les cartes RTX 50 (architecture Blackwell, `sm_120`) exigent les roues PyTorch CUDA. L'index PyPI par défaut ne convient pas.
 
 Vérifier l'installation :
 
 ```bash
-make ci
+make test
 ```
 
 ## Structure
 
 ```text
-backend/app/     application FastAPI : api, core, schemas, services, inference, registry
 src/             code de recherche : data, models, training, evaluation, experiments, metrics, tracking, utils
 configs/         configuration des données, des modèles, de l'entraînement et des expériences
-data/            corpus, versionné par DVC et non par git
+data/            corpus de travail, reconstruit par make data et non versionné
 reports/         résultats, tableaux et figures produits automatiquement
-notebooks/       vérification de l'environnement et analyse exploratoire du corpus
-scripts/         outils de contrôle et d'export
-tests/           tests unitaires, d'intégration, de bout en bout et smoke
-deploy/          déploiement conteneurisé
-.github/         pipeline modulaire, un workflow par étape
+notebooks/       vérification de l'environnement, analyse exploratoire, lancement d'un entraînement
+scripts/         outils de mesure
+tests/           tests unitaires et d'intégration
 ```
 
 ## Commandes
 
-### Installation et hooks
+### Environnement
 
 | Cible | Effet |
 | --- | --- |
-| `make install` | Installe les dépendances et pose les hooks |
-| `make hooks` | Pose les hooks `pre-commit`, `commit-msg` et `pre-push` |
-
-### Qualité
-
-| Cible | Effet |
-| --- | --- |
-| `make format` | Formate avec `black` et applique les corrections de `ruff` |
-| `make lint` | `black --check`, `flake8`, `ruff`, `yamllint`, contrôle des tirets longs |
-| `make spell` | Orthographe avec `codespell` |
-| `make prose` | Grammaire, style et terminologie avec Vale |
-| `make typecheck` | Typage statique avec `mypy` |
-| `make security` | `bandit` et `pip-audit` |
+| `make install` | Installe PyTorch, les dépendances et le paquet en mode éditable |
 
 ### Tests
 
 | Cible | Effet |
 | --- | --- |
-| `make test` | Tous les tests sauf les smoke tests |
+| `make test` | Toute la suite |
 | `make test-unit` | Tests unitaires |
 | `make test-integration` | Tests d'intégration |
-| `make test-e2e` | Tests de bout en bout sur l'API |
-| `make test-smoke BASE_URL=...` | Smoke tests contre un environnement déployé |
 | `make coverage` | Tests avec le seuil de couverture de 80 % |
 
 ### Chaîne ML
@@ -150,54 +129,27 @@ deploy/          déploiement conteneurisé
 | `make data` | Télécharge, valide et prépare le corpus de travail |
 | `make train-scratch` | Entraîne le Transformer from scratch sur 100 % du corpus |
 | `make train-pretrained` | Fine-tune T5 sur 100 % du corpus |
-| `make evaluate` | Évalue tous les modèles sur le jeu de test commun |
+| `make evaluate` | Évalue la baseline zero-shot sur le jeu de test commun |
 | `make ablation` | Rejoue les ablations taille de corpus et architecture |
 | `make figures` | Trace les quatre figures dans `reports/figures` |
 | `make reproduce MODE=quick` | Vérifie la chaîne complète sur un budget plafonné, sans produire de résultat |
 | `make reproduce MODE=full` | Rejoue la chaîne scientifique complète |
 | `make mlflow-ui` | Sert l'interface MLflow du magasin local sur <http://localhost:5000> |
 
-Deux commandes complètent la chaîne, hors `make` parce qu'elles portent sur une expérience précise :
+Une commande complète la chaîne, hors `make` parce qu'elle porte sur des enregistrements déjà écrits :
 
 | Commande | Effet |
 | --- | --- |
 | `python -m src.tracking.log --all` | Renvoie vers MLflow les enregistrements déjà écrits |
-| `python -m src.experiments.publish --experiment NOM` | Publie un run complet dans le registre de modèles |
 
 Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-tracking` le désactive.
 
-### API et conteneurs
+### Artefacts dérivés
 
 | Cible | Effet |
 | --- | --- |
-| `make api` | Lance l'API en local avec rechargement automatique |
-| `make docker-build` | Construit l'image backend |
-| `make docker-build-training` | Construit l'image d'entraînement |
-| `make docker-size` | Mesure la taille de l'image backend construite |
-| `make docker-scan` | Scanne l'image, échoue sur une vulnérabilité CRITICAL |
-| `make docker-up` | Démarre la stack locale, sans entraînement |
-| `make docker-train CONFIG=...` | Lance un entraînement dans la stack |
-| `make docker-down` | Arrête la stack locale |
-
-La stack locale demande un fichier `.env` : `cp .env.example .env`. Les trois images et les ports publiés sont décrits dans `compose.yaml` et `deploy/`.
-
-L'API expose `/api/v1` : `health`, `ready`, `models`, `predict` et `compare`. Le contrat est versionné dans `backend/openapi.json`, régénéré par `make api-sync`, et servi sur `/docs` quand l'API tourne.
-
-### Artefacts dérivés et déploiement
-
-| Cible | Effet |
-| --- | --- |
-| `make api-sync` | Régénère le contrat d'API et l'environnement Postman |
 | `make report-sync` | Régénère les tableaux de résultats depuis les enregistrements de runs |
 | `make corpus-sync` | Régénère les tableaux du corpus depuis le manifeste |
-| `make report-lint` | Orthographe, Markdown et contrôle de synchronisation |
-| `make deploy` | Déploie l'image taggée |
-
-### Agrégats
-
-| Cible | Effet |
-| --- | --- |
-| `make ci` | Reproduit localement la séquence complète du pipeline |
 | `make clean` | Supprime les caches et les rapports générés |
 
 ## Intégrité scientifique
@@ -212,14 +164,11 @@ Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples
 
 | Étape | Contenu | État |
 | --- | --- | --- |
-| 1 à 4 | Requirements, architecture, bootstrap, outillage qualité | Fait |
+| 1 à 4 | Requirements, architecture, bootstrap | Fait |
 | 5 | Data pipeline, corpus de travail construit | Fait |
 | 6 et 7 | Transformer from scratch et ses tests | Fait |
 | 8 à 11 | Entraînement, baseline, évaluation, ablations | Fait, les neuf expériences mesurées |
-| 12 et 13 | MLflow et Model Registry | Fait, neuf runs tracés, deux modèles publiés |
-| 14 | API FastAPI | Fait, `champion` et `challenger` servis |
-| 15 | Docker et scan Trivy | Écrit, aucune image construite |
-| 16 et 17 | CI/CD GitHub Actions, déploiement | Pipeline écrit et validé localement, jamais exécuté sur un runner ; déploiement à faire |
+| 12 et 13 | Traçage MLflow | Fait, neuf runs tracés |
 | 18 | Rapport | Fait, `RAPPORT.md` |
 
 Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compris. Le mode `quick` a été joué de bout en bout sur ce poste le 9 août 2026 : cinq étapes, 51 secondes, neuf enregistrements `PARTIAL` écrits sous `reports/quick/` et aucun fichier touché hors de ce répertoire. Le mode `full` rejoue la campagne réelle.
@@ -254,6 +203,4 @@ L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebook
 
 Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi.
 
-## Rédaction
-
-Les tirets cadratin et demi-cadratin sont interdits dans tout le dépôt. La règle est vérifiée mécaniquement par `scripts/check_dashes.py`, en hook et en CI. Elle est bloquante.
+Le notebook `notebooks/02_training.ipynb` lance une expérience à la fois et trace ses courbes de perte. Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds. Une campagne complète, elle, se lance depuis un terminal : `make reproduce MODE=full`.
