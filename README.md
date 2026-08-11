@@ -148,13 +148,13 @@ Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-t
 
 | Cible | Effet |
 | --- | --- |
-| `make report-sync` | Régénère les tableaux de résultats depuis les enregistrements de runs |
-| `make corpus-sync` | Régénère les tableaux du corpus depuis le manifeste |
+| `make report-sync` | Régénère les tableaux de résultats depuis les enregistrements de runs, et les réinjecte dans ce README et dans le rapport |
+| `make corpus-sync` | Régénère les tableaux du corpus depuis le manifeste, et les réinjecte dans le rapport |
 | `make clean` | Supprime les caches et les rapports générés |
 
 ## Intégrité scientifique
 
-Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Aucun chiffre n'est saisi à la main : les tableaux sont générés depuis les enregistrements de runs par `make report-sync`.
+Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Aucun tableau n'est saisi à la main : ceux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, et injectés entre marqueurs. Une nouvelle campagne les réécrit ; un tableau décrivant la campagne précédente n'est pas un état atteignable.
 
 Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Une valeur factice ne devient jamais un résultat scientifique.
 

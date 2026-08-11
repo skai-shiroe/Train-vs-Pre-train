@@ -15,6 +15,11 @@ writes the Markdown tables of the corpus::
     reports/_generated/statistics.md   the measured distributions, per split
     reports/_generated/truncation.md   what the token ceilings cut off
 
+and refreshes the distributions ``RAPPORT.md`` carries between its markers, in
+the section that argues the corpus from them. The injection mechanism is the one
+:mod:`src.experiments.fragments` documents, and the report carries the regions of
+both generators: they never touch the same one.
+
 **The record is what ``make data`` wrote, not a recomputation.** Nothing here
 opens a JSONL file, counts a word or loads a tokenizer. ``python -m
 src.data.build`` measured the corpus once and wrote what it measured beside it;
@@ -59,6 +64,7 @@ from src.utils.markdown import (
     MISSING,
     decimal,
     fragment,
+    inject_regions,
     number,
     share,
     stale,
@@ -90,6 +96,14 @@ STATISTICS_FRAGMENT = "statistics.md"
 
 #: What the token ceilings cut off.
 TRUNCATION_FRAGMENT = "truncation.md"
+
+#: The report, which carries the measured distributions between markers. Section
+#: 1 argues the corpus from them, and a table describing the previous build would
+#: put the argument on a corpus nobody trained on.
+DEFAULT_REPORT = Path("RAPPORT.md")
+
+#: The name of the region the report reserves for the statistics table.
+STATISTICS_REGION = "statistics"
 
 #: The splits, in the order every table shows them. Train first
 #: because it is the one the ablations resize; test last because it is the one
@@ -382,6 +396,7 @@ def build(
     *,
     processed_dir: Path = DEFAULT_PROCESSED_DIR,
     output_dir: Path = DEFAULT_FRAGMENTS_DIR,
+    report: Path,
 ) -> dict[Path, str]:
     """Render every generated table of the corpus.
 
@@ -389,6 +404,12 @@ def build(
         processed_dir: Directory holding the built corpus and its record.
         output_dir: Directory the fragments belong in. Used to key the result;
             nothing is written here.
+        report: The page whose marked region carries the statistics table.
+            Required, and deliberately without a default: it is a tracked, hand
+            written page rather than a generated directory, and a caller that
+            forgot it would rewrite the report of the repository with whatever
+            corpus it was pointed at. The command line supplies
+            :data:`DEFAULT_REPORT`, a test supplies its own.
 
     Returns:
         A mapping from destination path to the text that belongs in it.
@@ -396,7 +417,8 @@ def build(
         without producing a file.
 
     Raises:
-        ValueError: If a record is missing or unreadable.
+        ValueError: If a record is missing or unreadable, or if the report
+            carries no region to inject into.
     """
     processed = Path(processed_dir)
     output = Path(output_dir)
@@ -404,10 +426,16 @@ def build(
     manifest = read_record(processed / MANIFEST_NAME)
     statistics = read_record(processed / STATISTICS_NAME)
 
+    # Rendered once and placed twice, for the reason the campaign generator
+    # gives: two copies of one measurement is two chances to describe the
+    # previous build.
+    distributions = statistics_table(statistics)
+
     return {
         output / CHECKSUMS_FRAGMENT: fragment(checksums_table(manifest), COMMAND),
-        output / STATISTICS_FRAGMENT: fragment(statistics_table(statistics), COMMAND),
+        output / STATISTICS_FRAGMENT: fragment(distributions, COMMAND),
         output / TRUNCATION_FRAGMENT: fragment(truncation_table(statistics), COMMAND),
+        Path(report): inject_regions(Path(report), {STATISTICS_REGION: distributions}, COMMAND),
     }
 
 
@@ -438,6 +466,12 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="Where the fragments go.",
     )
     parser.add_argument(
+        "--report",
+        type=Path,
+        default=DEFAULT_REPORT,
+        help="The page whose marked region carries the statistics table.",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Report what is out of date and write nothing. Exits non zero on a stale fragment.",
@@ -458,7 +492,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_argument_parser().parse_args(argv)
 
     try:
-        rendered = build(processed_dir=args.processed, output_dir=args.output)
+        rendered = build(
+            processed_dir=args.processed, output_dir=args.output, report=args.report
+        )
     except ValueError as error:
         print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1

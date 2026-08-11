@@ -143,6 +143,8 @@ class Destinations:
             the report reads one, the documentation site the other.
         fragments: Directory the generated Markdown tables go to.
         readme: Page carrying the headline table between its markers.
+        report: Page carrying the tables its sections argue from, from both
+            generators.
     """
 
     results: Path
@@ -150,6 +152,7 @@ class Destinations:
     figures: tuple[Path, ...]
     fragments: Path
     readme: Path
+    report: Path
 
 
 #: Destinations of a campaign: the paths the report, the site and the freshness
@@ -160,16 +163,18 @@ FULL_DESTINATIONS = Destinations(
     figures=(figures.DEFAULT_FIGURES_DIR, DOCS_FIGURES_DIR),
     fragments=fragments.DEFAULT_FRAGMENTS_DIR,
     readme=fragments.DEFAULT_README,
+    report=fragments.DEFAULT_REPORT,
 )
 
 #: Destinations of a verification pass: everything under one directory that
-#: nothing else reads, README copy included.
+#: nothing else reads, copies of the two injected pages included.
 QUICK_DESTINATIONS = Destinations(
     results=QUICK_ROOT / "results",
     runs=Path("runs") / "quick",
     figures=(QUICK_ROOT / "figures",),
     fragments=QUICK_ROOT / "_generated",
     readme=QUICK_ROOT / "README.md",
+    report=QUICK_ROOT / "RAPPORT.md",
 )
 
 
@@ -435,28 +440,27 @@ def draw_figures(settings: Settings) -> Outcome:
     return DONE, f"{len(drawn)} figures under {directories}"
 
 
-def prepare_readme(settings: Settings) -> Path:
-    """Return the page the headline table is injected into.
+def prepare_page(settings: Settings, source: Path, destination: Path) -> Path:
+    """Return the page a generated table is injected into.
 
-    In full mode that is the README of the repository, which is the point of
-    the step. In quick mode it is a copy: the region has to exist for the
-    injection to run at all, and rewriting the README with the scores of a
-    verification pass is exactly what the mode exists not to do.
+    In full mode that is the page of the repository, which is the point of the
+    step. In quick mode it is a copy: the regions have to exist for the
+    injection to run at all, and rewriting the README or the report with the
+    scores of a verification pass is exactly what the mode exists not to do.
 
     Args:
         settings: The invocation.
+        source: The tracked page, read in quick mode to seed the copy.
+        destination: Where the page to inject into belongs for this mode.
 
     Returns:
         The path of the page to inject into.
     """
-    destination = settings.destinations.readme
     if not settings.quick:
         return destination
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(
-        fragments.DEFAULT_README.read_text(encoding="utf-8"), encoding="utf-8", newline="\n"
-    )
+    destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
     return destination
 
 
@@ -468,6 +472,14 @@ def synchronise_documentation(settings: Settings) -> Outcome:
     refreshed one and not the other would leave a page describing the previous
     build beside a page describing this one.
 
+    **They are written in two passes, and the order is not free.** Both inject
+    into the report, each into its own regions, and each renders the whole page
+    from what is on disk. Rendering both before writing would hand the single
+    write two full pages built from the same starting text, and the last one in
+    the mapping would silently drop the other's tables. So the campaign tables
+    are written first, and the corpus generator then reads the page they
+    produced.
+
     Args:
         settings: The invocation.
 
@@ -475,22 +487,29 @@ def synchronise_documentation(settings: Settings) -> Outcome:
         The outcome, counting the files written.
     """
     pipeline = load_pipeline_config(settings.data_config)
+    destinations = settings.destinations
+    report = prepare_page(settings, fragments.DEFAULT_REPORT, destinations.report)
 
-    rendered = fragments.build(
-        experiments_dir=settings.experiments_dir,
-        results_dir=settings.destinations.results,
-        output_dir=settings.destinations.fragments,
-        readme=prepare_readme(settings),
+    written = write_fragments(
+        fragments.build(
+            experiments_dir=settings.experiments_dir,
+            results_dir=destinations.results,
+            output_dir=destinations.fragments,
+            readme=prepare_page(settings, fragments.DEFAULT_README, destinations.readme),
+            report=report,
+        )
     )
-    rendered.update(
+    written += write_fragments(
         corpus_fragments.build(
             processed_dir=pipeline.paths.processed,
-            output_dir=settings.destinations.fragments,
+            output_dir=destinations.fragments,
+            report=report,
         )
     )
 
-    written = write_fragments(rendered)
-    return DONE, f"{len(written)} generated tables under {settings.destinations.fragments}"
+    # The report is written by both passes. Counting it once keeps the line
+    # reporting how many tables exist rather than how many writes happened.
+    return DONE, f"{len(set(written))} generated tables under {destinations.fragments}"
 
 
 def steps(settings: Settings) -> tuple[tuple[str, Action], ...]:
