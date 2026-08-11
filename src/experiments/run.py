@@ -12,8 +12,8 @@ ends, the weights in memory are those of the last epoch, and early stopping
 exists precisely because that is not the best epoch. Both models are therefore
 rebuilt from the best checkpoint before being measured. The reload costs one
 model construction and buys two things: the reported score belongs to the
-weights the run selected, and a checkpoint that cannot be reloaded fails here
-rather than in the API three lots later.
+weights the run selected, and a checkpoint that cannot be reloaded fails here,
+during the run that wrote it, rather than the day someone tries to reuse it.
 
 **Both sides go through the same three steps.** The from scratch Transformer and
 ``t5-small`` differ in how they are built and in their loss adapter, and in
@@ -103,8 +103,10 @@ from src.utils.seed import set_seed
 #: Where the run directories are created, per section 17.
 DEFAULT_RESULTS_DIR = Path("reports") / "results"
 
-#: Where the checkpoints of a run are written. Outside the results directory:
-#: results are published as pipeline artefacts, weights go to the registry.
+#: Where the checkpoints of a run are written. Outside the results directory
+#: because the two have different lifetimes: a run directory is a few kilobytes
+#: of records that the tables read, a checkpoint is hundreds of megabytes that
+#: the next run of the same experiment overwrites.
 DEFAULT_RUNS_DIR = Path("runs")
 
 #: The two concrete summarisers an experiment can build. The evaluator only

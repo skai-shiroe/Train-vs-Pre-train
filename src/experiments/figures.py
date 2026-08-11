@@ -128,10 +128,10 @@ def pyplot() -> Any:
     """Return the plotting module, configured for a headless run.
 
     matplotlib is imported here rather than at module level for the reason
-    MLflow is in :mod:`src.tracking.client`: the import costs seconds, and the
-    inference image does not carry the dependency. The backend is fixed before
-    ``pyplot`` is imported, so the command draws the same way in a terminal, in
-    a container and in CI, none of which have a display.
+    MLflow is in :mod:`src.tracking.client`: the import costs seconds, and a
+    module that only reads records should not pay it. The drawing backend is
+    fixed to ``Agg`` before ``pyplot`` is imported, so the command draws the
+    same way whether or not the machine has a display.
 
     Returns:
         The ``matplotlib.pyplot`` module.

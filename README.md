@@ -96,11 +96,13 @@ make test
 ## Structure
 
 ```text
+GUIDE.md         parcours de lecture du code, du corpus à MLflow
+RAPPORT.md       le rapport scientifique et ses résultats
 src/             code de recherche : data, models, training, evaluation, experiments, metrics, tracking, utils
 configs/         configuration des données, des modèles, de l'entraînement et des expériences
 data/            corpus de travail, reconstruit par make data et non versionné
 reports/         résultats, tableaux et figures produits automatiquement
-notebooks/       vérification de l'environnement, analyse exploratoire, lancement d'un entraînement
+notebooks/       environnement, analyse exploratoire, traversée du Transformer, entraînement
 scripts/         outils de mesure
 tests/           tests unitaires et d'intégration
 ```
@@ -197,10 +199,16 @@ Ces chiffres sont reproductibles par un tiers : les quatre mesures `t5-small` on
 
 ## Documentation
 
-Le [rapport](RAPPORT.md) est le document à lire, et le seul : il présente le corpus, l'architecture du Transformer from scratch, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
+Deux documents, deux usages.
+
+Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, Transformer couche par couche, étape d'entraînement, métriques, MLflow. C'est la porte d'entrée pour un nouveau contributeur.
+
+Le [rapport](RAPPORT.md) présente **ce que les expériences ont montré** : le corpus, l'architecture, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
 
 L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_xsum.ipynb`. Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
 
 Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi.
+
+Le notebook [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) fait traverser le Transformer à un vrai batch en affichant la forme des tenseurs à chaque étape. Il accompagne la section 3 du guide, tourne sur CPU en une minute et n'écrit rien.
 
 Le notebook `notebooks/02_training.ipynb` lance une expérience à la fois et trace ses courbes de perte. Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds. Une campagne complète, elle, se lance depuis un terminal : `make reproduce MODE=full`.

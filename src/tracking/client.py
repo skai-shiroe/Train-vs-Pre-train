@@ -22,11 +22,11 @@ record alone.
 selects :class:`NullTracker`, which returns ``None`` and says so. There is no
 mode that pretends to have logged.
 
-MLflow resolves its own tracking URI when none is given, which is what keeps
-section 21.1 satisfied: no module outside ``backend/app/core/config.py`` reads
-the environment itself. With nothing configured, MLflow 3 resolves to a SQLite
-database in the working directory, so an experiment run offline is still traced
-and ``docker compose up mlflow`` is not a prerequisite for training.
+MLflow resolves its own tracking URI when none is given, and no module here
+reads the environment itself. With nothing configured, MLflow 3 resolves to a
+SQLite database in the working directory, so an experiment run offline is still
+traced and no server has to be started before training. ``make mlflow-ui``
+serves that same database when you want to look at it.
 
 One URI does not work and is worth knowing about: a ``file://`` path. MLflow 3
 put the filesystem tracking backend in maintenance mode and raises rather than
@@ -43,9 +43,9 @@ from typing import Protocol
 from src.tracking.live import LiveRun, NullLiveRun
 from src.tracking.payload import TrackedRun
 
-#: Experiment the runs are grouped under, matching the default of
-#: ``SYNTRA_MLFLOW_EXPERIMENT`` so the training side and the API agree without
-#: sharing a settings object.
+#: Experiment the runs are grouped under. Every run of the campaign lands here,
+#: which is what makes the nine of them comparable in one table of the MLflow
+#: interface.
 DEFAULT_EXPERIMENT = "syntra-summarization"
 
 

@@ -187,15 +187,24 @@ class ScratchTransformer(nn.Module):
                 raise ValueError("Supply either target_ids or decoder_input_ids.")
             decoder_input_ids = shift_target_right(target_ids, self.config.decoder_start_token_id)
 
+        # (batch, src_len) -> memory (batch, src_len, d_model). The encoder reads
+        # the document once; the decoder will consult this same memory at every
+        # one of its positions.
         memory, source_mask, encoder_weights = self.encode(
             source_ids, return_weights=return_weights
         )
+        # (batch, target_len) against that memory -> (batch, target_len, vocab_size).
+        # One score per vocabulary entry, at every target position.
         logits, decoder_weights = self.decode(
             decoder_input_ids, memory, source_mask, return_weights=return_weights
         )
 
         loss: torch.Tensor | None = None
         if labels is not None:
+            # Both tensors are flattened to one prediction per row:
+            # (batch * target_len, vocab_size) against (batch * target_len).
+            # Cross entropy scores each position independently, and IGNORE_INDEX
+            # drops the padded ones so the mean covers real tokens only.
             loss = F.cross_entropy(
                 logits.reshape(-1, logits.size(-1)),
                 labels.reshape(-1),

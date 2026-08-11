@@ -556,9 +556,9 @@ class PretrainedSummarizer(ABC):
     def save_pretrained(self, directory: Path) -> Path:
         """Write the weights and the tokeniser in the Hugging Face layout.
 
-        This is the format the model registry of section 20 serves and the API
-        of section 27 loads. The tokeniser is written next to the weights so
-        that the directory reloads on a machine that never saw the hub::
+        This is the Hugging Face layout, the one ``from_pretrained`` reads. The
+        tokeniser is written next to the weights so that the directory reloads
+        on a machine that never saw the hub::
 
             summarizer.save_pretrained(path)
             reloaded = T5Summarizer.from_pretrained(

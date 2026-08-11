@@ -71,14 +71,21 @@ def scaled_dot_product_attention(
         )
 
     d_k = query.size(-1)
+    # (.., query_len, d_head) @ (.., d_head, key_len) -> (.., query_len, key_len).
+    # One score per (query, key) pair: this is the only tensor of the model whose
+    # size grows with the square of the sequence length.
     scores = torch.matmul(query, key.transpose(-2, -1)) / (d_k**0.5)
 
     if mask is not None:
         scores = scores.masked_fill(~mask, masked_fill_value(scores.dtype))
 
+    # Over the keys, so each query row sums to one.
     weights = F.softmax(scores, dim=-1)
 
     if dropout is not None:
         weights = dropout(weights)
 
+    # (.., query_len, key_len) @ (.., key_len, d_head) -> (.., query_len, d_head).
+    # Back to the width of a head: each query now holds the average of the values
+    # it selected.
     return torch.matmul(weights, value), weights
