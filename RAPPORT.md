@@ -2,7 +2,7 @@
 
 Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis le comparer à un modèle pré-entraîné de référence sur les mêmes données de test.
 
-Ce rapport se lit seul : tous les chiffres qui portent une conclusion y figurent. Ils viennent de la campagne des 8 et 9 août 2026. Ses tableaux sont générés depuis les enregistrements de runs et injectés entre marqueurs, jamais saisis à la main.
+Les chiffres viennent de la campagne des 8 et 9 août 2026.
 
 | Exigence | Ce qui a été fait |
 | --- | --- |
@@ -13,7 +13,7 @@ Ce rapport se lit seul : tous les chiffres qui portent une conclusion y figurent
 
 La campagne compte 9 expériences déclarées et 9 runs complets, aucun échec, pour 125 minutes de calcul cumulé sur une RTX 5060 Laptop sous `torch 2.13.0+cu130`. Chaque score est mesuré sur les mêmes 1 000 documents de test.
 
-L'énoncé laisse le choix entre BLEU et ROUGE. La tâche étant du résumé, c'est ROUGE. BLEU est absent volontairement : aucune colonne vide ou remplie de zéros n'apparaît nulle part.
+L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
 ## 1. Le corpus
 
@@ -273,7 +273,7 @@ La profondeur est la seule grandeur d'architecture explorée. La largeur `d_mode
 
 **Aucun des neuf runs n'est rattachable à un commit.** Les cinq runs `scratch_*` portent `git_commit: unknown`. Les quatre runs `pretrained_*` portent `5a9c95df844f`, et ce commit n'existe nulle part : ni dans ce dépôt, ni sur `origin`, qui ne porte que `main` et `develop`. La campagne a tourné dans un répertoire de travail distinct, `Scolaire/Syntra`, qui n'a pas de `.git` ; le dépôt courant est un clone du 10 août 2026 et les commits locaux de cet arbre n'ont jamais été poussés. Ils sont perdus définitivement. Les neuf runs portent par ailleurs `git_dirty: true`, donc même retrouvé, ce commit aurait situé la campagne sans la reconstituer.
 
-Le code, lui, n'était pas perdu : il était encore sur le disque, sans rien pour le protéger. Il est désormais figé, avec les mesures, sur la branche orpheline `archive/campagne-2026-08` — `reports/results` est gitignoré et n'existait donc qu'en deux copies non sauvegardées. Ce qui remplace le commit manquant est une comparaison plutôt qu'une affirmation, et la différence compte : un hash se croit, une comparaison se rejoue.
+Le code, lui, n'était pas perdu : il était encore sur le disque, sans rien pour le protéger. Il est désormais figé, avec les mesures, sur la branche orpheline `archive/campagne-2026-08` — `reports/results` est gitignoré et n'existait donc qu'en deux copies non sauvegardées. Ce qui remplace le commit manquant est une comparaison rejouable.
 
 ```bash
 python -m scripts.compare_archive     # src d'aujourd'hui contre l'arbre de campagne
@@ -281,9 +281,9 @@ python -m scripts.compare_archive     # src d'aujourd'hui contre l'arbre de camp
 
 Les deux arbres `src` sont comparés après suppression des commentaires et des docstrings, sur les arbres syntaxiques. Au 13 août 2026 : **65 fichiers sur 71 sont logiquement identiques**, dont l'attention, le Transformer, la baseline pré-entraînée, l'entraîneur, la sélection du matériel et le tracking. Cinq fichiers ont changé et un seul existait dans la campagne. Quatre des cinq — `data/fragments.py`, `experiments/fragments.py`, `experiments/reproduce.py`, `utils/markdown.py` — sont en aval de la mesure : ils génèrent les tableaux de ce rapport et le rendent en Markdown. Le cinquième, `experiments/run.py`, a reçu depuis un avertissement qui s'imprime sur la sortie d'erreur avant la première expérience quand le commit est inconnu ou l'arbre sale : ce que la campagne aurait dû lire avant de commencer plutôt que de le découvrir dans ses propres enregistrements. `experiments/publish.py`, présent seulement dans l'archive, publiait le site MkDocs supprimé depuis. Aucun des six n'entre dans le calcul d'un chiffre de la section 5.
 
-Cela ne remplace pas un commit et ne prétend pas le faire. Un lecteur qui veut vérifier que le dépôt produit encore ces chiffres doit relancer la campagne ; ce que la comparaison établit, c'est que le chemin de calcul n'a pas bougé entre-temps.
+La comparaison établit que le chemin de calcul n'a pas bougé, pas que le dépôt reproduit ces chiffres : le vérifier demande de relancer la campagne.
 
-Enfin, les tableaux de ce rapport sont générés depuis les enregistrements de runs et injectés entre marqueurs par `make report-sync` et `make corpus-sync` : une nouvelle campagne les réécrit, et un tableau décrivant la campagne précédente n'est plus un état atteignable. Les quantités citées à l'intérieur des phrases, elles, restent écrites à la main et revérifiées à l'œil contre `reports/results/experiments.csv`, la dernière fois le 10 août 2026. C'est là que se logerait désormais une divergence.
+Enfin, les tableaux sont générés depuis les enregistrements de runs et injectés entre marqueurs par `make report-sync` et `make corpus-sync` ; une nouvelle campagne les réécrit. Les quantités citées à l'intérieur des phrases restent écrites à la main et relues contre `reports/results/experiments.csv`, la dernière fois le 10 août 2026. C'est le seul point où une divergence peut subsister.
 
 ## Pour reproduire
 

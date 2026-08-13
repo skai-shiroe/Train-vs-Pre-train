@@ -392,7 +392,7 @@ Un poste sans GPU exécute tout, en plus lent. Les durées cessent en revanche d
 
 C'est ce dont dépend toute la comparaison du projet : sans elle, deux runs de la même configuration donneraient deux scores, et l'ablation ne mesurerait plus la taille du corpus.
 
-> **Limite honnête.** Chaque configuration n'a été jouée que sous la graine 42. Les intervalles publiés sont des intervalles bootstrap sur le jeu de test : ils mesurent l'échantillonnage de l'évaluation, pas la variance d'entraînement. La section 7 du [rapport](RAPPORT.md) dit lesquelles des conclusions en dépendent.
+> **Limite.** Chaque configuration n'a été jouée que sous la graine 42. Les intervalles publiés sont des intervalles bootstrap sur le jeu de test : ils mesurent l'échantillonnage de l'évaluation, pas la variance d'entraînement. La section 7 du [rapport](RAPPORT.md) dit lesquelles des conclusions en dépendent.
 
 ---
 
@@ -473,7 +473,7 @@ Ce qu'il faut en savoir tient en quatre commandes :
 | `make ablation` | Rejoue les deux ablations et écrit leurs tableaux |
 | `make report-sync` | Régénère les tableaux du rapport depuis les enregistrements |
 
-Un enregistrement porte un statut, et le statut est ce qui protège les conclusions :
+Un enregistrement porte un statut, qui décide de son entrée dans les tableaux :
 
 | Statut | Sens |
 | --- | --- |
@@ -482,7 +482,7 @@ Un enregistrement porte un statut, et le statut est ce qui protège les conclusi
 | `FAILED` | L'expérience a levé. L'erreur est enregistrée |
 | `NOT_RUN` | Déclarée, jamais exécutée |
 
-Une valeur factice ne devient jamais un résultat : c'est la règle que ces statuts font respecter mécaniquement.
+L'agrégation ne lit que les enregistrements `OK` porteurs d'une évaluation, condition écrite dans [`record.py`](src/experiments/record.py).
 
 ---
 

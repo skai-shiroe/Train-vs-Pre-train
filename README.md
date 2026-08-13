@@ -192,9 +192,9 @@ Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-t
 
 ## Intégrité scientifique
 
-Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Aucun tableau n'est saisi à la main : ceux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, et injectés entre marqueurs. Une nouvelle campagne les réécrit ; un tableau décrivant la campagne précédente n'est pas un état atteignable.
+Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Les tableaux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, puis injectés entre marqueurs. Une nouvelle campagne les réécrit.
 
-Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Une valeur factice ne devient jamais un résultat scientifique.
+Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Seuls les enregistrements `OK` entrent dans les tableaux.
 
 Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples, pas XSum complet. Cette convention est rappelée sur chaque tableau et chaque figure.
 
