@@ -64,7 +64,7 @@ from src.experiments.record import HISTORY_FILE, RUN_RECORD_FILE, STATUS_OK, Run
 from src.metrics.rouge import ROUGE_VARIANTS
 
 #: Files of a run directory that are copied into the tracking store. All four
-#: are small text documents. ``predictions.jsonl`` is deliberately absent: it
+#: are small text documents. ``predictions.jsonl`` is excluded: it
 #: holds one line per scored document, it is already published as a pipeline
 #: artefact, and nothing reads it from the tracking store.
 TRACKED_ARTIFACTS: tuple[str, ...] = (

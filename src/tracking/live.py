@@ -4,7 +4,7 @@ Section 19 asks for every experiment to reach MLflow, and :mod:`src.tracking.pay
 answers it out of the record the runner has already written. That order is what
 makes the mirror trustworthy, and it is also why nothing appears in the store
 before an experiment ends: on a training that runs for hours, the interface
-stays empty for hours and the only honest way to follow the loop is to watch
+stays empty for hours and the only way to follow the loop is to watch
 checkpoint timestamps.
 
 This module adds the missing half without touching the first one. A run is

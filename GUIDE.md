@@ -444,7 +444,7 @@ MLflow répond à une question : quel run a produit ce score, avec quelle config
 
 **Rien n'est enregistré qui n'ait été écrit d'abord.** Le lanceur écrit `run.json`, puis le trace. Le magasin ne contient donc jamais un run dont le dépôt n'a pas trace. Les séries live sont l'exception assumée, et elles portent d'autres noms : `step_*` et `epoch_*` sont ce que la boucle a observé, les métriques finales viennent de l'enregistrement seul. Les mélanger reviendrait à lire une observation comme un résultat.
 
-**Le tracking se désactive, jamais ne se simule.** `--no-tracking` sélectionne [`NullTracker`](src/tracking/client.py), qui renvoie `None` et le dit. Aucun mode ne prétend avoir enregistré.
+**Le tracking se désactive, jamais ne se simule.** `--no-tracking` sélectionne [`NullTracker`](src/tracking/client.py), qui renvoie `None` et le dit.
 
 ### Rejouer une expérience depuis MLflow
 
