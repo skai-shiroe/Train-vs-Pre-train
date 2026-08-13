@@ -96,23 +96,51 @@ make test
 ## Structure
 
 ```text
-Makefile         toutes les cibles de la chaîne, appelées depuis Git Bash
-pyproject.toml   dépendances et configuration des outils
-GUIDE.md         parcours de lecture du code, du corpus à MLflow
-RAPPORT.md       le rapport scientifique et ses résultats
-src/             code de recherche : data, models, training, evaluation, experiments, metrics, tracking, utils
-configs/         configuration des données, des modèles, de l'entraînement et des expériences
-data/            corpus de travail, reconstruit par make data ; son contenu n'est pas versionné
-reports/         résultats, tableaux et figures produits automatiquement ; reports/quick/ pour les essais plafonnés
-notebooks/       environnement, analyse exploratoire, traversée du Transformer, entraînement
-scripts/         outils de mesure et de vérification
-tests/           tests unitaires et d'intégration
+.
+├── Makefile                     toutes les cibles de la chaîne, appelées depuis Git Bash
+├── pyproject.toml               dépendances et configuration des outils
+├── GUIDE.md                     parcours de lecture du code, du corpus à MLflow
+├── RAPPORT.md                   le rapport scientifique et ses résultats
+├── src/                         code de recherche
+│   ├── data/                    téléchargement, validation, tokenisation, corpus figé
+│   ├── models/
+│   │   ├── scratch/             le Transformer écrit à la main, 15 modules
+│   │   └── pretrained/          l'adaptateur t5-small
+│   ├── training/                boucle d'entraînement, optimiseur, arrêt anticipé
+│   ├── evaluation/              génération et évaluation sur le jeu de test commun
+│   ├── metrics/                 ROUGE et intervalles de confiance
+│   ├── experiments/             lanceur, registre des neuf expériences, ablations, figures
+│   ├── tracking/                enregistrement des runs et envoi vers MLflow
+│   └── utils/                   graine aléatoire, périphérique, markdown
+├── configs/
+│   ├── data/                    xsum.yaml : corpus et tokenizer
+│   ├── experiments/             les neuf expériences, une par fichier
+│   ├── model/                   vide, les hyperparamètres vivent dans les expériences
+│   └── training/                vide, pour la même raison
+├── data/                        corpus de travail, reconstruit par make data
+│   ├── raw/                     XSum tel que téléchargé
+│   ├── interim/                 étapes intermédiaires
+│   ├── processed/               le corpus figé de 20 000 exemples
+│   └── external/                ressources tierces
+├── reports/
+│   ├── results/                 un enregistrement par run
+│   ├── figures/                 les quatre figures du rapport
+│   └── _generated/              les fragments injectés dans ce README et le rapport
+├── notebooks/                   00 environnement, 01 corpus, 02 entraînement, 03 Transformer
+├── scripts/                     measure_padding.py et compare_archive.py
+└── tests/
+    ├── unit/                    47 fichiers
+    └── integration/             9 fichiers
 
-Créés à l'usage, non versionnés :
-.venv/           environnement Python appelé par le Makefile
-runs/            checkpoints d'entraînement, plusieurs Go
-mlflow.db        magasin MLflow servi par make mlflow-ui
-mlruns/          artefacts MLflow associés
+Le contenu de data/, de reports/results/ et de reports/quick/ n'est pas versionné :
+il est reconstruit par make data et par la chaîne d'expériences.
+
+Créés à l'usage, jamais versionnés :
+
+.venv/       environnement Python appelé par le Makefile
+runs/        checkpoints d'entraînement, plusieurs Go
+mlflow.db    magasin MLflow servi par make mlflow-ui
+mlruns/      artefacts MLflow associés
 ```
 
 ## Commandes
