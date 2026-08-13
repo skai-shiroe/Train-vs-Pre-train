@@ -44,7 +44,7 @@ from src.experiments.reproduce import (
     format_summary,
     main,
     prepare_corpus,
-    prepare_readme,
+    prepare_page,
     quick_corpus,
     quick_experiment,
     reproduce,
@@ -191,29 +191,36 @@ def test_an_unknown_mode_is_refused() -> None:
         destinations_for("almost")
 
 
-def test_full_mode_injects_the_headline_into_the_readme_of_the_repository() -> None:
-    before = Path("README.md").read_bytes()
+@pytest.mark.parametrize("name", ["README.md", "RAPPORT.md"])
+def test_full_mode_injects_into_the_page_of_the_repository(name: str) -> None:
+    page = Path(name)
+    before = page.read_bytes()
 
-    target = prepare_readme(Settings(mode=MODE_FULL))
+    target = prepare_page(Settings(mode=MODE_FULL), page, page)
 
-    assert target == Path("README.md")
+    assert target == page
     # Choosing the page writes nothing: the injection belongs to the step.
-    assert Path("README.md").read_bytes() == before
+    assert page.read_bytes() == before
 
 
-def test_quick_mode_injects_the_headline_into_a_copy(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["README.md", "RAPPORT.md"])
+def test_quick_mode_injects_into_a_copy(tmp_path: Path, name: str) -> None:
     destinations = Destinations(
         results=tmp_path / "results",
         runs=tmp_path / "runs",
         figures=(tmp_path / "figures",),
         fragments=tmp_path / "_generated",
         readme=tmp_path / "README.md",
+        report=tmp_path / "RAPPORT.md",
+    )
+    source = Path(name)
+
+    target = prepare_page(
+        Settings(mode=MODE_QUICK, destinations=destinations), source, tmp_path / name
     )
 
-    target = prepare_readme(Settings(mode=MODE_QUICK, destinations=destinations))
-
-    assert target == tmp_path / "README.md"
-    assert target.read_text(encoding="utf-8") == Path("README.md").read_text(encoding="utf-8")
+    assert target == tmp_path / name
+    assert target.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
 
 
 def test_a_quick_run_never_traces() -> None:

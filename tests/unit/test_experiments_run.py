@@ -44,11 +44,13 @@ from src.experiments.run import (
     load_corpus,
     main,
     run_one,
+    untraceable_warning,
 )
 from src.models.pretrained.base import BaselineConfig
 from src.models.pretrained.t5 import T5Summarizer
 from src.models.scratch.summarizer import ScratchSummarizer
 from src.tracking.payload import TrackedRun
+from src.tracking.provenance import UNKNOWN, Provenance
 from src.training.state import TrainingResult
 
 pytestmark = pytest.mark.unit
@@ -705,6 +707,92 @@ def test_verbose_reaches_the_configuration(monkeypatch: pytest.MonkeyPatch, tmp_
     main(["--all", "--experiments-dir", str(tmp_path), "--verbose"])
 
     assert seen == [True]
+
+
+# ---------------------------------------------------------------------------
+# The provenance warning
+#
+# The campaign of August 2026 ran from a directory without a .git and its
+# records name a commit that resolves nowhere. These tests pin the warning that
+# would have said so before the first epoch rather than after the last.
+# ---------------------------------------------------------------------------
+
+
+def test_a_known_commit_and_a_clean_tree_warn_about_nothing() -> None:
+    provenance = {"git_commit": "8510dec", "git_branch": "main", "git_dirty": "false"}
+
+    assert untraceable_warning(provenance) is None
+
+
+def test_an_unknown_commit_is_worth_a_warning() -> None:
+    provenance = {"git_commit": UNKNOWN, "git_branch": UNKNOWN, "git_dirty": "false"}
+
+    warning = untraceable_warning(provenance)
+
+    assert warning is not None
+    assert "commit" in warning
+
+
+def test_a_dirty_tree_is_worth_a_warning_of_its_own() -> None:
+    provenance = {"git_commit": "8510dec", "git_branch": "main", "git_dirty": "true"}
+
+    warning = untraceable_warning(provenance)
+
+    assert warning is not None
+    assert "uncommitted" in warning
+
+
+def test_both_reasons_are_reported_together() -> None:
+    # Neither reason hides the other: the reader of the warning has to know
+    # whether the commit is missing, the tree dirty, or both.
+    provenance = {"git_commit": UNKNOWN, "git_branch": UNKNOWN, "git_dirty": "true"}
+
+    warning = untraceable_warning(provenance)
+
+    assert warning is not None
+    assert "commit" in warning
+    assert "uncommitted" in warning
+
+
+def test_an_unknown_dirtiness_alone_is_not_a_second_reason() -> None:
+    # describe_provenance renders an unanswerable working tree as "unknown".
+    # The missing commit is already reported; claiming uncommitted changes
+    # nobody observed would be a second, invented reason.
+    provenance = {"git_commit": UNKNOWN, "git_branch": UNKNOWN, "git_dirty": UNKNOWN}
+
+    warning = untraceable_warning(provenance)
+
+    assert warning is not None
+    assert "uncommitted" not in warning
+
+
+def test_the_warning_reaches_the_error_stream_before_the_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        run_module,
+        "describe_provenance",
+        lambda: Provenance(commit=UNKNOWN, branch=UNKNOWN, dirty=None),
+    )
+
+    # The empty directory ends the run on its first decision. The warning is
+    # printed before that, which is the whole point of where it sits.
+    assert main(["--all", "--experiments-dir", str(tmp_path)]) == 1
+    assert "warning:" in capsys.readouterr().err
+
+
+def test_a_traceable_run_prints_no_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        run_module,
+        "describe_provenance",
+        lambda: Provenance(commit="8510dec", branch="main", dirty=False),
+    )
+
+    main(["--all", "--experiments-dir", str(tmp_path)])
+
+    assert "warning:" not in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

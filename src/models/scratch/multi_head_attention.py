@@ -125,10 +125,16 @@ class MultiHeadAttention(nn.Module):
             A pair ``(output, weights)``. ``weights`` is ``None`` unless
             ``return_weights`` is set.
         """
+        # (batch, seq, d_model) -> projection, same shape -> split into heads,
+        # (batch, num_heads, seq, d_head). Nothing is lost or added: the width is
+        # cut into num_heads slices that the attention then treats independently.
         heads_query = self._split_heads(self.query_projection(query))
         heads_key = self._split_heads(self.key_projection(key))
         heads_value = self._split_heads(self.value_projection(value))
 
+        # The context comes back as (batch, num_heads, query_len, d_head) and the
+        # weights as (batch, num_heads, query_len, key_len), one attention map
+        # per head.
         context, weights = scaled_dot_product_attention(
             heads_query,
             heads_key,
@@ -137,5 +143,7 @@ class MultiHeadAttention(nn.Module):
             dropout=self.dropout,
         )
 
+        # Merge is the concatenation of the formula, then W_O mixes what the
+        # heads gathered separately: (batch, query_len, d_model).
         output = self.output_projection(self._merge_heads(context))
         return output, weights if return_weights else None

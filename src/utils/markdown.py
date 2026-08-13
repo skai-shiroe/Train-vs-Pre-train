@@ -23,7 +23,7 @@ English, like the rest of ``src``.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -36,6 +36,12 @@ MISSING = ""
 #: rendered from, under a name starting with an underscore so the directory
 #: reads as generated rather than written.
 FRAGMENTS_DIR = Path("reports") / "_generated"
+
+#: How an injected region opens and closes. Named, so one page can carry several
+#: of them, and so a mismatched pair is a parse error rather than a silently
+#: swallowed region.
+REGION_BEGIN = "<!-- syntra:begin {name} -->"
+REGION_END = "<!-- syntra:end {name} -->"
 
 
 def banner(command: str) -> str:
@@ -144,6 +150,50 @@ def table(columns: Sequence[str], rows: Iterable[Sequence[str]]) -> str:
     ]
     lines.extend("| " + " | ".join(cells) + " |" for cells in rows)
     return "\n".join(lines)
+
+
+def inject_regions(path: Path, regions: Mapping[str, str], command: str) -> str:
+    """Return a hand written page with each of its marked regions rewritten.
+
+    A generated table reaches a hand written page through a named pair of HTML
+    comments rather than through an include, because the pages this repository
+    ships are read on the forge, which builds nothing. The prose around the
+    markers is read from disk and kept: this rewrites regions, it does not
+    generate a page.
+
+    Regions are applied in order, each to the result of the previous one, so a
+    page carrying several of them is read once and rewritten once.
+
+    Args:
+        path: The page to refresh.
+        regions: Region name to the Markdown that belongs between its markers.
+        command: What rewrites the region, for the banner placed under the
+            opening marker.
+
+    Returns:
+        The whole page, so that it is compared and written like a fragment.
+
+    Raises:
+        ValueError: If the page is missing, or carries no such region. A
+            generated table that silently found nowhere to go would leave the
+            page stating the previous campaign, which is what the markers are
+            there to prevent.
+    """
+    if not path.is_file():
+        named = ", ".join(f"`{name}`" for name in regions) or "its"
+        raise ValueError(f"{path} does not exist, so its {named} table has nowhere to go.")
+
+    text = path.read_text(encoding="utf-8")
+    for name, body in regions.items():
+        begin, end = REGION_BEGIN.format(name=name), REGION_END.format(name=name)
+        start, stop = text.find(begin), text.find(end)
+        if start < 0 or stop < start:
+            raise ValueError(
+                f"{path} carries no `{name}` region: it must hold {begin} then {end}. "
+                "A generated table is only as safe as the marker saying where it belongs."
+            )
+        text = f"{text[: start + len(begin)]}\n{fragment(body, command)}{text[stop:]}"
+    return text
 
 
 def write(rendered: dict[Path, str]) -> list[Path]:

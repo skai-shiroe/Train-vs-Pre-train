@@ -12,8 +12,8 @@ ends, the weights in memory are those of the last epoch, and early stopping
 exists precisely because that is not the best epoch. Both models are therefore
 rebuilt from the best checkpoint before being measured. The reload costs one
 model construction and buys two things: the reported score belongs to the
-weights the run selected, and a checkpoint that cannot be reloaded fails here
-rather than in the API three lots later.
+weights the run selected, and a checkpoint that cannot be reloaded fails here,
+during the run that wrote it, rather than the day someone tries to reuse it.
 
 **Both sides go through the same three steps.** The from scratch Transformer and
 ``t5-small`` differ in how they are built and in their loss adapter, and in
@@ -34,6 +34,16 @@ the record that was just written. Tracking therefore cannot invent a number, and
 a store that is unreachable costs the mirror of a measurement rather than the
 measurement itself. A failed run is traced too: an experiment that crashed is
 part of what the plan produced.
+
+**An untraceable campaign says so before it starts, and starts anyway.** The
+provenance of a run reaches its record as a tag, which is only read once the
+measurement is over. The campaign of August 2026 was learnt that way: it ran from
+a directory without a ``.git``, and the commit its records name resolves nowhere,
+so the results of the report cannot be tied to a state of the code. The warning
+:func:`untraceable_warning` builds is printed before the first experiment, since
+that is the only moment where knowing costs nothing. It does not refuse to run:
+an unrecorded commit is a degraded run, and an experiment nobody is allowed to
+start is worse than one that has to be documented.
 
 **The command line owns the logging configuration.**
 :class:`src.training.callbacks.LoggingCallback` reports the progress of the loop
@@ -91,7 +101,7 @@ from src.models.scratch.transformer import ScratchTransformer
 from src.tracking.client import DEFAULT_EXPERIMENT, Tracker, build_tracker, log_safely
 from src.tracking.live import LiveMetricsCallback, LiveRun, finish_safely, open_live_run
 from src.tracking.payload import build_payload
-from src.tracking.provenance import describe_provenance
+from src.tracking.provenance import UNKNOWN, describe_provenance
 from src.training.callbacks import default_callbacks
 from src.training.checkpoint import CheckpointManager, load_checkpoint
 from src.training.sampler import build_training_dataloader
@@ -103,8 +113,10 @@ from src.utils.seed import set_seed
 #: Where the run directories are created, per section 17.
 DEFAULT_RESULTS_DIR = Path("reports") / "results"
 
-#: Where the checkpoints of a run are written. Outside the results directory:
-#: results are published as pipeline artefacts, weights go to the registry.
+#: Where the checkpoints of a run are written. Outside the results directory
+#: because the two have different lifetimes: a run directory is a few kilobytes
+#: of records that the tables read, a checkpoint is hundreds of megabytes that
+#: the next run of the same experiment overwrites.
 DEFAULT_RUNS_DIR = Path("runs")
 
 #: The two concrete summarisers an experiment can build. The evaluator only
@@ -594,6 +606,31 @@ def _configure_logging(verbose: bool) -> None:
     )
 
 
+def untraceable_warning(provenance: Mapping[str, str]) -> str | None:
+    """Describe what the results of a campaign started now could not be tied to.
+
+    Args:
+        provenance: What :func:`src.tracking.provenance.describe_provenance`
+            answered, rendered as tags.
+
+    Returns:
+        The warning to show before anything runs, or ``None`` when the commit is
+        known and the working tree clean.
+    """
+    reasons = []
+    if provenance.get("git_commit", UNKNOWN) == UNKNOWN:
+        reasons.append("git cannot name the commit this code is at")
+    if provenance.get("git_dirty") == "true":
+        reasons.append("the working tree carries uncommitted changes")
+    if not reasons:
+        return None
+
+    return (
+        f"warning: {', and '.join(reasons)}. The records this run writes will not "
+        f"tie their numbers to a state of the code anyone can check out again."
+    )
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     """Describe the command line of ``python -m src.experiments.run``.
 
@@ -669,6 +706,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     args = build_argument_parser().parse_args(argv)
     _configure_logging(args.verbose)
+
+    warning = untraceable_warning(describe_provenance().to_dict())
+    if warning is not None:
+        print(warning, file=sys.stderr)
 
     configs = (
         discover_experiments(args.experiments_dir)

@@ -1,7 +1,9 @@
-"""Torch device resolution shared by training and inference.
+"""Torch device resolution shared by training and evaluation.
 
-The backend settings expose ``device: auto``. Resolving that string in a single
-place avoids the drift between what the trainer used and what the API loads.
+An experiment file declares ``device: auto``. Resolving that string in a single
+place avoids the drift between what the trainer used and what the evaluation
+runs on, which would make a duration incomparable with the one the record
+reports.
 """
 
 from __future__ import annotations

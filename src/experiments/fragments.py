@@ -21,21 +21,24 @@ writes the Markdown tables a reader can put beside the records::
     reports/_generated/families.md         the two families at each proportion
     reports/_generated/headline.md         the headline result table
 
-and refreshes the table ``README.md`` carries between its markers.
+and refreshes the regions ``README.md`` and ``RAPPORT.md`` carry between their
+markers.
 
-**A number is computed or narrated, never both.** ``RAPPORT.md`` reads the
-results and cannot be generated; it stays written by hand, and its figures are
-checked against ``reports/results/experiments.csv`` by a reader rather than by a
-script. What is generated is this set of tables, and the README region below.
+**A number is computed or narrated, never both.** The prose of ``RAPPORT.md`` is
+written by hand and stays that way: an argument is not a table. Every table it
+argues from is generated here and injected, so that a new campaign cannot leave a
+paragraph commenting the previous one's figures. What remains typed by hand in
+the report is prose, and the quantities that appear inside a sentence.
 
 **The same table is rendered once and placed wherever it appears twice.** Two
 copies of one measurement is two chances to state the previous campaign, so the
 divergence has nowhere to live.
 
-**The README is injected in place.** It is read on the forge, from the
-repository root, where no include mechanism runs. So the region between its
-markers is rewritten in place and compared like a fragment. The markers are HTML
-comments: they say the table is generated, and they render nowhere.
+**The pages are injected in place.** They are read on the forge, from the
+repository root, where no include mechanism runs. So the region between a pair of
+markers is rewritten in place and the whole page is compared like a fragment. The
+markers are HTML comments: they say the table is generated, and they render
+nowhere.
 
 **The source is the run record, like the tables and the figures.** Same reader,
 same comparability check, one rounding. A fragment built from
@@ -85,8 +88,12 @@ from src.metrics.rouge import REPORTED_VARIANT, ROUGE_VARIANTS
 from src.utils.markdown import (
     FRAGMENTS_DIR,
     MISSING,
+    REGION_BEGIN,
+    REGION_END,
     banner,
+    decimal,
     fragment,
+    inject_regions,
     number,
     share,
     stale,
@@ -135,11 +142,17 @@ DEFAULT_README = Path("README.md")
 #: The name of the region the README reserves for the headline table.
 HEADLINE_REGION = "headline"
 
-#: How an injected region opens and closes. Named, so a file could carry a
-#: second one, and so a mismatched pair is a parse error rather than a silently
-#: swallowed region.
-REGION_BEGIN = "<!-- syntra:begin {name} -->"
-REGION_END = "<!-- syntra:end {name} -->"
+#: The report, which carries several of them. It is the document the project is
+#: read on, and section 7 used to admit that its numbers were typed by hand and
+#: re-read against the CSV by eye. The tables it argues from are generated here
+#: and injected, so that a new campaign cannot leave a paragraph commenting the
+#: previous one.
+DEFAULT_REPORT = Path("RAPPORT.md")
+
+#: The regions of the report, and the table each one carries.
+FAMILIES_REGION = "families"
+ARCHITECTURE_REGION = "architecture"
+CAPITALISATION_REGION = "capitalisation"
 
 #: How the ablation studies are named in a table. The experiment files carry the
 #: keys, the reader gets the words.
@@ -539,11 +552,36 @@ def gap_reason(label: str, row: ExperimentRow | None) -> str:
     return "" if row.measured else f"`{row.name}` `{row.status}`"
 
 
+def absolute(base: float | None, other: float | None) -> str:
+    """Render how far one score sits above another, in points of the metric.
+
+    The relative gap alone cannot answer requirement 3. Between 10 % and 100 %
+    of this corpus the two gaps move in opposite directions, the relative one
+    narrowing while the absolute one widens, and the paragraph reading this
+    table argues from both. A quantity a conclusion rests on is computed here or
+    it is typed by hand somewhere else.
+
+    Args:
+        base: The score compared against, from scratch in the families table.
+        other: The score compared.
+
+    Returns:
+        The absolute gap, or :data:`MISSING` when either side is absent. It is
+        unsigned: the column beside it carries the sign, and the two families
+        are ordered so that a negative value would be the surprise rather than
+        the norm.
+    """
+    if base is None or other is None:
+        return MISSING
+    return decimal(abs(other - base), SCORE_DECIMALS)
+
+
 def families_table(rows: Sequence[ExperimentRow]) -> str:
     """Render the two families side by side at each proportion.
 
-    This is the table requirement 3 is answered with, and the relative gap is
-    the answer: it does not close as the corpus grows.
+    This is the table requirement 3 is answered with, and the two gap columns
+    are the answer: the relative gap narrows slightly while the absolute one
+    widens, so giving the from scratch model more data does not bring it closer.
 
     Args:
         rows: The rows of the corpus size study.
@@ -569,7 +607,14 @@ def families_table(rows: Sequence[ExperimentRow]) -> str:
     if not proportions:
         return "Aucune proportion n'est déclarée dans les deux familles : la table est vide."
 
-    columns = ["Proportion", scratch_label, pretrained_label, "Écart relatif"]
+    columns = [
+        "Proportion",
+        "Exemples",
+        scratch_label,
+        pretrained_label,
+        "Écart absolu",
+        "Écart relatif",
+    ]
     pairs = [
         (
             percentage,
@@ -597,7 +642,27 @@ def families_table(rows: Sequence[ExperimentRow]) -> str:
     for (percentage, scratch, trained), reason in zip(pairs, reasons, strict=True):
         base = scratch.rouge(REPORTED_VARIANT) if scratch else None
         other = trained.rouge(REPORTED_VARIANT) if trained else None
-        cells = [f"{percentage} %", score(base), score(other), relative(base, other)]
+        # Read from whichever side ran. The two families share the proportion,
+        # so they share the count; taking it from the record rather than from
+        # the percentage keeps the column a measurement instead of an
+        # arithmetic on a corpus size stated somewhere else.
+        measured_rows = [row for row in (scratch, trained) if row is not None and row.record]
+        examples: Any = next(
+            (
+                row.record.dataset.get("train_examples")
+                for row in measured_rows
+                if row.record is not None
+            ),
+            None,
+        )
+        cells = [
+            f"{percentage} %",
+            number(examples),
+            score(base),
+            score(other),
+            absolute(base, other),
+            relative(base, other),
+        ]
         if status:
             cells.append(reason)
         body.append(cells)
@@ -658,18 +723,7 @@ def injected(path: Path, name: str, body: str) -> str:
             page stating the previous campaign, which is what the markers are
             there to prevent.
     """
-    if not path.is_file():
-        raise ValueError(f"{path} does not exist, so its `{name}` table has nowhere to go.")
-
-    text = path.read_text(encoding="utf-8")
-    begin, end = REGION_BEGIN.format(name=name), REGION_END.format(name=name)
-    start, stop = text.find(begin), text.find(end)
-    if start < 0 or stop < start:
-        raise ValueError(
-            f"{path} carries no `{name}` region: it must hold {begin} then {end}. "
-            "A generated table is only as safe as the marker saying where it belongs."
-        )
-    return f"{text[: start + len(begin)]}\n{fragment(body, COMMAND)}{text[stop:]}"
+    return inject_regions(path, {name: body}, COMMAND)
 
 
 def capitalisation(path: Path) -> tuple[int, int, int] | None:
@@ -822,6 +876,7 @@ def build(
     results_dir: Path = DEFAULT_RESULTS_DIR,
     output_dir: Path = DEFAULT_FRAGMENTS_DIR,
     readme: Path,
+    report: Path,
 ) -> dict[Path, str]:
     """Render every generated table of the documentation.
 
@@ -831,12 +886,14 @@ def build(
         output_dir: Directory the fragments belong in. Used to key the result;
             nothing is written here.
         readme: The page carrying a generated table between markers instead of
-            an include, because MkDocs does not build it. Required, and
-            deliberately without a default: it is the one target that is a
-            tracked, hand written page rather than a generated directory, and a
-            caller that forgot it would rewrite the README of the repository
-            with whatever campaign it was pointed at. The command line supplies
+            an include, because it is read on the forge, which builds nothing.
+            Required, and deliberately without a default: it is a tracked, hand
+            written page rather than a generated directory, and a caller that
+            forgot it would rewrite the README of the repository with whatever
+            campaign it was pointed at. The command line supplies
             :data:`DEFAULT_README`, a test supplies its own.
+        report: The report, which carries three of them, and required for the
+            same reason.
 
     Returns:
         A mapping from destination path to the text that belongs in it.
@@ -859,10 +916,14 @@ def build(
     check_comparable(dataset_size, "dataset_size")
     check_comparable(architecture, "architecture")
 
-    # Rendered once and placed twice: the site index includes it, the README
-    # has it injected. Two renderings could not disagree, but two call sites
-    # could drift in what they are given, which is the same defect one step up.
+    # Rendered once and placed twice: the fragment is written for anything that
+    # includes it, the page has it injected. Two renderings could not disagree,
+    # but two call sites could drift in what they are given, which is the same
+    # defect one step up.
     headline = headline_table(by_score(dataset_size))
+    families = families_table(dataset_size)
+    depth = architecture_table(sort_architecture(architecture))
+    capitals = capitalisation_table(rows, results)
 
     return {
         output / CAMPAIGN_FRAGMENT: fragment(campaign_table(rows), COMMAND),
@@ -871,16 +932,22 @@ def build(
         / DATASET_SIZE_FRAGMENT: fragment(
             dataset_size_table(sort_dataset_size(dataset_size)), COMMAND
         ),
-        output
-        / ARCHITECTURE_FRAGMENT: fragment(
-            architecture_table(sort_architecture(architecture)), COMMAND
-        ),
-        output / CAPITALISATION_FRAGMENT: fragment(capitalisation_table(rows, results), COMMAND),
+        output / ARCHITECTURE_FRAGMENT: fragment(depth, COMMAND),
+        output / CAPITALISATION_FRAGMENT: fragment(capitals, COMMAND),
         output / METRICS_FRAGMENT: fragment(metrics_table(by_score(rows)), COMMAND),
         output / PRETRAINED_FRAGMENT: fragment(pretrained_table(pretrained_rows(rows)), COMMAND),
-        output / FAMILIES_FRAGMENT: fragment(families_table(dataset_size), COMMAND),
+        output / FAMILIES_FRAGMENT: fragment(families, COMMAND),
         output / HEADLINE_FRAGMENT: fragment(headline, COMMAND),
         Path(readme): injected(Path(readme), HEADLINE_REGION, headline),
+        Path(report): inject_regions(
+            Path(report),
+            {
+                FAMILIES_REGION: families,
+                ARCHITECTURE_REGION: depth,
+                CAPITALISATION_REGION: capitals,
+            },
+            COMMAND,
+        ),
     }
 
 
@@ -894,9 +961,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
         prog="python -m src.experiments.fragments",
         description=(
             "Emit the Markdown fragments the documentation includes, from the run records, "
-            "and refresh the table the README carries between its markers. Nothing is "
-            "computed except the capitalisation rate, which is counted from the predictions "
-            "each evaluation wrote."
+            "and refresh the regions the README and the report carry between their markers. "
+            "Nothing is computed except the capitalisation rate, which is counted from the "
+            "predictions each evaluation wrote."
         ),
     )
     parser.add_argument(
@@ -924,6 +991,12 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="The page whose marked region carries the headline table.",
     )
     parser.add_argument(
+        "--report",
+        type=Path,
+        default=DEFAULT_REPORT,
+        help="The report, whose marked regions carry the tables its sections argue from.",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Report what is out of date and write nothing. Exits non zero on a stale fragment.",
@@ -949,6 +1022,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             results_dir=args.results,
             output_dir=args.output,
             readme=args.readme,
+            report=args.report,
         )
     except ValueError as error:
         print(f"{type(error).__name__}: {error}", file=sys.stderr)

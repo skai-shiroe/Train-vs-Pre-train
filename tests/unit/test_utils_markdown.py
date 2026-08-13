@@ -2,11 +2,12 @@
 
 Two modules render tables into ``reports/_generated`` and both reach a reader through
 these functions, so a defect here is a defect on every generated table at once.
-Four properties carry that: a fragment must name the command that rewrites it
+Five properties carry that: a fragment must name the command that rewrites it
 and not the other one, a missing measurement must not render as a value, an
-exact half must round the same way whichever binary float carries it, and a
+exact half must round the same way whichever binary float carries it, a
 fragment must land on disk with the line endings the repository uses whatever
-platform wrote it.
+platform wrote it, and a table injected into a hand written page must land in
+its own region without disturbing the prose or the region beside it.
 """
 
 from __future__ import annotations
@@ -17,9 +18,12 @@ import pytest
 
 from src.utils.markdown import (
     MISSING,
+    REGION_BEGIN,
+    REGION_END,
     banner,
     decimal,
     fragment,
+    inject_regions,
     number,
     share,
     stale,
@@ -28,6 +32,16 @@ from src.utils.markdown import (
 )
 
 pytestmark = pytest.mark.unit
+
+
+def page(directory: Path, *names: str) -> Path:
+    """Write a page carrying one empty region per name and return it."""
+    markers = "\n\n".join(
+        f"{REGION_BEGIN.format(name=name)}\n{REGION_END.format(name=name)}" for name in names
+    )
+    path = directory / "page.md"
+    path.write_text(f"# Titre\n\nAvant.\n\n{markers}\n\nApres.\n", encoding="utf-8")
+    return path
 
 
 def test_banner_names_the_command_it_is_given() -> None:
@@ -154,3 +168,69 @@ def test_stale_reports_nothing_when_the_disk_matches(tmp_path: Path) -> None:
     write({target: "generated\n"})
 
     assert stale({target: "generated\n"}) == []
+
+
+# ---------------------------------------------------------------------------
+# Injection, for the pages a generated table lands in the middle of
+# ---------------------------------------------------------------------------
+
+
+def test_each_region_of_a_page_is_rewritten_independently(tmp_path: Path) -> None:
+    """A page carries several regions, and one pass fills them all."""
+    path = page(tmp_path, "un", "deux")
+
+    text = inject_regions(path, {"un": "| Un |", "deux": "| Deux |"}, "cmd")
+
+    assert text.startswith("# Titre\n\nAvant.\n")
+    assert text.endswith("Apres.\n")
+    assert f"{REGION_BEGIN.format(name='un')}\n{banner('cmd')}\n\n| Un |\n" in text
+    assert f"{REGION_BEGIN.format(name='deux')}\n{banner('cmd')}\n\n| Deux |\n" in text
+
+
+def test_a_region_the_call_does_not_name_is_left_alone(tmp_path: Path) -> None:
+    """Two generators share the report, and neither may blank the other's table."""
+    path = page(tmp_path, "mien", "tien")
+    path.write_text(inject_regions(path, {"tien": "| Tien |"}, "autre"), encoding="utf-8")
+
+    text = inject_regions(path, {"mien": "| Mien |"}, "cmd")
+
+    assert "| Tien |" in text
+    assert "| Mien |" in text
+
+
+def test_injecting_twice_writes_the_same_page(tmp_path: Path) -> None:
+    """The region is found by its markers, so a second pass replaces rather than nests."""
+    path = page(tmp_path, "un", "deux")
+    regions = {"un": "| Un |", "deux": "| Deux |"}
+
+    once = inject_regions(path, regions, "cmd")
+    path.write_text(once, encoding="utf-8")
+    twice = inject_regions(path, regions, "cmd")
+
+    assert twice == once
+    assert twice.count(REGION_BEGIN.format(name="un")) == 1
+
+
+def test_a_page_missing_one_of_its_regions_is_refused(tmp_path: Path) -> None:
+    """A table with nowhere to go must stop the run, not vanish silently."""
+    path = page(tmp_path, "un")
+
+    with pytest.raises(ValueError, match="carries no `deux` region"):
+        inject_regions(path, {"un": "| Un |", "deux": "| Deux |"}, "cmd")
+
+
+def test_markers_in_the_wrong_order_are_refused(tmp_path: Path) -> None:
+    """A closing marker before its opening one is a parse error, not an empty region."""
+    path = tmp_path / "page.md"
+    path.write_text(
+        f"{REGION_END.format(name='un')}\n{REGION_BEGIN.format(name='un')}\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="carries no `un` region"):
+        inject_regions(path, {"un": "| Un |"}, "cmd")
+
+
+def test_a_missing_page_is_refused_rather_than_created(tmp_path: Path) -> None:
+    """Writing the file would produce a page holding a table and nothing else."""
+    with pytest.raises(ValueError, match="has nowhere to go"):
+        inject_regions(tmp_path / "nowhere.md", {"un": "| Un |"}, "cmd")

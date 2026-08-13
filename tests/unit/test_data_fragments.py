@@ -23,6 +23,7 @@ from src.data.fragments import (
     MANIFEST_NAME,
     STATISTICS_FRAGMENT,
     STATISTICS_NAME,
+    STATISTICS_REGION,
     TRUNCATION_FRAGMENT,
     build,
     checksums_table,
@@ -33,7 +34,14 @@ from src.data.fragments import (
     statistics_table,
     truncation_table,
 )
-from src.utils.markdown import MISSING, banner, stale, write
+from src.utils.markdown import (
+    MISSING,
+    REGION_BEGIN,
+    REGION_END,
+    banner,
+    stale,
+    write,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -112,6 +120,20 @@ def prepare(directory: Path, *, manifest: Any = None, statistics: Any = None) ->
         json.dumps(statistics_payload() if statistics is None else statistics), encoding="utf-8"
     )
     return directory
+
+
+def report_at(directory: Path) -> Path:
+    """Return a page carrying the statistics markers, writing the stub if absent."""
+    path = directory / "RAPPORT.md"
+    if not path.is_file():
+        path.write_text(
+            "# Rapport\n\nCe qui précède le tableau.\n\n"
+            f"{REGION_BEGIN.format(name=STATISTICS_REGION)}\n"
+            f"{REGION_END.format(name=STATISTICS_REGION)}\n\n"
+            "Ce qui le suit.\n",
+            encoding="utf-8",
+        )
+    return path
 
 
 def test_read_record_refuses_a_missing_file(tmp_path: Path) -> None:
@@ -253,25 +275,37 @@ def test_code_renders_nothing_for_an_absent_value() -> None:
     assert code("") == MISSING
 
 
-def test_build_keys_three_fragments_under_the_output_directory(tmp_path: Path) -> None:
-    """The three tables of the page, and nothing else."""
+def test_build_keys_three_fragments_and_the_report(tmp_path: Path) -> None:
+    """The three tables of the page, the report they are injected into, nothing else."""
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
 
-    rendered = build(processed_dir=processed, output_dir=output)
+    rendered = build(processed_dir=processed, output_dir=output, report=report_at(tmp_path))
 
     assert set(rendered) == {
         output / CHECKSUMS_FRAGMENT,
         output / STATISTICS_FRAGMENT,
         output / TRUNCATION_FRAGMENT,
+        report_at(tmp_path),
     }
 
 
 def test_every_fragment_names_the_command_that_rewrites_it(tmp_path: Path) -> None:
     """Pointing a reader at the generator of the report tables would waste their time."""
-    rendered = build(processed_dir=prepare(tmp_path / "corpus"), output_dir=tmp_path / "out")
+    report = report_at(tmp_path)
+    rendered = build(
+        processed_dir=prepare(tmp_path / "corpus"),
+        output_dir=tmp_path / "out",
+        report=report,
+    )
 
-    for text in rendered.values():
+    for path, text in rendered.items():
+        if path == report:
+            # The report is a page, not a fragment: it keeps its title, and its
+            # banner sits inside the region rather than at the top of the file.
+            assert text.startswith("# Rapport")
+            assert f"{REGION_BEGIN.format(name=STATISTICS_REGION)}\n{banner(COMMAND)}" in text
+            continue
         assert text.startswith(banner(COMMAND))
         assert "src.experiments.fragments" not in text
 
@@ -280,8 +314,16 @@ def test_rendering_does_not_depend_on_how_the_command_was_invoked(tmp_path: Path
     """A fragment that changed with a relative path would disagree with itself."""
     processed = prepare(tmp_path / "corpus")
 
-    absolute = build(processed_dir=processed.resolve(), output_dir=tmp_path / "out")
-    relative = build(processed_dir=processed, output_dir=tmp_path / "out")
+    absolute = build(
+        processed_dir=processed.resolve(),
+        output_dir=tmp_path / "out",
+        report=report_at(tmp_path),
+    )
+    relative = build(
+        processed_dir=processed,
+        output_dir=tmp_path / "out",
+        report=report_at(tmp_path),
+    )
 
     assert list(absolute.values()) == list(relative.values())
 
@@ -289,7 +331,11 @@ def test_rendering_does_not_depend_on_how_the_command_was_invoked(tmp_path: Path
 def test_build_refuses_a_directory_holding_no_corpus(tmp_path: Path) -> None:
     """Rendering from nothing would rewrite the page as a corpus of empty cells."""
     with pytest.raises(ValueError, match="make data"):
-        build(processed_dir=tmp_path / "absent", output_dir=tmp_path / "out")
+        build(
+            processed_dir=tmp_path / "absent",
+            output_dir=tmp_path / "out",
+            report=report_at(tmp_path),
+        )
 
 
 def test_main_writes_the_fragments(tmp_path: Path) -> None:
@@ -297,44 +343,85 @@ def test_main_writes_the_fragments(tmp_path: Path) -> None:
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
 
-    exit_code = main(["--processed", str(processed), "--output", str(output)])
+    exit_code = main(
+        ["--processed", str(processed), "--output", str(output), "--report", str(report_at(tmp_path))]
+    )
 
     assert exit_code == 0
     assert (output / STATISTICS_FRAGMENT).is_file()
-    assert stale(build(processed_dir=processed, output_dir=output)) == []
+    assert stale(build(processed_dir=processed, output_dir=output, report=report_at(tmp_path))) == []
 
 
 def test_main_reports_up_to_date_fragments(tmp_path: Path) -> None:
     """The check passes on a page that matches the corpus on disk."""
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
-    write(build(processed_dir=processed, output_dir=output))
+    write(build(processed_dir=processed, output_dir=output, report=report_at(tmp_path)))
 
-    assert main(["--processed", str(processed), "--output", str(output), "--check"]) == 0
+    assert main(
+            [
+                "--processed",
+                str(processed),
+                "--output",
+                str(output),
+                "--report",
+                str(report_at(tmp_path)),
+                "--check",
+            ]
+        ) == 0
 
 
 def test_main_fails_on_a_table_retyped_by_hand(tmp_path: Path) -> None:
     """The property the mechanism rests on, checked through the command line."""
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
-    write(build(processed_dir=processed, output_dir=output))
+    write(build(processed_dir=processed, output_dir=output, report=report_at(tmp_path)))
     (output / STATISTICS_FRAGMENT).write_text("| Grandeur |\n", encoding="utf-8")
 
-    assert main(["--processed", str(processed), "--output", str(output), "--check"]) == 1
+    assert main(
+            [
+                "--processed",
+                str(processed),
+                "--output",
+                str(output),
+                "--report",
+                str(report_at(tmp_path)),
+                "--check",
+            ]
+        ) == 1
 
 
 def test_main_fails_on_a_missing_fragment(tmp_path: Path) -> None:
     """A page whose table was never generated is out of date, not up to date."""
     processed = prepare(tmp_path / "corpus")
 
-    assert main(["--processed", str(processed), "--output", str(tmp_path / "out"), "--check"]) == 1
+    assert main(
+            [
+                "--processed",
+                str(processed),
+                "--output",
+                str(tmp_path / "out"),
+                "--report",
+                str(report_at(tmp_path)),
+                "--check",
+            ]
+        ) == 1
 
 
 def test_main_reports_a_missing_record_on_the_error_stream(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A machine without a corpus gets a reason and a non zero exit, not a blank page."""
-    exit_code = main(["--processed", str(tmp_path / "absent"), "--output", str(tmp_path / "out")])
+    exit_code = main(
+        [
+            "--processed",
+            str(tmp_path / "absent"),
+            "--output",
+            str(tmp_path / "out"),
+            "--report",
+            str(report_at(tmp_path)),
+        ]
+    )
 
     assert exit_code == 1
     assert "make data" in capsys.readouterr().err

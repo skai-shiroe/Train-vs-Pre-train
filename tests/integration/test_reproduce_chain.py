@@ -153,6 +153,7 @@ def chain(
             figures=(output / "figures",),
             fragments=output / "_generated",
             readme=output / "README.md",
+            report=output / "RAPPORT.md",
         ),
         tracking=False,
     )

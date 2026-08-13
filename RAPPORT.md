@@ -2,7 +2,7 @@
 
 Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis le comparer à un modèle pré-entraîné de référence sur les mêmes données de test.
 
-Ce rapport se lit seul : tous les chiffres qui portent une conclusion y figurent. Ils viennent de `reports/results/experiments.csv`, produit par la campagne des 8 et 9 août 2026, et ont été revérifiés contre ce fichier le 10 août 2026.
+Les chiffres viennent de la campagne des 8 et 9 août 2026.
 
 | Exigence | Ce qui a été fait |
 | --- | --- |
@@ -13,22 +13,30 @@ Ce rapport se lit seul : tous les chiffres qui portent une conclusion y figurent
 
 La campagne compte 9 expériences déclarées et 9 runs complets, aucun échec, pour 125 minutes de calcul cumulé sur une RTX 5060 Laptop sous `torch 2.13.0+cu130`. Chaque score est mesuré sur les mêmes 1 000 documents de test.
 
-L'énoncé laisse le choix entre BLEU et ROUGE. La tâche étant du résumé, c'est ROUGE. BLEU est absent volontairement : aucune colonne vide ou remplie de zéros n'apparaît nulle part.
+L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
 ## 1. Le corpus
 
 Le corpus de travail est un tirage figé de 22 000 exemples de **XSum** sous graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais les 204 045 de XSum complet.
 
-Le corpus est propre et étanche : aucun champ vide, aucun identifiant dupliqué, aucun document partagé entre les trois splits. Deux documents apparaissent deux fois dans l'entraînement, et un exemple porte un résumé plus long que son document. J'ai gardé les trois : nettoyer en silence le corpus de référence aurait rendu les scores incomparables avec la littérature XSum, ce qui coûte plus cher que trois exemples douteux sur 20 000.
+La validation du corpus ne relève aucun champ vide, aucun identifiant dupliqué, et aucun document partagé entre les trois splits. Deux documents apparaissent deux fois dans l'entraînement, et un exemple porte un résumé plus long que son document. J'ai gardé les trois : nettoyer en silence le corpus de référence aurait rendu les scores incomparables avec la littérature XSum, ce qui coûte plus cher que trois exemples douteux sur 20 000.
 
 Les sous-ensembles d'ablation sont emboîtés, 10 % préfixe de 50 %, lui-même préfixe de 100 %, vérifié par comparaison des identifiants. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.
 
+<!-- syntra:begin statistics -->
+<!-- Généré par python -m src.data.fragments. Ne pas éditer à la main. -->
+
 | Grandeur | Entraînement | Validation | Test |
 | --- | --- | --- | --- |
+| Mots par document, médiane | 296,5 | 287,5 | 302,0 |
+| Mots par résumé, médiane | 21,0 | 21,0 | 21,0 |
+| Tokens par document, moyenne | 525,3 | 533,2 | 535,2 |
 | Tokens par document, médiane | 414,0 | 403,5 | 421,5 |
 | Tokens par document, p95 | 1 305,0 | 1 329,8 | 1 380,4 |
 | Tokens par résumé, médiane | 30,0 | 30,0 | 30,0 |
+| Tokens par résumé, p95 | 43,0 | 43,0 | 42,0 |
 | Taux de compression | 0,097 | 0,098 | 0,093 |
+<!-- syntra:end statistics -->
 
 La compression est le trait dominant du corpus. Le résumé médian fait 30 tokens pour un document médian de 414, soit 7,2 %. À ce niveau, recopier des phrases du source ne peut pas produire un bon score : la tâche est réellement abstractive. C'est aussi pourquoi un ROUGE-L de 0,23 sur XSum ne se compare pas à un ROUGE-L publié sur CNN/DailyMail, où la référence autorise la reprise de phrases entières.
 
@@ -157,11 +165,15 @@ C'est le livrable central du projet.
 
 ![Performance selon la taille du corpus](reports/figures/performance_vs_dataset_size.png)
 
-| Corpus | Exemples | `scratch` | `pretrained_ft` | Écart absolu | Écart relatif |
+<!-- syntra:begin families -->
+<!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
+
+| Proportion | Exemples | from scratch | `t5-small` fine-tuné | Écart absolu | Écart relatif |
 | --- | --- | --- | --- | --- | --- |
-| 10 % | 2 000 | 0,1250 | 0,1843 | 0,0593 | 47 % |
-| 50 % | 10 000 | 0,1550 | 0,2191 | 0,0641 | 41 % |
-| 100 % | 20 000 | 0,1634 | 0,2295 | 0,0662 | 40 % |
+| 10 % | 2 000 | 0,1250 | 0,1843 | 0,0593 | +47 % |
+| 50 % | 10 000 | 0,1550 | 0,2191 | 0,0641 | +41 % |
+| 100 % | 20 000 | 0,1634 | 0,2295 | 0,0662 | +40 % |
+<!-- syntra:end families -->
 
 Trois lectures, appuyées sur des intervalles disjoints à chaque point.
 
@@ -196,11 +208,15 @@ C'est une façon concrète de chiffrer ce que vaut le pré-entraînement sur cet
 
 Une seconde ablation fait varier la profondeur, tout le reste étant identique, corpus compris.
 
+<!-- syntra:begin architecture -->
+<!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
+
 | Expérience | Couches | Paramètres | ROUGE-L | IC 95 % | Entraînement |
 | --- | --- | --- | --- | --- | --- |
 | `scratch_100_layers2` | 2 + 2 | 11 905 024 | 0,1657 | [0,1605, 0,1710] | 838 s |
 | `scratch_100` | 4 + 4 | 15 591 424 | 0,1634 | [0,1581, 0,1686] | 1 347 s |
 | `scratch_100_layers6` | 6 + 6 | 19 277 824 | 0,1573 | [0,1525, 0,1627] | 1 882 s |
+<!-- syntra:end architecture -->
 
 Le résultat est négatif et il est publié tel quel. Le ROUGE-L décroît quand la profondeur augmente. Aucune paire n'est séparée au seuil de 95 %, tous les intervalles se recouvrent, donc aucune différence individuelle n'est établie. Ce qui reste, c'est que trois runs indépendants classent dans le même sens, et qu'aucun gain n'apparaît là où la profondeur coûte 2,2 fois plus de calcul.
 
@@ -224,15 +240,22 @@ Le zero-shot ne résume pas, il recopie : trois phrases extraites du document, l
 
 Le modèle from scratch, lui, a appris la forme et invente le fond. La structure de phrase est correcte et idiomatique, mais l'homme a été poignardé au lieu d'être abattu, et le lieu est devenu un accident de la route. C'est le comportement attendu d'un modèle qui a vu 20 000 exemples : il apprend à quoi ressemble un résumé XSum bien avant d'apprendre à lire le document. Un défaut mesurable accompagne cela, visible ci-dessus avec « people » pour « Three people » : le modèle from scratch commence fréquemment son résumé par un fragment de sous-mot au lieu d'un mot capitalisé.
 
+<!-- syntra:begin capitalisation -->
+<!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
+
 | Modèle | Prédictions commençant par une minuscule |
 | --- | --- |
+| `pretrained_ft_10` | 2,0 % |
+| `pretrained_ft_50` | 0,0 % |
+| `pretrained_ft_100` | 0,1 % |
 | `scratch_10` | 100,0 % |
 | `scratch_50` | 99,6 % |
 | `scratch_100` | 62,9 % |
+| `scratch_100_layers2` | 73,7 % |
+| `scratch_100_layers6` | 84,7 % |
 | `pretrained_zero_shot` | 87,7 % |
-| `pretrained_ft_10` | 2,0 % |
-| `pretrained_ft_100` | 0,1 % |
 | Références | 0,0 % |
+<!-- syntra:end capitalisation -->
 
 La décroissance est régulière avec la taille du corpus, ce qui montre un apprentissage incomplet et non un défaut de code : la génération partage le même découpage de séquence pour les deux familles. Le zero-shot est haut pour une autre raison, visible dans l'exemple ci-dessus : il recopie des phrases prises au milieu du document, donc au milieu d'une phrase. La majuscule initiale est la convention typographique la plus élémentaire du corpus, et le modèle from scratch ne l'apprend qu'entre 10 000 et 20 000 exemples, encore imparfaitement.
 
@@ -242,11 +265,25 @@ Le corpus est un tirage de 20 000 exemples, pas XSum complet. Toutes les conclus
 
 La troncature à 512 tokens écarte 29 % du texte source. Elle s'applique aux deux familles également, donc elle ne biaise pas la comparaison, mais elle abaisse le plafond atteignable par les deux.
 
+Les deux familles ne diffèrent pas seulement par le pré-entraînement. `t5-small` compte 60,5 M paramètres contre 15,6 M pour le modèle from scratch, soit un facteur 3,9. La comparaison oppose donc un modèle pré-entraîné et large à un modèle initialisé au hasard et plus petit, et ce rapport ne sépare pas les deux causes : tout ce qu'il mesure, c'est l'écart entre les deux dispositifs tels qu'ils sont, pas la part qui revient au pré-entraînement seul. Un modèle from scratch porté à 60 M paramètres trancherait, et la section 5 donne la raison de ne pas l'avoir tenté : la profondeur n'achète rien ici, et le levier serait `d_model` et le vocabulaire, hors du budget disponible.
+
+Chaque configuration n'a été entraînée que sous une graine, 42. Les intervalles publiés sont des intervalles bootstrap sur les 1 000 documents de test : ils mesurent l'échantillonnage du jeu d'évaluation, pas la variance d'entraînement. Les conclusions qui reposent sur des écarts larges, la supériorité du pré-entraîné à chaque proportion et le seuil de compétitivité contre le zero-shot, ne dépendent pas de ce point. Deux lectures plus fines en dépendent : la croissance de l'écart absolu, qui gagne 0,0069 entre 10 % et 100 % sans qu'aucun test ne porte sur cette différence, et le classement de l'ablation d'architecture, dont les trois intervalles se recouvrent. Les rejouer sous trois graines et publier moyenne et écart-type est ce qu'il faudrait faire avant de leur donner plus de poids.
+
 La profondeur est la seule grandeur d'architecture explorée. La largeur `d_model` et la taille du vocabulaire, que la section 2 désigne comme le levier plus probable, n'ont pas été balayées faute de budget de calcul. C'est ce que je reprendrais en premier avec une machine plus grosse.
 
-Deux défauts de traçabilité restent dans les enregistrements. Les cinq runs `scratch_*` portent `git_commit: unknown` : la capture du commit ne fonctionnait pas encore au moment de la campagne du 8 août, et rejouer 99 minutes de GPU pour renseigner un champ ne valait pas le coût ; les quatre runs `pretrained_*` portent bien le commit `5a9c95df`. Par ailleurs, les neuf runs portent `git_dirty: true` : l'arbre de travail n'était pas propre au lancement, donc le commit associé situe la campagne, il ne la reconstitue pas exactement.
+**Aucun des neuf runs n'est rattachable à un commit.** Les cinq runs `scratch_*` portent `git_commit: unknown`. Les quatre runs `pretrained_*` portent `5a9c95df844f`, et ce commit n'existe nulle part : ni dans ce dépôt, ni sur `origin`, qui ne porte que `main` et `develop`. La campagne a tourné dans un répertoire de travail distinct, `Scolaire/Syntra`, qui n'a pas de `.git` ; le dépôt courant est un clone du 10 août 2026 et les commits locaux de cet arbre n'ont jamais été poussés. Ils sont perdus définitivement. Les neuf runs portent par ailleurs `git_dirty: true`, donc même retrouvé, ce commit aurait situé la campagne sans la reconstituer.
 
-Enfin, les chiffres de ce rapport sont écrits à la main. Ils ont été revérifiés contre `reports/results/experiments.csv` le 10 août 2026, mais aucun contrôle mécanique ne lit les nombres de la prose : une nouvelle campagne demande de les reprendre à la main.
+Le code, lui, n'était pas perdu : il était encore sur le disque, sans rien pour le protéger. Il est désormais figé, avec les mesures, sur la branche orpheline `archive/campagne-2026-08` — `reports/results` est gitignoré et n'existait donc qu'en deux copies non sauvegardées. Ce qui remplace le commit manquant est une comparaison rejouable.
+
+```bash
+python -m scripts.compare_archive     # src d'aujourd'hui contre l'arbre de campagne
+```
+
+Les deux arbres `src` sont comparés après suppression des commentaires et des docstrings, sur les arbres syntaxiques. Au 13 août 2026 : **65 fichiers sur 71 sont logiquement identiques**, dont l'attention, le Transformer, la baseline pré-entraînée, l'entraîneur, la sélection du matériel et le tracking. Cinq fichiers ont changé et un seul existait dans la campagne. Quatre des cinq — `data/fragments.py`, `experiments/fragments.py`, `experiments/reproduce.py`, `utils/markdown.py` — sont en aval de la mesure : ils génèrent les tableaux de ce rapport et le rendent en Markdown. Le cinquième, `experiments/run.py`, a reçu depuis un avertissement qui s'imprime sur la sortie d'erreur avant la première expérience quand le commit est inconnu ou l'arbre sale : ce que la campagne aurait dû lire avant de commencer plutôt que de le découvrir dans ses propres enregistrements. `experiments/publish.py`, présent seulement dans l'archive, publiait le site MkDocs supprimé depuis. Aucun des six n'entre dans le calcul d'un chiffre de la section 5.
+
+La comparaison établit que le chemin de calcul n'a pas bougé, pas que le dépôt reproduit ces chiffres : le vérifier demande de relancer la campagne.
+
+Enfin, les tableaux sont générés depuis les enregistrements de runs et injectés entre marqueurs par `make report-sync` et `make corpus-sync` ; une nouvelle campagne les réécrit. Les quantités citées à l'intérieur des phrases restent écrites à la main et relues contre `reports/results/experiments.csv`, la dernière fois le 10 août 2026. C'est le seul point où une divergence peut subsister.
 
 ## Pour reproduire
 
@@ -257,4 +294,11 @@ make ablation                                 # les tableaux
 make figures                                  # les quatre figures
 ```
 
-Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`. `make report-sync` et `make corpus-sync` régénèrent les mêmes tableaux au format Markdown dans `reports/_generated/`, et `scripts/check_sync.py` échoue s'ils ne correspondent plus aux enregistrements.
+Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`. `make report-sync` et `make corpus-sync` les régénèrent depuis les enregistrements, dans `reports/_generated/` et directement entre les marqueurs de ce fichier.
+
+La campagne d'origine ne se rejoue pas : ses enregistrements et le code qui les a produits sont figés sur `archive/campagne-2026-08`, pour la raison exposée en section 7. `git show archive/campagne-2026-08:ARCHIVE.md` en donne le détail, et `python -m scripts.compare_archive` mesure ce qui a bougé depuis. Le magasin MLflow, lui, se reconstruit depuis les enregistrements, puisqu'il n'en est que le miroir :
+
+```bash
+python -m src.tracking.log --all --tracking-uri sqlite:///mlflow.db
+make mlflow-ui                                # les neuf runs, port 5000
+```

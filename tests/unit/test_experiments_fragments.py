@@ -27,6 +27,9 @@ from src.experiments.fragments import (
     DATASET_SIZE_FRAGMENT,
     FAMILIES_FRAGMENT,
     HEADLINE_FRAGMENT,
+    ARCHITECTURE_REGION,
+    CAPITALISATION_REGION,
+    FAMILIES_REGION,
     HEADLINE_REGION,
     METRICS_FRAGMENT,
     PLAN_FRAGMENT,
@@ -181,6 +184,21 @@ def readme_at(directory: Path) -> Path:
     return path
 
 
+def report_at(directory: Path) -> Path:
+    """Return a page carrying the three report markers, writing the stub if absent."""
+    path = directory / "RAPPORT.md"
+    if not path.is_file():
+        markers = "\n\n".join(
+            f"{REGION_BEGIN.format(name=name)}\n{REGION_END.format(name=name)}"
+            for name in (FAMILIES_REGION, ARCHITECTURE_REGION, CAPITALISATION_REGION)
+        )
+        path.write_text(
+            f"# Rapport\n\nCe qui précède les tableaux.\n\n{markers}\n\nCe qui les suit.\n",
+            encoding="utf-8",
+        )
+    return path
+
+
 def render(tmp_path: Path, configs: Path, results: Path) -> dict[Path, str]:
     """Render every table into the temporary tree."""
     return build(
@@ -188,6 +206,7 @@ def render(tmp_path: Path, configs: Path, results: Path) -> dict[Path, str]:
         results_dir=results,
         output_dir=tmp_path / "out",
         readme=readme_at(tmp_path),
+        report=report_at(tmp_path),
     )
 
 
@@ -202,6 +221,8 @@ def arguments(tmp_path: Path, configs: Path, results: Path) -> list[str]:
         str(tmp_path / "out"),
         "--readme",
         str(readme_at(tmp_path)),
+        "--report",
+        str(report_at(tmp_path)),
     ]
 
 
@@ -345,19 +366,22 @@ def test_the_plan_always_carries_its_statuses(tmp_path: Path) -> None:
 
 def test_every_fragment_says_it_is_generated(tmp_path: Path) -> None:
     configs, results = campaign(tmp_path)
-    readme = readme_at(tmp_path)
+    readme, report = readme_at(tmp_path), report_at(tmp_path)
 
     rendered = render(tmp_path, configs, results)
-    fragments = {path: text for path, text in rendered.items() if path != readme}
+    fragments = {path: text for path, text in rendered.items() if path not in (readme, report)}
 
-    assert len(rendered) == 10
+    assert len(rendered) == 11
     assert len(fragments) == 9
     assert all(text.startswith(BANNER) and text.endswith("\n") for text in fragments.values())
-    # The README is the one target that is not a fragment. Its banner sits
-    # inside the region, under the opening marker, so the page keeps its title
-    # and its prose and still says which part of it is generated.
+    # The two pages are the targets that are not fragments. Their banner sits
+    # inside each region, under the opening marker, so a page keeps its title
+    # and its prose and still says which parts of it are generated.
     assert rendered[readme].startswith("# Titre")
     assert f"{REGION_BEGIN.format(name=HEADLINE_REGION)}\n{BANNER}" in rendered[readme]
+    assert rendered[report].startswith("# Rapport")
+    for name in (FAMILIES_REGION, ARCHITECTURE_REGION, CAPITALISATION_REGION):
+        assert f"{REGION_BEGIN.format(name=name)}\n{BANNER}" in rendered[report]
 
 
 # ---------------------------------------------------------------------------
@@ -448,8 +472,8 @@ def test_the_families_table_writes_the_sign_of_the_gap(tmp_path: Path) -> None:
     rendered = render(tmp_path, configs, results)
     families = rendered[tmp_path / "out" / FAMILIES_FRAGMENT]
 
-    assert "| 10 % | 0,1250 | 0,1791 | +43 % |" in families
-    assert "| 50 % | 0,2000 | 0,1800 | -10 % |" in families
+    assert "| 10 % | 2 000 | 0,1250 | 0,1791 | 0,0541 | +43 % |" in families
+    assert "| 50 % | 2 000 | 0,2000 | 0,1800 | 0,0200 | -10 % |" in families
 
 
 def test_the_families_table_distinguishes_an_unrun_run_from_an_undeclared_one(
@@ -467,8 +491,8 @@ def test_the_families_table_distinguishes_an_unrun_run_from_an_undeclared_one(
     rendered = render(tmp_path, configs, results)
     families = rendered[tmp_path / "out" / FAMILIES_FRAGMENT]
 
-    assert "| 10 % | 0,1250 |  |  | `pretrained_ft_10` `NOT_RUN` |" in families
-    assert "| 50 % | 0,1550 |  |  | `t5-small` fine-tuné : non déclarée |" in families
+    assert "| 10 % | 2 000 | 0,1250 |  |  |  | `pretrained_ft_10` `NOT_RUN` |" in families
+    assert "| 50 % | 2 000 | 0,1550 |  |  |  | `t5-small` fine-tuné : non déclarée |" in families
 
 
 def test_a_relative_gap_needs_both_sides(tmp_path: Path) -> None:
@@ -677,12 +701,14 @@ def test_the_rendering_does_not_depend_on_how_the_path_was_spelled(tmp_path: Pat
         results_dir=results,
         output_dir=tmp_path / "out",
         readme=readme_at(tmp_path),
+        report=report_at(tmp_path),
     )
     resolved = build(
         experiments_dir=configs.resolve(),
         results_dir=results.resolve(),
         output_dir=tmp_path / "out",
         readme=readme_at(tmp_path).resolve(),
+        report=report_at(tmp_path).resolve(),
     )
 
     assert list(spelled.values()) == list(resolved.values())
@@ -694,7 +720,7 @@ def test_a_freshly_written_set_is_not_stale(tmp_path: Path) -> None:
 
     written = write(rendered)
 
-    assert len(written) == 10
+    assert len(written) == 11
     assert stale(rendered) == []
 
 
@@ -712,7 +738,7 @@ def test_a_missing_fragment_is_stale_rather_than_absent(tmp_path: Path) -> None:
     configs, results = campaign(tmp_path)
     rendered = render(tmp_path, configs, results)
 
-    assert len(stale(rendered)) == 10
+    assert len(stale(rendered)) == 11
 
 
 # ---------------------------------------------------------------------------

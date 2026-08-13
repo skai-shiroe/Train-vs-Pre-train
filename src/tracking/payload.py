@@ -40,10 +40,10 @@ no ROUGE at all. A tracking store is sorted by score; a rehearsal over fifty
 documents sitting in that ranking is exactly the presented but unmeasured number
 section 44 forbids.
 
-**The checkpoint is traced by path, not uploaded.** The weights are the artefact
-of section 20 and belong to the model registry, which is what the API reads.
-Copying several hundred megabytes into the tracking store for every run would
-produce a second copy of the same file, in the place nothing loads from.
+**The checkpoint is traced by path, not uploaded.** The weights already live
+under ``runs/<experiment>/``, written by the checkpoint manager. Copying several
+hundred megabytes into the tracking store for every run would produce a second
+copy of the same file, in the place nothing loads from.
 
 **The configuration is parameters, the environment is tags.** A parameter is
 what the experiment declared and what a rerun would have to repeat. The
@@ -64,7 +64,7 @@ from src.experiments.record import HISTORY_FILE, RUN_RECORD_FILE, STATUS_OK, Run
 from src.metrics.rouge import ROUGE_VARIANTS
 
 #: Files of a run directory that are copied into the tracking store. All four
-#: are small text documents. ``predictions.jsonl`` is deliberately absent: it
+#: are small text documents. ``predictions.jsonl`` is excluded: it
 #: holds one line per scored document, it is already published as a pipeline
 #: artefact, and nothing reads it from the tracking store.
 TRACKED_ARTIFACTS: tuple[str, ...] = (

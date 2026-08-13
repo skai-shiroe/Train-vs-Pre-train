@@ -8,7 +8,7 @@ token or reaches the length budget.
 Three strategies are provided.
 
 **Greedy search** takes the most likely token at each step. It is cheap and
-deterministic, and it is the honest baseline: any gain reported with beam
+deterministic, and it is the reference baseline: any gain reported with beam
 search must be measured against it.
 
 **Beam search** keeps the ``k`` most likely partial sequences instead of one.
