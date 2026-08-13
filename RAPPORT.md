@@ -19,7 +19,7 @@ L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, ori
 
 Le corpus de travail est un tirage figé de 22 000 exemples de **XSum** sous graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais les 204 045 de XSum complet.
 
-Le corpus est propre et étanche : aucun champ vide, aucun identifiant dupliqué, aucun document partagé entre les trois splits. Deux documents apparaissent deux fois dans l'entraînement, et un exemple porte un résumé plus long que son document. J'ai gardé les trois : nettoyer en silence le corpus de référence aurait rendu les scores incomparables avec la littérature XSum, ce qui coûte plus cher que trois exemples douteux sur 20 000.
+La validation du corpus ne relève aucun champ vide, aucun identifiant dupliqué, et aucun document partagé entre les trois splits. Deux documents apparaissent deux fois dans l'entraînement, et un exemple porte un résumé plus long que son document. J'ai gardé les trois : nettoyer en silence le corpus de référence aurait rendu les scores incomparables avec la littérature XSum, ce qui coûte plus cher que trois exemples douteux sur 20 000.
 
 Les sous-ensembles d'ablation sont emboîtés, 10 % préfixe de 50 %, lui-même préfixe de 100 %, vérifié par comparaison des identifiants. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.
 

@@ -2,7 +2,7 @@
 
 Chaîne ML expérimentale de résumé automatique. Le projet compare un Transformer encodeur-décodeur implémenté à la main en PyTorch à un modèle pré-entraîné T5, en zero-shot puis fine-tuné, sur un jeu de test strictement identique.
 
-Projet académique de niveau Master. Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow. Ni backend, ni conteneurs, ni frontend.
+Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow. Ni backend, ni conteneurs, ni frontend.
 
 ## Démarrage rapide
 
