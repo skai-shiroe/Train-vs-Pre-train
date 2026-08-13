@@ -129,8 +129,8 @@ make test
 ├── notebooks/                   00 environnement, 01 corpus, 02 entraînement, 03 Transformer
 ├── scripts/                     measure_padding.py et compare_archive.py
 └── tests/
-    ├── unit/                    47 fichiers
-    └── integration/             9 fichiers
+    ├── unit/                    46 fichiers de test
+    └── integration/             8 fichiers de test
 
 Le contenu de data/, de reports/results/ et de reports/quick/ n'est pas versionné :
 il est reconstruit par make data et par la chaîne d'expériences.
