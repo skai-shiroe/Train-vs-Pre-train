@@ -1,0 +1,58 @@
+---
+# Ablation principale, section 11. 10 % du corpus de travail, soit 2 000
+# exemples d'entrainement. Le protocole complet est documente dans
+# la section 5 de RAPPORT.md.
+#
+# Les trois points scratch_10, scratch_50 et scratch_100 ne different que par
+# dataset.percentage. Toute autre variation ferait mesurer autre chose que la
+# taille du corpus.
+
+experiment:
+  name: scratch_10
+  seed: 42
+  studies: [dataset_size]
+  description: Transformer from scratch sur 10 pour cent du corpus de travail.
+
+dataset:
+  config: configs/data/xsum.yaml
+  percentage: 10
+
+model:
+  type: scratch
+  d_model: 256
+  num_heads: 8
+  encoder_layers: 4
+  decoder_layers: 4
+  d_ff: 1024
+  dropout: 0.1
+  # Doit couvrir la troncature source du corpus, fixee a 512 tokens.
+  max_position: 512
+
+training:
+  # La graine du run vient du bloc experiment. La declarer ici est refuse.
+  epochs: 10
+  batch_size: 8
+  # Taille de lot effective de 32, tenue par une carte de 8 Go.
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  scheduler: linear
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  label_smoothing: 0.1
+  mixed_precision: true
+  early_stopping_patience: 3
+  group_by_length: true
+  mega_batch_factor: 50
+  log_every_steps: 50
+  device: auto
+
+evaluation:
+  split: test
+  batch_size: 8
+  max_new_tokens: 64
+  min_new_tokens: 0
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  bootstrap_samples: 1000
+  confidence: 0.95

@@ -1,0 +1,55 @@
+---
+# Ablation principale, section 11, et point de reference de l'ablation
+# d'architecture, section 12. 100 % du corpus de travail, soit 20 000
+# exemples : le corpus fige du projet, jamais XSum complet.
+#
+# Ce run appartient aux deux etudes. C'est ce qui limite la seconde ablation a
+# deux entrainements supplementaires au lieu de trois.
+
+experiment:
+  name: scratch_100
+  seed: 42
+  studies: [dataset_size, architecture]
+  description: Transformer from scratch sur la totalite du corpus de travail.
+
+dataset:
+  config: configs/data/xsum.yaml
+  percentage: 100
+
+model:
+  type: scratch
+  d_model: 256
+  num_heads: 8
+  # Profondeur de reference de l'ablation d'architecture.
+  encoder_layers: 4
+  decoder_layers: 4
+  d_ff: 1024
+  dropout: 0.1
+  max_position: 512
+
+training:
+  epochs: 10
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  scheduler: linear
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  label_smoothing: 0.1
+  mixed_precision: true
+  early_stopping_patience: 3
+  group_by_length: true
+  mega_batch_factor: 50
+  log_every_steps: 50
+  device: auto
+
+evaluation:
+  split: test
+  batch_size: 8
+  max_new_tokens: 64
+  min_new_tokens: 0
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  bootstrap_samples: 1000
+  confidence: 0.95

@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "syntra"
+version = "0.1.0"
+description = "Chaine ML experimentale de resume automatique, Transformer from scratch face a T5"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Syntra" }]
+keywords = ["nlp", "transformer", "summarization", "pytorch"]
+
+# Une seule liste : le depot ne construit plus d'image, donc il n'y a plus de
+# raison de separer ce que l'inference embarquait de ce que l'entrainement
+# demandait. Tout ce qui suit sert la chaine data -> train -> evaluate.
+#
+# Le plancher torch est a 2.13 : GHSA-rrmf-rvhw-rf47 touche toute la serie
+# inferieure. Consequence pour le poste GPU, l'index CUDA du Makefile passe en
+# cu130, seul index a publier cette version.
+#
+# sentencepiece n'est importe nulle part et reste obligatoire : c'est lui qui
+# porte le vocabulaire T5, charge par transformers au premier appel du
+# tokenizer. absl-py et nltk sont dans le meme cas pour rouge-score.
+dependencies = [
+  "torch>=2.13,<3.0",
+  "transformers>=4.46,<5.0",
+  "datasets>=3.0,<5.0",
+  "sentencepiece>=0.2,<1.0",
+  "rouge-score>=0.1.2,<1.0",
+  "absl-py>=2.1,<3.0",
+  "nltk>=3.9,<4.0",
+  "mlflow>=2.17,<4.0",
+  "matplotlib>=3.9,<4.0",
+  "numpy>=1.26,<3.0",
+  "pydantic>=2.9,<3.0",
+  "PyYAML>=6.0,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+]
+
+# Analyse exploratoire. Groupe separe : le notebook lit le corpus deja prepare,
+# et rien dans la chaine ne doit tirer une chaine Jupyter pour s'executer.
+# Voir notebooks/01_eda_xsum.ipynb.
+eda = [
+  "jupyterlab==4.5.5",
+  "ipykernel==6.31.0",
+  "nbconvert==7.16.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+markers = [
+  "unit: test unitaire rapide et isole",
+  "integration: test d'integration entre deux composants",
+  "slow: test long",
+  "gpu: test necessitant un GPU CUDA",
+]
+filterwarnings = ["error::DeprecationWarning:src.*"]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]

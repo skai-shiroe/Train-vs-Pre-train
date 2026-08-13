@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Outillage
+.pytest_cache/
+# Caches d'outils ecrits dans le repertoire de travail plutot que sous HOME.
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Rapports generes
+reports/junit.xml
+reports/coverage.xml
+metrics.json
+
+# Resultats d'experiences : produits par un run, jamais edites a la main.
+reports/results/*
+!reports/**/.gitkeep
+
+# Les figures font exception : RAPPORT.md les affiche, et un rapport lu sur la
+# forge avec des images manquantes ne montre pas ce qu'il argumente. Elles sont
+# versionnees, et make figures les reecrit depuis les memes enregistrements que
+# les tableaux.
+
+# Verification de la chaine : make reproduce MODE=quick ecrit tout ici, records
+# plafonnes, tableaux et figures compris. Rien de ce qui s'y trouve n'est un
+# resultat, et rien ne doit entrer dans le depot.
+reports/quick/
+
+# Donnees : reconstruites par make data, jamais versionnees
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+!data/**/.gitkeep
+
+# Artefacts ML : poids et magasin de tracking, pas des sources
+mlruns/
+mlartifacts/
+mlflow.db
+checkpoints/
+runs/
+runs.zip
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Systeme et editeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

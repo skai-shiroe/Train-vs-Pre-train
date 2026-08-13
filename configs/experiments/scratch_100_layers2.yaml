@@ -1,0 +1,54 @@
+---
+# Deuxieme ablation, section 12. La grandeur variee est le nombre de couches
+# Transformer, premiere preference du cahier des charges.
+#
+# Tout le reste est identique a scratch_100 : meme corpus, meme largeur, meme
+# nombre de tetes, meme optimisation, meme decodage. Une seule grandeur bouge,
+# sinon la comparaison ne dit plus a quoi attribuer l'ecart.
+
+experiment:
+  name: scratch_100_layers2
+  seed: 42
+  studies: [architecture]
+  description: Transformer from scratch a 2 couches, corpus complet.
+
+dataset:
+  config: configs/data/xsum.yaml
+  percentage: 100
+
+model:
+  type: scratch
+  d_model: 256
+  num_heads: 8
+  encoder_layers: 2
+  decoder_layers: 2
+  d_ff: 1024
+  dropout: 0.1
+  max_position: 512
+
+training:
+  epochs: 10
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  scheduler: linear
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  label_smoothing: 0.1
+  mixed_precision: true
+  early_stopping_patience: 3
+  group_by_length: true
+  mega_batch_factor: 50
+  log_every_steps: 50
+  device: auto
+
+evaluation:
+  split: test
+  batch_size: 8
+  max_new_tokens: 64
+  min_new_tokens: 0
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  bootstrap_samples: 1000
+  confidence: 0.95
