@@ -96,15 +96,23 @@ make test
 ## Structure
 
 ```text
+Makefile         toutes les cibles de la chaîne, appelées depuis Git Bash
+pyproject.toml   dépendances et configuration des outils
 GUIDE.md         parcours de lecture du code, du corpus à MLflow
 RAPPORT.md       le rapport scientifique et ses résultats
 src/             code de recherche : data, models, training, evaluation, experiments, metrics, tracking, utils
 configs/         configuration des données, des modèles, de l'entraînement et des expériences
-data/            corpus de travail, reconstruit par make data et non versionné
-reports/         résultats, tableaux et figures produits automatiquement
+data/            corpus de travail, reconstruit par make data ; son contenu n'est pas versionné
+reports/         résultats, tableaux et figures produits automatiquement ; reports/quick/ pour les essais plafonnés
 notebooks/       environnement, analyse exploratoire, traversée du Transformer, entraînement
-scripts/         outils de mesure
+scripts/         outils de mesure et de vérification
 tests/           tests unitaires et d'intégration
+
+Créés à l'usage, non versionnés :
+.venv/           environnement Python appelé par le Makefile
+runs/            checkpoints d'entraînement, plusieurs Go
+mlflow.db        magasin MLflow servi par make mlflow-ui
+mlruns/          artefacts MLflow associés
 ```
 
 ## Commandes
