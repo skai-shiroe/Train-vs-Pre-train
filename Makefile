@@ -6,7 +6,12 @@ else
 VENV_BIN := .venv/bin
 endif
 
-PY     := $(VENV_BIN)/python
+# Repli sur l'interpreteur du PATH quand le venv du depot est absent ou
+# incomplet. Un clone frais n'en a pas, et make echouait alors sur un fichier
+# introuvable : l'erreur ne disait rien du vrai probleme, et aucune cible ne
+# tournait tant que le venv n'etait pas recree. PY=... a la ligne de commande
+# reste prioritaire.
+PY     ?= $(if $(wildcard $(VENV_BIN)/python*),$(VENV_BIN)/python,python)
 PIP    := $(PY) -m pip
 PYTEST := $(PY) -m pytest
 
