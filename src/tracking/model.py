@@ -38,6 +38,20 @@ a trace would either refuse the call or freeze one shape of it. The pickle
 format stores the object as it is, and ``code_paths`` is what makes it loadable
 again.
 
+**The dependencies of a logged model are declared, not inferred.** Left to
+itself, ``mlflow.transformers`` pins every package its default list names, and
+that list carries ``torchvision`` whatever the task: it imports it to read its
+version, and a text only project that never installed it gets a model logging
+failure instead of a model. Declaring the list here keeps a computer vision
+dependency out of the project and fixes a second defect at the same time, since
+the inferred list also drops the local version label of Torch and pins
+``torch==2.13.0`` where the environment runs ``2.13.0+cu130``.
+
+The pin published is the public version, without the local label, because that
+is the only form a plain ``pip install`` resolves. Reproducing the GPU
+environment additionally needs the CUDA index the ``Makefile`` names; a wheel
+tag in a requirements file would not have said that either.
+
 **A failure here never fails a run.** Same rule as the rest of
 :mod:`src.tracking`: the result of an experiment is the record on disk. A store
 that refuses a 240 MB upload must not destroy the measurement that preceded it,
@@ -60,6 +74,10 @@ ARTIFACT_NAME = "model"
 #: carries the task prefix because the model was measured with it, and a
 #: signature inferred without it would describe an input the run never used.
 INPUT_EXAMPLE = "summarize: The council approved the plan on Tuesday evening."
+
+#: Packages a logged model needs to be loaded again. Declared rather than left
+#: to MLflow's inference, for the reason the module docstring gives.
+REQUIRED_PACKAGES: tuple[str, ...] = ("torch", "transformers", "sentencepiece")
 
 
 class Summarizer(Protocol):
@@ -103,6 +121,30 @@ def should_log(status: str, *, measured_statuses: tuple[str, ...] = ("OK",)) -> 
         record and its checkpoint on disk and stays out of the registry.
     """
     return status in measured_statuses
+
+
+def pip_requirements() -> list[str]:
+    """Return the pins written beside a logged model.
+
+    The version comes from the installed distribution rather than from a
+    constant, so the file describes the environment that produced the model
+    instead of the one somebody expected. The local version label is dropped:
+    ``torch==2.13.0+cu130`` resolves from the CUDA index and nowhere else, and a
+    requirements file that no ``pip install`` can satisfy helps no one.
+
+    Returns:
+        One ``package==version`` string per entry of :data:`REQUIRED_PACKAGES`,
+        skipping any that is not installed.
+    """
+    from importlib.metadata import PackageNotFoundError, version
+
+    pins: list[str] = []
+    for package in REQUIRED_PACKAGES:
+        try:
+            pins.append(f"{package}=={version(package).split('+')[0]}")
+        except PackageNotFoundError:
+            continue
+    return pins
 
 
 def _is_transformers_model(model: Any) -> bool:
@@ -157,6 +199,7 @@ def log_model(summarizer: Summarizer, *, experiment: str, register: bool = True)
             task="summarization",
             registered_model_name=name,
             input_example=INPUT_EXAMPLE,
+            pip_requirements=pip_requirements(),
         )
         return name
 
@@ -168,6 +211,7 @@ def log_model(summarizer: Summarizer, *, experiment: str, register: bool = True)
         registered_model_name=name,
         code_paths=["src"],
         serialization_format=mlflow.pytorch.SERIALIZATION_FORMAT_PICKLE,
+        pip_requirements=pip_requirements(),
     )
     return name
 
