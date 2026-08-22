@@ -99,6 +99,7 @@ make test
 .
 ├── Makefile                     toutes les cibles de la chaîne, appelées depuis Git Bash
 ├── pyproject.toml               dépendances et configuration des outils
+├── .env.example                 modèle de configuration du magasin MLflow, sans secret
 ├── GUIDE.md                     parcours de lecture du code, du corpus à MLflow
 ├── RAPPORT.md                   le rapport scientifique et ses résultats
 ├── src/                         code de recherche
@@ -127,7 +128,7 @@ make test
 │   ├── figures/                 les quatre figures du rapport
 │   └── _generated/              les fragments injectés dans ce README et le rapport
 ├── notebooks/                   00 environnement, 01 corpus, 02 entraînement, 03 Transformer
-├── scripts/                     measure_padding.py et compare_archive.py
+├── scripts/                     measure_padding.py
 └── tests/
     ├── unit/                    46 fichiers de test
     └── integration/             8 fichiers de test
@@ -137,10 +138,10 @@ il est reconstruit par make data et par la chaîne d'expériences.
 
 Créés à l'usage, jamais versionnés :
 
-.venv/       environnement Python appelé par le Makefile
-runs/        checkpoints d'entraînement, plusieurs Go
-mlflow.db    magasin MLflow servi par make mlflow-ui
-mlruns/      artefacts MLflow associés
+.venv/         environnement Python appelé par le Makefile
+.env           URI du magasin MLflow, avec son mot de passe
+runs/          checkpoints d'entraînement, plusieurs Go
+mlartifacts/   artefacts MLflow, modèles compris, environ 1,5 Go par campagne
 ```
 
 ## Commandes
@@ -172,7 +173,7 @@ mlruns/      artefacts MLflow associés
 | `make figures` | Trace les quatre figures dans `reports/figures` |
 | `make reproduce MODE=quick` | Vérifie la chaîne complète sur un budget plafonné, sans produire de résultat |
 | `make reproduce MODE=full` | Rejoue la chaîne scientifique complète |
-| `make mlflow-ui` | Sert l'interface MLflow du magasin local sur <http://localhost:5000> |
+| `make mlflow-ui` | Sert l'interface MLflow du magasin configuré sur <http://localhost:5000> |
 
 Une commande complète la chaîne, hors `make` parce qu'elle porte sur des enregistrements déjà écrits :
 
@@ -181,6 +182,23 @@ Une commande complète la chaîne, hors `make` parce qu'elle porte sur des enreg
 | `python -m src.tracking.log --all` | Renvoie vers MLflow les enregistrements déjà écrits |
 
 Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-tracking` le désactive.
+
+### Magasin MLflow
+
+Les métadonnées des runs vont dans une base **PostgreSQL** dédiée, les artefacts et les modèles dans un répertoire. L'URI porte un mot de passe et reste donc hors du dépôt :
+
+```bash
+cp .env.example .env      # puis remplir MLFLOW_TRACKING_URI
+```
+
+Sans `.env`, MLflow retombe sur un fichier SQLite local et le lanceur affiche lequel des deux magasins il a obtenu, mot de passe masqué, avant la première expérience.
+
+Chaque run complet dépose le modèle qu'il a mesuré dans le magasin, enregistré sous `syntra-<expérience>` :
+
+```python
+import mlflow
+model = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
+```
 
 ### Artefacts dérivés
 
@@ -213,7 +231,7 @@ Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compr
 
 ## Résultats
 
-Le corpus a changé : les résultats XSum ont été supprimés et les neuf expériences sont relancées sur CNN/DailyMail. Le tableau ci-dessous est régénéré depuis les enregistrements de runs et porte `NOT_RUN` tant que la campagne n'a pas écrit.
+Le tableau ci-dessous est régénéré depuis les enregistrements de runs et porte `NOT_RUN` tant que la campagne n'a pas écrit.
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->

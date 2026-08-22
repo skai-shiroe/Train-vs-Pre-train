@@ -100,6 +100,8 @@ from src.models.scratch.summarizer import ScratchSummarizer
 from src.models.scratch.transformer import ScratchTransformer
 from src.tracking.client import DEFAULT_EXPERIMENT, Tracker, build_tracker, log_safely
 from src.tracking.live import LiveMetricsCallback, LiveRun, finish_safely, open_live_run
+from src.tracking.model import log_model_safely, should_log
+from src.tracking.store import describe_store
 from src.tracking.payload import build_payload
 from src.tracking.provenance import UNKNOWN, describe_provenance
 from src.training.callbacks import default_callbacks
@@ -391,6 +393,30 @@ def best_weights(name: str, result: TrainingResult, checkpoints: Path) -> Path:
     )
 
 
+def trace_model(record: RunRecord, summarizer: AnySummarizer, live: LiveRun | None) -> None:
+    """Put the measured weights into the run that is still open.
+
+    Called between the record being written and the run being closed, for the
+    ordering :mod:`src.tracking.client` states: nothing reaches the store that
+    was not written first, and the checkpoint these weights come from is on
+    disk before this runs.
+
+    **Only into an open run.** MLflow logs a model into whatever run is active,
+    and starting one here would file the weights under a second run with no
+    score in it. Without a live run there is nothing to log into, and the
+    weights stay where they already are, under ``runs/``.
+
+    Args:
+        record: The record that was just written, read for its status.
+        summarizer: The evaluated summariser, holding the weights the reported
+            score was measured on.
+        live: The run opened before the training, or ``None``.
+    """
+    if live is None or not should_log(record.status):
+        return
+    log_model_safely(summarizer, experiment=record.experiment)
+
+
 def trace(
     record: RunRecord,
     directory: Path,
@@ -506,6 +532,7 @@ def execute(
 
     write_evaluation(evaluation, directory)
     write_record(record, directory)
+    trace_model(record, summarizer, live)
     trace(record, directory, tracker, live)
     return record
 
@@ -725,6 +752,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         tracking_uri=args.tracking_uri,
         experiment=args.tracking_experiment,
     )
+    # Printed before the first run rather than after the last: a campaign that
+    # traced into a local SQLite file when it meant to reach the shared
+    # database is a thing to discover in the first second, not in six hours.
+    if not args.no_tracking:
+        print(f"store            {describe_store(args.tracking_uri)}")
 
     failures = 0
     for config in configs:

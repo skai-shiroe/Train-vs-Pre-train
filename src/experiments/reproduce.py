@@ -69,6 +69,7 @@ from src.experiments.run import (
     run_one,
 )
 from src.tracking.client import DEFAULT_EXPERIMENT, build_tracker
+from src.tracking.store import describe_store
 from src.utils.markdown import write as write_fragments
 
 #: The two modes of section 41. ``quick`` exercises the mechanism, ``full``
@@ -377,6 +378,8 @@ def run_experiments(settings: Settings) -> Outcome:
         tracking_uri=None,
         experiment=DEFAULT_EXPERIMENT,
     )
+    if settings.traces:
+        print(f"store            {describe_store()}")
 
     records: list[RunRecord] = []
     for config in configs:

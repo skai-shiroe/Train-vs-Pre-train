@@ -54,6 +54,10 @@ runs.zip
 *.safetensors
 *.bin
 
+# Secrets du poste. .env.example en donne le modele, sans valeur.
+.env
+.env.local
+
 # Systeme et editeurs
 .DS_Store
 Thumbs.db

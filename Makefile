@@ -86,11 +86,12 @@ ablation: ## Rejoue les ablations taille de corpus et architecture
 figures: ## Trace les quatre figures dans reports/figures
 	$(PY) -m src.experiments.figures
 
-# Le magasin est passe explicitement : sans argument, la commande bascule vers
-# ./mlruns des que ce repertoire existe, alors que le client de tracking ecrit
-# dans la base SQLite dans tous les cas.
-mlflow-ui: ## Sert l'interface MLflow sur le magasin local, port 5000
-	$(PY) -m mlflow ui --backend-store-uri sqlite:///mlflow.db
+# Le magasin vient de .env, jamais du Makefile : une URI PostgreSQL porte un mot
+# de passe, et un Makefile est un fichier suivi. Sans .env la cible s'arrete en
+# le disant, plutot que de servir un magasin local vide qui ressemble a une
+# campagne perdue.
+mlflow-ui: ## Sert l'interface MLflow sur le magasin configure, port 5000
+	@set -a; [ -f .env ] && . ./.env; set +a; 	  test -n "$$MLFLOW_TRACKING_URI" || { 	    echo "MLFLOW_TRACKING_URI absent. Copier .env.example en .env et le remplir."; 	    exit 1; }; 	  $(PY) -m mlflow ui 	    --backend-store-uri "$$MLFLOW_TRACKING_URI" 	    --default-artifact-root "$${MLFLOW_ARTIFACT_ROOT:-mlartifacts}"
 
 # ---------------------------------------------------------------------------
 # Artefacts derives
