@@ -25,7 +25,7 @@ COV_ARGS := --cov=src \
 TORCH_INDEX ?= https://download.pytorch.org/whl/cu130
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration coverage \
+.PHONY: help install kernel test test-unit test-integration coverage \
         data train-scratch train-pretrained evaluate ablation figures mlflow-ui \
         report-sync corpus-sync reproduce clean
 
@@ -42,6 +42,15 @@ install: ## Installe les dependances
 	$(PIP) install --upgrade pip
 	$(PIP) install "torch>=2.13,<3.0" --index-url $(TORCH_INDEX)
 	$(PIP) install -e ".[dev]"
+
+# Les notebooks declarent le kernel 'syntra'. Sans cette cible, Jupyter leur
+# donne le premier 'python3' qu'il trouve sur son chemin de donnees, qui peut
+# etre le venv d'un autre projet : le notebook tourne alors avec d'autres
+# versions que celles que make vient d'installer, et rien ne le dit.
+# --sys-prefix ecrit le kernel dans .venv, donc il suit l'environnement.
+kernel: ## Enregistre le kernel Jupyter du depot, demande le groupe eda
+	$(PIP) install -e ".[eda]"
+	$(PY) -m ipykernel install --sys-prefix --name syntra --display-name "Syntra (.venv)"
 
 # ---------------------------------------------------------------------------
 # Tests
