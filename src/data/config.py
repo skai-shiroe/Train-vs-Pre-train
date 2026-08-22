@@ -19,7 +19,7 @@ class DatasetConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    hf_id: str = Field(description="Dataset identifier, for example EdinburghNLP/xsum.")
+    hf_id: str = Field(description="Dataset identifier, for example abisee/cnn_dailymail.")
     hf_config: str | None = Field(default=None, description="Optional dataset configuration name.")
     revision: str | None = Field(default=None, description="Commit or tag pinned for the download.")
     source_column: str = Field(description="Column holding the document to summarise.")

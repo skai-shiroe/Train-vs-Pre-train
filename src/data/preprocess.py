@@ -2,7 +2,7 @@
 
 The rules are deliberately conservative. Aggressive normalisation would change
 what the models are asked to summarise, and would make the comparison with
-published XSum numbers meaningless.
+published CNN/DailyMail numbers meaningless.
 """
 
 from __future__ import annotations
@@ -18,7 +18,8 @@ from src.data.example import Example
 #: The tab, line feed and carriage return are handled by the whitespace rule.
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
-#: Runs of whitespace, including the newlines that XSum keeps between paragraphs.
+#: Runs of whitespace, including the newlines CNN/DailyMail puts between the
+#: paragraphs of an article and between the bullets of its highlights.
 _WHITESPACE = re.compile(r"\s+")
 
 

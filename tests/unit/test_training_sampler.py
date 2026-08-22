@@ -1,8 +1,14 @@
 """Unit tests for the length grouped sampler.
 
-The sampler exists to cut the padding waste measured on XSum. The test that
-matters is therefore not that it runs, but that it actually reduces the waste
-while keeping the schedule reproducible.
+The sampler exists to cut the padding waste left by dynamic padding. The test
+that matters is therefore not that it runs, but that it actually reduces the
+waste while keeping the schedule reproducible.
+
+The lengths are drawn to match CNN/DailyMail rather than spread evenly: 85
+percent of the articles reach the 512 token cap, which is what makes the waste
+small before grouping and is measured in the module under test. A uniform draw
+would hand the sampler an easy corpus and let a regression that only shows up
+on a saturated one through.
 """
 
 from __future__ import annotations
@@ -17,9 +23,9 @@ BATCH_SIZE = 8
 
 
 def skewed_lengths(count: int, *, seed: int = 7) -> list[int]:
-    """Return lengths with the heavy tail XSum documents actually have."""
+    """Return lengths shaped like the CNN/DailyMail training split."""
     generator = random.Random(seed)
-    return [512 if generator.random() < 0.38 else generator.randint(40, 500) for _ in range(count)]
+    return [512 if generator.random() < 0.85 else generator.randint(69, 511) for _ in range(count)]
 
 
 def random_batches(count: int, batch_size: int, *, seed: int = 0) -> list[list[int]]:
@@ -171,8 +177,12 @@ def test_grouping_cuts_the_padding_waste() -> None:
     grouped = padding_waste(lengths, LengthGroupedSampler(lengths, BATCH_SIZE, seed=42))
     shuffled = padding_waste(lengths, random_batches(len(lengths), BATCH_SIZE))
 
-    assert shuffled > 0.20
-    assert grouped < 0.05
+    # Both bounds are loose on purpose. What the saturated corpus leaves to
+    # recover is a few percent, not the quarter a spread out corpus would, so
+    # the assertion that carries the meaning is the ratio: a sampler that
+    # stopped grouping would land on the shuffled figure.
+    assert shuffled > 0.05
+    assert grouped < shuffled / 3
 
 
 @pytest.mark.unit

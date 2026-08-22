@@ -46,7 +46,7 @@ dev = [
 
 # Analyse exploratoire. Groupe separe : le notebook lit le corpus deja prepare,
 # et rien dans la chaine ne doit tirer une chaine Jupyter pour s'executer.
-# Voir notebooks/01_eda_xsum.ipynb.
+# Voir notebooks/01_eda_cnn_dailymail.ipynb.
 eda = [
   "jupyterlab==4.5.5",
   "ipykernel==6.31.0",

@@ -27,14 +27,15 @@ this reads that file. A table rebuilt by remeasuring would be a second
 measurement free to disagree with the first, which is the defect one level up
 from the one being fixed.
 
-**The notebook is a reader, like this module.** ``notebooks/01_eda_xsum.ipynb``
+**The notebook is a reader, like this module.** ``notebooks/01_eda_cnn_dailymail.ipynb``
 reads the same two files rather than recomputing them, and its outputs are
 stripped at every commit. So these tables cannot take their numbers from the
 notebook: they take them from what the notebook itself reads.
 
 **Nothing here names a ceiling.** The truncation table counts what was cut and
 does not say at how many tokens, because the record holds the counts and not the
-configuration they were measured under. Reading ``configs/data/xsum.yaml`` for
+configuration they were measured under. Reading ``configs/data/cnn_dailymail.yaml``
+for
 the figure would pair today's setting with yesterday's counts and render a
 sentence no file on disk supports. The ceilings stay in the prose above the
 table, where they are a decision rather than a measurement.
@@ -75,9 +76,9 @@ from src.utils.markdown import (
 #: What rewrites these fragments, for the banner they carry.
 COMMAND = "python -m src.data.fragments"
 
-#: Where the built corpus and its record live. The value ``configs/data/xsum.yaml``
-#: gives to ``paths.processed``.
-DEFAULT_PROCESSED_DIR = Path("data") / "processed" / "xsum"
+#: Where the built corpus and its record live. The value
+#: ``configs/data/cnn_dailymail.yaml`` gives to ``paths.processed``.
+DEFAULT_PROCESSED_DIR = Path("data") / "processed" / "cnn_dailymail"
 
 #: Where the fragments go, shared with the generator of the campaign tables.
 DEFAULT_FRAGMENTS_DIR = FRAGMENTS_DIR

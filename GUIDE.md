@@ -20,11 +20,13 @@ Les valeurs numériques citées sont celles de `scratch_100`, l'expérience de r
 
 **Répertoire :** [src/data/](src/data/) — **Commande :** `make data`
 
-XSum compte environ 204 000 exemples. Le projet en fige 22 000 sous la graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais XSum complet.
+CNN/DailyMail 3.0.0 compte 287 113 articles d'entraînement, 13 368 de validation et 11 490 de test. Le projet en fige 22 000 sous la graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais CNN/DailyMail complet.
+
+La configuration `3.0.0` est épinglée dans [configs/data/cnn_dailymail.yaml](configs/data/cnn_dailymail.yaml). Le hub publie trois versions du corpus sous le même identifiant, et seule la 3.0.0 expose les entités nommées en clair : la laisser au choix du hub reviendrait à laisser un score changer sans qu'une ligne du dépôt bouge.
 
 | Étape | Fichier | Ce qui se passe |
 | --- | --- | --- |
-| Téléchargement | [download.py](src/data/download.py) | Récupère XSum depuis Hugging Face |
+| Téléchargement | [download.py](src/data/download.py) | Récupère CNN/DailyMail depuis Hugging Face |
 | Nettoyage | [preprocess.py](src/data/preprocess.py) | Écarte les documents trop courts ou trop longs, normalise l'Unicode |
 | Tirage | [split.py](src/data/split.py) | Tire les trois splits sous graine, calcule leurs empreintes |
 | Écriture | [dataset.py](src/data/dataset.py) | Écrit trois `.jsonl` et un `manifest.json` |
@@ -33,7 +35,7 @@ XSum compte environ 204 000 exemples. Le projet en fige 22 000 sous la graine 42
 Un exemple est un triplet minimal, [example.py](src/data/example.py) :
 
 ```python
-Example(example_id="35232142", source="Le document complet...", target="Le résumé de référence.")
+Example(example_id="95175a26fb68f3a151d452f845ee0f41570e9984", source="L'article complet...", target="Les highlights de référence.")
 ```
 
 Deux propriétés comptent pour la suite.
@@ -80,13 +82,13 @@ Le préfixe `"summarize: "` vient de la convention T5, qui multiplexe les tâche
 
 ### Le sampler groupé par longueur
 
-[`LengthGroupedSampler`](src/training/sampler.py) trie les exemples par longueur avant de former les batchs. Sur XSum ce n'est pas un détail : 38 % des documents atteignent le plafond de 512 tokens, donc un seul document long tire tout son batch à 512. La mesure est dans le fichier lui-même, obtenue par [scripts/measure_padding.py](scripts/measure_padding.py) :
+[`LengthGroupedSampler`](src/training/sampler.py) trie les exemples par longueur avant de former les batchs. La mesure est dans le fichier lui-même, obtenue par [scripts/measure_padding.py](scripts/measure_padding.py) :
 
 ```text
-batch 8   mélangé : 24,8 % de padding      groupé : 1,5 %
+batch 8   mélangé : 3,8 % de padding      groupé : 1,0 %
 ```
 
-Un quart du calcul de l'encodeur portait sur du vide. Le groupement conserve un aléa entre les mega-batchs, pour que l'ordre change à chaque époque.
+**Sur ce corpus, le sampler rapporte peu, et il faut le dire.** 85 % des articles atteignent le plafond de 512 tokens, donc dès la taille de batch 4 tous les batchs sont à 512 : le padding dynamique s'est déjà effondré en padding fixe, mais ce qu'il laisse à récupérer ne fait que 3,8 %. Le groupement en reprend 2,8 points. Il est conservé parce qu'il coûte un tri par fenêtre et ne peut pas nuire, pas parce qu'il serait ici l'optimisation décisive — celle-ci serait d'allonger la troncature, et elle est bornée par le budget GPU. Le groupement conserve un aléa entre les mega-batchs, pour que l'ordre change à chaque époque.
 
 ---
 

@@ -15,7 +15,7 @@ make reproduce MODE=quick
 
 Quatre commandes depuis un dépôt fraîchement cloné. La dernière enchaîne toute la chaîne scientifique : elle construit le corpus s'il manque, joue les neuf expériences plafonnées à deux pas d'optimisation, agrège les tableaux et trace les figures. Elle vérifie que la chaîne tourne sur ce poste ; elle ne produit aucun résultat, et le dit. Comptez une minute une fois le corpus construit, mesuré sur GPU RTX 5060 portable.
 
-Le premier appel télécharge XSum et construit le corpus de travail, ce qui domine le temps total. Les appels suivants sautent cette étape : `make data` est idempotent, et la chaîne affiche le `dataset_version` du corpus qu'elle a lu.
+Le premier appel télécharge CNN/DailyMail et construit le corpus de travail, ce qui domine le temps total : l'archive fait 1,3 Go. Les appels suivants sautent cette étape : `make data` est idempotent, et la chaîne affiche le `dataset_version` du corpus qu'elle a lu.
 
 ```bash
 make coverage               # la suite de tests, seuil de couverture compris
@@ -33,7 +33,7 @@ Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell. La rais
 | Modèle from scratch | Transformer encodeur-décodeur PyTorch |
 | Modèle pré-entraîné | `t5-small` |
 | Tokenizer | Tokenizer T5, partagé par les deux modèles |
-| Corpus | XSum, sous-ensemble figé de 20 000 exemples d'entraînement |
+| Corpus | CNN/DailyMail 3.0.0, sous-ensemble figé de 20 000 exemples d'entraînement |
 | Matériel | GPU NVIDIA local |
 
 ## Prérequis
@@ -113,12 +113,12 @@ make test
 │   ├── tracking/                enregistrement des runs et envoi vers MLflow
 │   └── utils/                   graine aléatoire, périphérique, markdown
 ├── configs/
-│   ├── data/                    xsum.yaml : corpus et tokenizer
+│   ├── data/                    cnn_dailymail.yaml : corpus et tokenizer
 │   ├── experiments/             les neuf expériences, une par fichier
 │   ├── model/                   vide, les hyperparamètres vivent dans les expériences
 │   └── training/                vide, pour la même raison
 ├── data/                        corpus de travail, reconstruit par make data
-│   ├── raw/                     XSum tel que téléchargé
+│   ├── raw/                     CNN/DailyMail tel que téléchargé
 │   ├── interim/                 étapes intermédiaires
 │   ├── processed/               le corpus figé de 20 000 exemples
 │   └── external/                ressources tierces
@@ -192,11 +192,11 @@ Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-t
 
 ## Intégrité scientifique
 
-Les neuf expériences ont été exécutées et leurs résultats sont publiés plus bas. Les tableaux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, puis injectés entre marqueurs. Une nouvelle campagne les réécrit.
+Les tableaux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, puis injectés entre marqueurs. Une nouvelle campagne les réécrit. Tant qu'une expérience n'a pas tourné, sa ligne existe et porte `NOT_RUN` : le tableau ne raccourcit pas, il dit ce qui manque.
 
 Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Seuls les enregistrements `OK` entrent dans les tableaux.
 
-Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples, pas XSum complet. Cette convention est rappelée sur chaque tableau et chaque figure.
+Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples, pas CNN/DailyMail complet. Cette convention est rappelée sur chaque tableau et chaque figure.
 
 ## État d'avancement
 
@@ -205,33 +205,31 @@ Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples
 | 1 à 4 | Requirements, architecture, bootstrap | Fait |
 | 5 | Data pipeline, corpus de travail construit | Fait |
 | 6 et 7 | Transformer from scratch et ses tests | Fait |
-| 8 à 11 | Entraînement, baseline, évaluation, ablations | Fait, les neuf expériences mesurées |
-| 12 et 13 | Traçage MLflow | Fait, neuf runs tracés |
-| 18 | Rapport | Fait, `RAPPORT.md` |
+| 8 à 11 | Entraînement, baseline, évaluation, ablations | Chaîne complète, campagne CNN/DailyMail en cours |
+| 12 et 13 | Traçage MLflow | Chaîne complète, magasin remis à zéro avec le changement de corpus |
+| 18 | Rapport | `RAPPORT.md`, sections de résultats en attente de la campagne |
 
-Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compris. Le mode `quick` a été joué de bout en bout sur ce poste le 9 août 2026 : cinq étapes, 51 secondes, neuf enregistrements `PARTIAL` écrits sous `reports/quick/` et aucun fichier touché hors de ce répertoire. Le mode `full` rejoue la campagne réelle.
+Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compris. Le mode `full` joue la campagne réelle ; le mode `quick` vérifie la chaîne sur un budget plafonné et n'écrit rien hors de `reports/quick/`.
 
 ## Résultats
 
-Les neuf expériences ont tourné le 8 août 2026, sur GPU NVIDIA GeForce RTX 5060 portable, pour 125 minutes de calcul cumulé. Toutes portent le statut `OK`.
+Le corpus a changé : les résultats XSum ont été supprimés et les neuf expériences sont relancées sur CNN/DailyMail. Le tableau ci-dessous est régénéré depuis les enregistrements de runs et porte `NOT_RUN` tant que la campagne n'a pas écrit.
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-| Modèle | Corpus | ROUGE-L | IC 95 % |
-| --- | --- | --- | --- |
-| `t5-small` fine-tuné | 100 % | **0,2295** | [0,2227, 0,2365] |
-| `t5-small` fine-tuné | 50 % | 0,2191 | [0,2129, 0,2256] |
-| `t5-small` fine-tuné | 10 % | 0,1843 | [0,1782, 0,1900] |
-| from scratch | 100 % | 0,1634 | [0,1581, 0,1686] |
-| from scratch | 50 % | 0,1550 | [0,1499, 0,1600] |
-| `t5-small` zero-shot | sans objet | 0,1366 | [0,1328, 0,1406] |
-| from scratch | 10 % | 0,1250 | [0,1207, 0,1293] |
+| Modèle | Corpus | ROUGE-L | IC 95 % | Statut |
+| --- | --- | --- | --- | --- |
+| `t5-small` fine-tuné | 10 % |  |  | `NOT_RUN` |
+| `t5-small` fine-tuné | 100 % |  |  | `NOT_RUN` |
+| `t5-small` fine-tuné | 50 % |  |  | `NOT_RUN` |
+| `t5-small` zero-shot | sans objet |  |  | `NOT_RUN` |
+| from scratch | 10 % |  |  | `NOT_RUN` |
+| from scratch | 100 % |  |  | `NOT_RUN` |
+| from scratch | 50 % |  |  | `NOT_RUN` |
 <!-- syntra:end headline -->
 
-Le modèle pré-entraîné fine-tuné sur 2 000 exemples devance le Transformer from scratch entraîné sur 20 000, et l'écart absolu entre les deux familles grandit au lieu de se réduire quand le corpus augmente. L'ablation d'architecture, elle, ne montre aucun gain à augmenter la profondeur.
-
-Ces chiffres sont reproductibles par un tiers : les quatre mesures `t5-small` ont été refaites sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`.
+Les quatre mesures `t5-small` sont prises sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`, et le corpus sous `dataset_version = 00c0ee4e` : les deux voyagent dans chaque enregistrement de run.
 
 ## Documentation
 
@@ -241,7 +239,7 @@ Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch d
 
 Le [rapport](RAPPORT.md) présente **ce que les expériences ont montré** : le corpus, l'architecture, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
 
-L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_xsum.ipynb`. Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
+L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_cnn_dailymail.ipynb`. Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
 
 Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi.
 

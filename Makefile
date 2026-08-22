@@ -65,7 +65,7 @@ coverage: ## Lance les tests avec le seuil de couverture de 80 pour cent
 # ---------------------------------------------------------------------------
 
 data: ## Telecharge, valide et prepare le corpus de travail
-	$(PY) -m src.data.build --config configs/data/xsum.yaml
+	$(PY) -m src.data.build --config configs/data/cnn_dailymail.yaml
 
 train-scratch: ## Entraine le Transformer from scratch sur 100 pour cent du corpus
 	$(PY) -m src.experiments.run --config configs/experiments/scratch_100.yaml

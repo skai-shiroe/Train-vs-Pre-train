@@ -56,7 +56,7 @@ PRETRAINED_FINE_TUNED = "pretrained_ft"
 PRETRAINED_ZERO_SHOT = "pretrained_zero_shot"
 
 #: Default data pipeline an experiment reads its corpus from.
-DEFAULT_DATA_CONFIG = Path("configs") / "data" / "xsum.yaml"
+DEFAULT_DATA_CONFIG = Path("configs") / "data" / "cnn_dailymail.yaml"
 
 #: Directory holding the experiment files, per section 13.
 DEFAULT_EXPERIMENTS_DIR = Path("configs") / "experiments"

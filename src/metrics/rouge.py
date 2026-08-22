@@ -19,10 +19,15 @@ places. :func:`score_example` fixes the order once and
 ``tests/unit/test_metrics_rouge.py`` pins it with an asymmetric case.
 
 **ROUGE-L, not ROUGE-Lsum.** ``rougeLsum`` splits on newlines and takes a union
-of per sentence longest common subsequences. XSum references are a single
-sentence, so the two agree on the references and disagree only on a
-multi sentence generation, where ``rougeLsum`` would quietly flatter a model
-that rambles. Section 2.1 says ROUGE-L, and that is what is measured.
+of per sentence longest common subsequences. A CNN/DailyMail reference is three
+to four sentences, and the pipeline stores it on a single line, so the two do
+not agree here: ``rougeLsum`` would match each reference sentence against its
+best counterpart anywhere in the generation, and ROUGE-L requires one
+subsequence running through the whole pair. Section 2.1 says ROUGE-L, and that
+is what is measured. What that costs has to be said rather than absorbed: the
+published CNN/DailyMail figures are ROUGE-Lsum, they are the more permissive of
+the two, and no number in this project is comparable to them. Every comparison
+made here is internal, the same metric on the same test set for every model.
 
 **An empty prediction scores zero and stays in the mean.** Dropping the
 documents a model failed on would raise its average for having failed. The

@@ -120,8 +120,8 @@ ROUGE_COLOURS: dict[str, str] = {
 
 #: Reminder printed on every figure that carries a proportion. Section 2.2 asks
 #: for it wherever a percentage of the corpus appears, because the number is a
-#: share of the 20 000 example working corpus and not of XSum.
-CORPUS_NOTE = "100 % = 20 000 exemples du corpus de travail, non XSum complet"
+#: share of the 20 000 example working corpus and not of CNN/DailyMail.
+CORPUS_NOTE = "100 % = 20 000 exemples du corpus de travail, non CNN/DailyMail complet"
 
 
 def pyplot() -> Any:

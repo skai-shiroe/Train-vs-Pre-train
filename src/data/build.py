@@ -3,7 +3,7 @@
 Entry point behind ``make data``:
 
 ```bash
-python -m src.data.build --config configs/data/xsum.yaml
+python -m src.data.build --config configs/data/cnn_dailymail.yaml
 ```
 
 The command is idempotent: running it twice with the same configuration
@@ -215,7 +215,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/data/xsum.yaml"),
+        default=Path("configs/data/cnn_dailymail.yaml"),
         help="Path to the data pipeline configuration.",
     )
     parser.add_argument(

@@ -6,7 +6,7 @@ scratch Transformer, then on the real ``t5-small`` weights under the ``slow``
 marker.
 
 Nothing here reports a score. The corpus is a handful of hand written
-sentences, and any number measured on it would say nothing about XSum.
+sentences, and any number measured on it would say nothing about CNN/DailyMail.
 """
 
 from __future__ import annotations

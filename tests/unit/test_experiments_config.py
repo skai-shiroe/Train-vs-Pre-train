@@ -37,7 +37,7 @@ def scratch_payload(**overrides: Any) -> dict[str, Any]:
     """Return a valid from scratch experiment, with optional overrides."""
     payload: dict[str, Any] = {
         "experiment": {"name": "scratch_test", "seed": 7, "studies": ["dataset_size"]},
-        "dataset": {"config": "configs/data/xsum.yaml", "percentage": 10},
+        "dataset": {"config": "configs/data/cnn_dailymail.yaml", "percentage": 10},
         "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
         "training": {"epochs": 1, "batch_size": 2},
     }
@@ -49,7 +49,7 @@ def zero_shot_payload(**overrides: Any) -> dict[str, Any]:
     """Return a valid zero shot experiment, with optional overrides."""
     payload: dict[str, Any] = {
         "experiment": {"name": "zero_shot_test"},
-        "dataset": {"config": "configs/data/xsum.yaml"},
+        "dataset": {"config": "configs/data/cnn_dailymail.yaml"},
         "model": {"type": "pretrained", "baseline": "t5", "mode": "zero_shot"},
     }
     payload.update(overrides)
@@ -100,7 +100,7 @@ def test_the_seed_is_refused_even_when_it_agrees() -> None:
 
 
 def test_a_zero_shot_run_cannot_declare_a_proportion() -> None:
-    payload = zero_shot_payload(dataset={"config": "configs/data/xsum.yaml", "percentage": 10})
+    payload = zero_shot_payload(dataset={"config": "configs/data/cnn_dailymail.yaml", "percentage": 10})
 
     with pytest.raises(ValueError, match="does not depend on the training corpus size"):
         ExperimentConfig.model_validate(payload)
@@ -127,7 +127,7 @@ def test_a_zero_shot_run_is_valid_without_either() -> None:
 
 
 def test_a_trained_run_without_a_proportion_is_refused() -> None:
-    payload = scratch_payload(dataset={"config": "configs/data/xsum.yaml"})
+    payload = scratch_payload(dataset={"config": "configs/data/cnn_dailymail.yaml"})
 
     with pytest.raises(ValueError, match="declares no corpus"):
         ExperimentConfig.model_validate(payload)

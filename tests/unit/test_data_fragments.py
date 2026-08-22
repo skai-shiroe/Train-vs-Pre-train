@@ -49,10 +49,10 @@ pytestmark = pytest.mark.unit
 def manifest_payload(**overrides: Any) -> dict[str, Any]:
     """Return a corpus manifest shaped like the one ``make data`` writes."""
     payload: dict[str, Any] = {
-        "name": "xsum",
+        "name": "cnn_dailymail",
         "seed": 42,
         "tokenizer": "t5-small",
-        "source_dataset": "EdinburghNLP/xsum",
+        "source_dataset": "abisee/cnn_dailymail",
         "dataset_version": "aaaa1111",
         "splits": {"train": 200, "validation": 10, "test": 10},
         "split_checksums": {"train": "bbbb2222", "validation": "cccc3333", "test": "dddd4444"},

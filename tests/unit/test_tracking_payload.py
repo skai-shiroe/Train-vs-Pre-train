@@ -113,7 +113,7 @@ def record(
         config={
             "experiment": {"name": "scratch_100", "seed": 42, "studies": ["dataset_size"]},
             "dataset": {
-                "config": "configs/data/xsum.yaml",
+                "config": "configs/data/cnn_dailymail.yaml",
                 "percentage": None if zero_shot else 100,
             },
             "model": model_block,
@@ -121,8 +121,8 @@ def record(
             "evaluation": {"split": "test", "num_beams": 4},
         },
         dataset={
-            "config": "configs/data/xsum.yaml",
-            "name": "xsum",
+            "config": "configs/data/cnn_dailymail.yaml",
+            "name": "cnn_dailymail",
             "version": "259d8397ce78",  # pragma: allowlist secret
             "percentage": None if zero_shot else 100,
             "train_examples": 0 if zero_shot else 20000,
@@ -220,7 +220,7 @@ def test_a_failed_run_logs_its_error_and_no_metric_of_quality() -> None:
         experiment="scratch_100",
         status=STATUS_FAILED,
         config={"model": {"type": "scratch"}},
-        dataset={"config": "configs/data/xsum.yaml"},
+        dataset={"config": "configs/data/cnn_dailymail.yaml"},
         model={},
         hardware={},
         provenance={"git_commit": "deadbeef"},
