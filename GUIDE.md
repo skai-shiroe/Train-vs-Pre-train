@@ -410,7 +410,9 @@ ROUGE mesure le recouvrement entre le résumé produit et le résumé de référ
 | ROUGE-2 | Bigrammes communs |
 | ROUGE-L | Plus longue sous-séquence commune |
 
-ROUGE-L est la métrique rapportée : elle tolère les réordonnancements, ce qu'un résumé abstractif fait constamment.
+ROUGE-L est la métrique rapportée : elle tolère les réordonnancements, ce qu'un résumé fait constamment.
+
+**ROUGE-L, et non ROUGE-Lsum.** `rougeLsum` découpe la référence sur ses sauts de ligne et apparie chaque phrase séparément ; ROUGE-L exige une seule sous-séquence traversant toute la paire. Sur une référence CNN/DailyMail de trois à quatre phrases, la seconde est nettement plus sévère, et les chiffres publiés sur ce corpus sont des ROUGE-Lsum. Aucun score de ce projet ne s'y compare : toutes les comparaisons faites ici sont internes, même métrique et même jeu de test pour tous les modèles.
 
 **Chaque score porte un intervalle de confiance.** Le calcul rééchantillonne 1 000 fois les documents notés et rend l'intervalle de percentiles à 95 %, sous la forme d'un [`ConfidenceInterval`](src/metrics/rouge.py). Un score seul ne dit pas s'il diffère de son voisin, et deux intervalles qui se recouvrent ne permettent pas de conclure. Le rapport applique cette règle, y compris quand elle l'empêche de conclure.
 

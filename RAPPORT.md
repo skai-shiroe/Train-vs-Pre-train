@@ -131,7 +131,9 @@ encoder_layers: 4     decoder_layers: 4    norm_first: true
 
 Une seule table sert l'encodeur, le décodeur et la projection de sortie. Elle est créée en premier et passée aux deux tours, pas recréée dans chacune : `encoder.embedding` et `decoder.embedding` sont le même objet en mémoire, et `decoder.output_projection.weight is embedding.weight` vaut `True`. L'attachement économise `vocab_size * d_model` paramètres, soit 15 591 424 au lieu de 23 809 024, et régularise un modèle entraîné sur peu de données en forçant les vues d'entrée et de sortie d'un token à s'accorder.
 
-Ce tableau est le fait le plus important du modèle from scratch. La table d'embedding pèse plus que l'encodeur et le décodeur réunis, et le corpus ne permet pas de l'apprendre : sur les 32 100 entrées du tokenizer, 23 458 apparaissent au moins une fois, soit 73 %. Les 8 642 restantes représentent 2 212 352 paramètres, 14,2 % du modèle, qui ne reçoivent jamais le moindre gradient. La concentration aggrave le constat : 50 % des occurrences tiennent dans 100 types, et il faut 14 510 types pour couvrir 99 % du texte.
+Ce tableau est le fait le plus important du modèle from scratch. La table d'embedding pèse plus que l'encodeur et le décodeur réunis, et le corpus ne permet pas de l'apprendre : sur les 32 100 entrées du tokenizer, 24 480 apparaissent au moins une fois dans les 21,3 millions d'occurrences du corpus d'entraînement, soit 76 %. Les 7 620 restantes représentent 1 950 720 paramètres, 12,5 % du modèle, qui ne reçoivent jamais le moindre gradient : ils sont initialisés au hasard, sauvegardés dans chaque checkpoint, et n'apprennent rien.
+
+La concentration aggrave le constat : 50 % des occurrences tiennent dans 92 types, et il faut 15 863 types pour couvrir 99 % du texte. Les 2 326 types vus moins de dix fois ont une ligne d'embedding mise à jour trop peu souvent pour valoir mieux que du bruit. C'est l'argument mécanique qui désigne le vocabulaire, et non la profondeur, comme le levier de ce modèle : à `d_model` 256, ajouter des couches fait varier une minorité des paramètres pendant que la majorité reste sous-entraînée. Un tokenizer réduit au corpus libérerait plusieurs millions de paramètres, mais casserait le partage du tokenizer avec la baseline, donc l'équité de la comparaison. C'est un compromis explicite, pas un oubli.
 
 ### Ce que les tests garantissent
 
@@ -240,7 +242,9 @@ make figures                                  # les quatre figures
 
 Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`. `make report-sync` et `make corpus-sync` les régénèrent depuis les enregistrements, dans `reports/_generated/` et directement entre les marqueurs de ce fichier.
 
-La campagne d'origine ne se rejoue pas : ses enregistrements et le code qui les a produits sont figés sur `archive/campagne-2026-08`, pour la raison exposée en section 7. `git show archive/campagne-2026-08:ARCHIVE.md` en donne le détail, et `python -m scripts.compare_archive` mesure ce qui a bougé depuis. Le magasin MLflow, lui, se reconstruit depuis les enregistrements, puisqu'il n'en est que le miroir :
+**Cette campagne-ci est rattachable à un commit**, ce que la précédente n'était pas. Elle a été lancée depuis un arbre propre, et chaque enregistrement de run porte le commit, la branche et `git_dirty: false`. La campagne XSum, elle, avait tourné dans un répertoire sans `.git` : elle reste figée sur la branche orpheline `archive/campagne-2026-08`, avec le code qui l'a produite, mais elle ne décrit plus ni le corpus ni les résultats de ce rapport. `git show archive/campagne-2026-08:ARCHIVE.md` en donne le détail, et `python -m scripts.compare_archive` mesure ce qui a bougé depuis.
+
+Le magasin MLflow se reconstruit depuis les enregistrements, puisqu'il n'en est que le miroir :
 
 ```bash
 python -m src.tracking.log --all --tracking-uri sqlite:///mlflow.db
