@@ -1,0 +1,19 @@
+# Analyse exploratoire et carnets. Reflet du groupe eda de pyproject.toml,
+# verrouille par tests/unit/test_requirements.py.
+#
+# Groupe separe : le carnet lit le corpus deja prepare, et rien dans la chaine
+# data -> train -> evaluate ne doit tirer une chaine Jupyter pour s'executer.
+# Voir notebooks/01_eda_cnn_dailymail.ipynb.
+#
+# Installer ce fichier ne suffit pas a faire tourner les carnets : le kernel du
+# depot reste a enregistrer, sinon Jupyter leur donne le premier python3 qu'il
+# trouve, qui peut etre le venv d'un autre projet.
+#
+#     make kernel          (Git Bash)
+#     .\make.ps1 kernel    (PowerShell)
+
+-r requirements.txt
+
+jupyterlab==4.5.5
+ipykernel==6.31.0
+nbconvert==7.16.6

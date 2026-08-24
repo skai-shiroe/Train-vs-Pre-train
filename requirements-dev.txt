@@ -1,0 +1,11 @@
+# Outillage de test. Reflet du groupe [project.optional-dependencies] dev de
+# pyproject.toml, verrouille par tests/unit/test_requirements.py.
+#
+# Versions exactes et non des plages : un seuil de couverture et des marqueurs
+# stricts se comportent autrement d'une version de pytest a l'autre, et un
+# echec de suite doit venir du code, pas de l'outil qui la lance.
+
+-r requirements.txt
+
+pytest==9.1.1
+pytest-cov==7.1.0
