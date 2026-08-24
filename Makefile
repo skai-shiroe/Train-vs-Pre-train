@@ -43,14 +43,20 @@ install: ## Installe les dependances
 	$(PIP) install "torch>=2.13,<3.0" --index-url $(TORCH_INDEX)
 	$(PIP) install -e ".[dev]"
 
-# Les notebooks declarent le kernel 'syntra'. Sans cette cible, Jupyter leur
-# donne le premier 'python3' qu'il trouve sur son chemin de donnees, qui peut
-# etre le venv d'un autre projet : le notebook tourne alors avec d'autres
-# versions que celles que make vient d'installer, et rien ne le dit.
-# --sys-prefix ecrit le kernel dans .venv, donc il suit l'environnement.
+# Les notebooks declarent le kernel 'train-vs-pre-train'. Sans cette cible,
+# Jupyter leur donne le 'python3' qu'il trouve sur son chemin de donnees, dont
+# l'argv est un 'python' nu resolu depuis le PATH au lancement : le notebook
+# tourne alors avec d'autres versions que celles que make vient d'installer, et
+# rien ne le dit. --sys-prefix ecrit le kernel dans .venv, donc il suit
+# l'environnement.
+#
+# Le nom comme le libelle portent celui du depot, pas celui du paquet. Un
+# kernel appele 'syntra' se confond dans le selecteur de VS Code avec le projet
+# voisin du meme nom ; le mauvais choix ne se voit qu'a l'execution, et la
+# confusion a deja coute deux sessions.
 kernel: ## Enregistre le kernel Jupyter du depot, demande le groupe eda
 	$(PIP) install -e ".[eda]"
-	$(PY) -m ipykernel install --sys-prefix --name syntra --display-name "Syntra (.venv)"
+	$(PY) -m ipykernel install --sys-prefix --name train-vs-pre-train --display-name "Train-vs-Pre-train (.venv)"
 
 # ---------------------------------------------------------------------------
 # Tests
