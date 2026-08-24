@@ -20,6 +20,18 @@ Le corpus de travail est un tirage figé de 22 000 exemples de **CNN/DailyMail**
 
 La configuration `3.0.0` est épinglée. Le hub publie trois versions sous le même identifiant et seule celle-ci laisse les entités nommées en clair ; ne pas la fixer laisserait un score changer sans qu'une ligne du dépôt bouge.
 
+### Pourquoi un sous-ensemble, et pourquoi tiré
+
+Le projet compare deux familles de modèles sur les mêmes données ; il ne cherche pas à égaler un score publié. La comparaison exige que les deux familles voient exactement le même corpus, elle n'exige pas que ce corpus soit tout ce qui est disponible.
+
+Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des neuf expériences avec lui. Ce que cette dépense achèterait est mesurable : à 20 000 exemples, le modèle from scratch voit environ 9,9 millions de tokens source, soit à peu près 3 400 fois moins que ce que `t5-small` a vu en pré-entraînement ; à 287 113 exemples il en verrait 141 millions, soit 240 fois moins. L'écart change d'amplitude, pas de nature, et la conclusion qu'il porte non plus.
+
+Ce choix a une limite, et elle porte sur un résultat précis. La couverture du vocabulaire — la part des entrées du tokenizer que le corpus permet d'apprendre, section 4 — est la seule grandeur du rapport qui dépende du nombre d'exemples plutôt que de la nature du corpus. Elle vaut 76,0 % ici, et la part de paramètres jamais mis à jour 12,5 %. La dépendance existe, mais la loi de Zipf la rend logarithmique, et c'est vérifié plutôt que supposé : porter le corpus à 30 000 exemples ne déplace la couverture que de 76,0 % à 77,0 %, et les paramètres morts de 12,5 % à 12,1 %. Il faudrait un ordre de grandeur d'exemples en plus pour que la conclusion en dépende.
+
+Le tirage, lui, remplace une troncature. Garder les 20 000 premiers exemples reprendrait l'ordre du fichier amont, dont rien ne garantit qu'il soit aléatoire. La graine casse cet ordre de façon rejouable : elle est écrite dans la configuration, et les empreintes du manifeste permettent de vérifier après coup qu'on a bien le même tirage.
+
+La valeur 42 n'a aucune propriété particulière. Ce qui compte est qu'elle soit fixée et enregistrée, pas ce qu'elle vaut. Les trois splits reçoivent des graines dérivées, 42, 43 et 44, de sorte que changer `train_size` ne déplace ni la validation ni le test : porter l'entraînement à 30 000 exemples puis le ramener à 20 000 a laissé leurs deux empreintes identiques.
+
 La validation ne relève aucun champ vide, aucun identifiant dupliqué, aucun résumé plus long que son document, et aucun document partagé entre les trois splits. Treize documents apparaissent deux fois dans l'entraînement, soit 0,065 % de la pondération. Ce sont des dépêches republiées, et les retirer serait un nettoyage silencieux du corpus de référence.
 
 Les sous-ensembles d'ablation sont emboîtés, 10 % préfixe de 50 %, lui-même préfixe de 100 %. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.

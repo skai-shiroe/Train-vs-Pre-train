@@ -22,7 +22,13 @@ make coverage               # la suite de tests, seuil de couverture compris
 make reproduce MODE=full    # la campagne réelle, plusieurs heures de GPU
 ```
 
-Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell. La raison et les trois façons d'ouvrir un tel terminal sont dans [Prérequis](#prérequis).
+Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell — la raison est dans [Prérequis](#prérequis). Pour rester sous PowerShell, `make.ps1` porte les mêmes cibles :
+
+```powershell
+.\make.ps1                       # la liste des cibles
+.\make.ps1 install
+.\make.ps1 reproduce -Mode quick
+```
 
 ## Décisions verrouillées
 
@@ -73,7 +79,25 @@ Un terminal hérite du PATH du processus qui l'a lancé. VS Code transmet celui 
 export PATH="$PATH:$HOME/AppData/Local/Microsoft/WinGet/Packages/ezwinports.make_Microsoft.Winget.Source_8wekyb3d8bbwe/bin"
 ```
 
-Le `Makefile` appelle l'interpréteur du `.venv`. Si cet environnement est absent ou incomplet, les cibles s'appellent directement : `python -m src.experiments.run --config ...`.
+### Rester sous PowerShell
+
+Rien de ce qui précède n'est nécessaire si l'on passe par `make.ps1`, qui porte les mêmes cibles sans dépendre ni de GNU Make ni d'un shell POSIX :
+
+```powershell
+.\make.ps1                       # la liste des cibles
+.\make.ps1 reproduce -Mode full  # equivaut a make reproduce MODE=full
+```
+
+Le `Makefile` reste la référence — c'est lui qui tourne en CI. Les deux fichiers listent les mêmes cibles, et une cible ajoutée d'un côté doit l'être de l'autre.
+
+### Quand le venv manque
+
+Les deux points d'entrée appellent l'interpréteur du `.venv`, et retombent sur le `python` du PATH quand il est absent. **Ce repli est un piège si le PATH porte un Python hors de la plage `>=3.12,<3.14`** : `install` déverserait alors PyTorch dans le Python système, et `test` échouerait sur un `ModuleNotFoundError` qui ne dit pas pourquoi. `make.ps1` vérifie la version et s'arrête ; le `Makefile`, lui, ne le voit pas. Devant un import manquant, vérifier `.venv/Scripts/python.exe` avant toute autre hypothèse, et recréer l'environnement plutôt qu'emprunter un interpréteur voisin :
+
+```powershell
+py -3.12 -m venv .venv
+.\make.ps1 install
+```
 
 ## Installation
 
@@ -85,6 +109,16 @@ make install
 
 `make install` installe PyTorch depuis l'index CUDA 13.0, puis les dépendances de la chaîne et de la suite de tests.
 
+Les dépendances sont déclarées une fois, dans `pyproject.toml`. Les trois fichiers `requirements*.txt` en sont le reflet, pour qui préfère `pip install -r` ; `tests/unit/test_requirements.py` échoue si les deux divergent.
+
+| Fichier | Contenu |
+| --- | --- |
+| `requirements.txt` | les dépendances d'exécution de la chaîne |
+| `requirements-dev.txt` | y ajoute pytest et pytest-cov |
+| `requirements-eda.txt` | y ajoute JupyterLab, ipykernel et nbconvert |
+
+> `pip install -r requirements.txt` installe le **PyTorch CPU** publié sur PyPI. Sur un poste GPU, passer par la cible `install`, qui tire d'abord PyTorch depuis l'index CUDA.
+>
 > Les cartes RTX 50 (architecture Blackwell, `sm_120`) exigent les roues PyTorch CUDA. L'index PyPI par défaut ne convient pas.
 
 Vérifier l'installation :
@@ -98,7 +132,11 @@ make test
 ```text
 .
 ├── Makefile                     toutes les cibles de la chaîne, appelées depuis Git Bash
+├── make.ps1                     les mêmes cibles, appelées depuis PowerShell
 ├── pyproject.toml               dépendances et configuration des outils
+├── requirements.txt             reflet des dépendances de pyproject.toml
+├── requirements-dev.txt         y ajoute l'outillage de test
+├── requirements-eda.txt         y ajoute la chaîne Jupyter des carnets
 ├── .env.example                 modèle de configuration du magasin MLflow, sans secret
 ├── GUIDE.md                     parcours de lecture du code, du corpus à MLflow
 ├── RAPPORT.md                   le rapport scientifique et ses résultats
@@ -146,11 +184,19 @@ mlartifacts/   artefacts MLflow, modèles compris, environ 1,5 Go par campagne
 
 ## Commandes
 
+Les cibles ci-dessous sont écrites pour `make`, depuis Git Bash. Sous PowerShell, `make.ps1` porte les mêmes : `make <cible>` s'écrit `.\make.ps1 <cible>`, et `MODE=full` devient `-Mode full`.
+
+```powershell
+.\make.ps1 test
+.\make.ps1 reproduce -Mode full
+```
+
 ### Environnement
 
 | Cible | Effet |
 | --- | --- |
 | `make install` | Installe PyTorch, les dépendances et le paquet en mode éditable |
+| `make kernel` | Enregistre le kernel Jupyter du dépôt et installe la chaîne Jupyter |
 
 ### Tests
 
@@ -192,6 +238,20 @@ cp .env.example .env      # puis remplir MLFLOW_TRACKING_URI
 ```
 
 Sans `.env`, MLflow retombe sur un fichier SQLite local et le lanceur affiche lequel des deux magasins il a obtenu, mot de passe masqué, avant la première expérience.
+
+**Ce repli joue sur l'absence de configuration, pas sur un serveur injoignable.** `resolve_tracking_uri` rend `None` quand rien ne configure d'URI, et c'est ce `None` qui laisse MLflow choisir SQLite. Avec un `.env` en place et la base éteinte, il n'y a pas de repli : `make mlflow-ui` attend puis échoue sur un timeout. La base vit sur une autre machine du réseau local, qui doit donc tourner. Pour vérifier avant de lancer quoi que ce soit :
+
+```powershell
+Test-NetConnection -ComputerName <hôte> -Port 5432
+```
+
+Le magasin SQLite local reste consultable pendant ce temps, avec ce qu'il porte des campagnes passées :
+
+```powershell
+.\.venv\Scripts\python.exe -m mlflow ui --backend-store-uri sqlite:///mlflow.db --default-artifact-root mlartifacts
+```
+
+Une campagne lancée alors que la base est injoignable tourne quand même : un échec de traçage n'interrompt jamais un run. Seul le dépôt dans le magasin est perdu, et `python -m src.tracking.log --all` le rattrape une fois le serveur revenu.
 
 Chaque run complet dépose le modèle qu'il a mesuré dans le magasin, enregistré sous `syntra-<expérience>` :
 
@@ -257,10 +317,24 @@ Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch d
 
 Le [rapport](RAPPORT.md) présente **ce que les expériences ont montré** : le corpus, l'architecture, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
 
-L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_cnn_dailymail.ipynb`. Elle demande le groupe optionnel `eda` : `pip install -e ".[eda]"`.
+Les quatre carnets demandent le groupe optionnel `eda`, et le kernel du dépôt :
+
+```bash
+make kernel                 # .\make.ps1 kernel sous PowerShell
+```
+
+Cette cible installe la chaîne Jupyter puis enregistre un kernel nommé `train-vs-pre-train`, affiché **Train-vs-Pre-train (.venv)** dans le sélecteur de VS Code. C'est celui qu'il faut choisir. Le kernel `python3` que Jupyter propose à côté n'est pas équivalent : son `argv` est un `python` nu, résolu depuis le PATH au lancement, donc pas nécessairement celui du dépôt. Les carnets épinglent le bon dans leur métadonnée, et `tests/unit/test_notebooks.py` échoue si l'éditeur les réassigne — ce qu'il fait dès que le kernel du dépôt n'est plus enregistré.
+
+L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_cnn_dailymail.ipynb`.
 
 Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste : il vérifie que ce poste peut exécuter la chaîne, et sur quoi.
 
 Le notebook [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) fait traverser le Transformer à un vrai batch en affichant la forme des tenseurs à chaque étape. Il accompagne la section 3 du guide, tourne sur CPU en une minute et n'écrit rien.
 
-Le notebook `notebooks/02_training.ipynb` lance une expérience à la fois et trace ses courbes de perte. Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds. Une campagne complète, elle, se lance depuis un terminal : `make reproduce MODE=full`.
+Le notebook `notebooks/02_training.ipynb` lance une campagne et la donne à suivre. `EXPERIMENTS` nomme celles à jouer, dans l'ordre voulu, ou `None` pour les neuf déclarées — c'est le défaut, avec `MODE = "full"`, donc un Run All lance la campagne complète. Chaque expérience ouvre une bannière `i/N`, ses pas s'écrivent au fil de l'eau, et une ligne la referme ; un tableau final aligne les neuf sur leur statut, leur durée et leur ROUGE-L. Une expérience qui échoue est enregistrée `FAILED` sans interrompre les suivantes, et une interruption au clavier laisse le bilan s'imprimer sur ce qui a tourné. Les sections 5 à 8 détaillent ensuite une seule expérience, que `FOCUS` désigne.
+
+Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds.
+
+Il sait aussi décrire une campagne qu'il n'a pas lancée : après un `make reproduce MODE=full` au terminal, exécuter les sections 1 à 3 puis sauter à la section 5 suffit — elle relit les enregistrements de `reports/results/`, et rien n'est réentraîné.
+
+> Une campagne complète dure plusieurs heures et meurt avec le noyau : fermer VS Code l'emporte. Pour la lancer sans cette contrainte, passer par un terminal — `make reproduce MODE=full`, ou `.\make.ps1 reproduce -Mode full`.

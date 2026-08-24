@@ -24,6 +24,10 @@ CNN/DailyMail 3.0.0 compte 287 113 articles d'entraînement, 13 368 de validatio
 
 La configuration `3.0.0` est épinglée dans [configs/data/cnn_dailymail.yaml](configs/data/cnn_dailymail.yaml). Le hub publie trois versions du corpus sous le même identifiant, et seule la 3.0.0 expose les entités nommées en clair : la laisser au choix du hub reviendrait à laisser un score changer sans qu'une ligne du dépôt bouge.
 
+**Pourquoi ne pas tout prendre.** Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des neuf expériences avec lui. À 20 000 exemples, le modèle from scratch voit déjà ~3 400 fois moins de texte que `t5-small` en a vu en pré-entraînement ; à 287 113 il en verrait ~240 fois moins. L'écart change d'amplitude, pas de nature. La contrepartie est la couverture du vocabulaire, seule grandeur qui dépende du nombre d'exemples : mesurée à 76,0 % du tokenizer ici et à 77,0 % en portant le corpus à 30 000, elle croît trop lentement pour que la conclusion en dépende.
+
+**Pourquoi un tirage plutôt qu'une troncature.** Garder les 20 000 premiers exemples reprendrait l'ordre du fichier amont, dont rien ne garantit qu'il soit aléatoire. La graine casse cet ordre de façon rejouable, et les empreintes du manifeste le vérifient. Sa valeur, 42, n'a aucune propriété : ce qui compte est qu'elle soit fixée dans la configuration. Les trois splits reçoivent 42, 43 et 44, de sorte que changer `train_size` ne déplace ni la validation ni le test.
+
 | Étape | Fichier | Ce qui se passe |
 | --- | --- | --- |
 | Téléchargement | [download.py](src/data/download.py) | Récupère CNN/DailyMail depuis Hugging Face |
@@ -201,6 +205,8 @@ Le lanceur affiche le magasin obtenu avant la première expérience, mot de pass
 
 Sans configuration, la résolution rend `None` et MLflow retombe sur un fichier SQLite local. C'est ce qui permet à `make reproduce` de tourner sur un clone frais sans base de données.
 
+La distinction compte : ce repli répond à une **absence de configuration**, pas à un serveur injoignable. Un `.env` en place désigne la base PostgreSQL quoi qu'il arrive, et `make mlflow-ui` échoue sur un timeout si la machine qui l'héberge est éteinte. Un run, lui, survit à ce cas — voir *Un échec de tracking ne fait jamais échouer un run* plus bas — et `python -m src.tracking.log --all` renvoie après coup ce qui n'a pas pu partir.
+
 ### Ce qui est enregistré, quand
 
 | Moment | Ce qui part vers MLflow | Fichier |
@@ -293,8 +299,9 @@ L'agrégation ne lit que les enregistrements `OK` porteurs d'une évaluation, co
 
 Dans cet ordre, en une soirée :
 
+0. `make kernel` — enregistrer le kernel du dépôt, sans quoi les carnets tournent sur l'interpréteur du PATH. Sous PowerShell, `.\make.ps1 kernel`.
 1. `notebooks/00_environment_check.ipynb` — ce poste peut-il exécuter la chaîne, et sur quoi.
 2. `make data` — construire le corpus, une fois.
 3. [notebooks/01_eda_cnn_dailymail.ipynb](notebooks/01_eda_cnn_dailymail.ipynb) — les mesures qui fixent les plafonds et le budget de décodage.
 4. [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) — voir un batch réel traverser le modèle, forme par forme.
-5. `notebooks/02_training.ipynb` en `MODE = "quick"` — lancer une expérience en quelques secondes et voir ses courbes.
+5. `notebooks/02_training.ipynb` en `MODE = "quick"` — rejouer les neuf expériences en une minute et voir la mécanique de bout en bout.
