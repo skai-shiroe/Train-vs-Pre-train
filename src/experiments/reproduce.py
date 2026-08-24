@@ -70,6 +70,7 @@ from src.experiments.run import (
 )
 from src.tracking.client import DEFAULT_EXPERIMENT, build_tracker
 from src.tracking.store import describe_store
+from src.utils.device import release_accelerator
 from src.utils.markdown import write as write_fragments
 
 #: The two modes of section 41. ``quick`` exercises the mechanism, ``full``
@@ -396,6 +397,12 @@ def run_experiments(settings: Settings) -> Outcome:
                 corpus=quick_corpus(load_corpus(prepared)) if settings.quick else None,
             )
         )
+        # Le run precedent a rendu ses tenseurs, pas la memoire que l'allocateur
+        # en cache. Sans cette ligne, une campagne de neuf experiences accumule
+        # ce que les huit premieres ont reserve, et la carte du poste de
+        # reference tombe sur un OOM pilote a la sixieme alors que chacune tient
+        # largement seule.
+        release_accelerator()
 
     failures = [record.experiment for record in records if record.status == STATUS_FAILED]
     if failures:
