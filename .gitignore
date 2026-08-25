@@ -10,6 +10,7 @@ venv/
 
 # Outillage
 .pytest_cache/
+.ruff_cache/
 # Caches d'outils ecrits dans le repertoire de travail plutot que sous HOME.
 .cache/
 .coverage

@@ -59,6 +59,15 @@ kernel: ## Enregistre le kernel Jupyter du depot, demande le groupe eda
 	$(PY) -m ipykernel install --sys-prefix --name train-vs-pre-train --display-name "Train-vs-Pre-train (.venv)"
 
 # ---------------------------------------------------------------------------
+# Qualite
+# ---------------------------------------------------------------------------
+
+# Ruff porte seul le linting depuis que la purge a emporte flake8. Les carnets
+# sont dans le perimetre : le point du chemin les inclut.
+lint: ## Passe ruff sur le code, les tests et les carnets
+	$(PY) -m ruff check .
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
@@ -132,5 +141,5 @@ reproduce: ## Reproduit la chaine scientifique complete. MODE=full ou quick
 	$(PY) -m src.experiments.reproduce --mode $(or $(MODE),quick)
 
 clean: ## Supprime les caches et les rapports generes
-	rm -rf .pytest_cache htmlcov
+	rm -rf .pytest_cache .ruff_cache htmlcov
 	rm -f .coverage reports/junit.xml reports/coverage.xml

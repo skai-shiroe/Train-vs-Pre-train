@@ -114,7 +114,7 @@ Les dépendances sont déclarées une fois, dans `pyproject.toml`. Les trois fic
 | Fichier | Contenu |
 | --- | --- |
 | `requirements.txt` | les dépendances d'exécution de la chaîne |
-| `requirements-dev.txt` | y ajoute pytest et pytest-cov |
+| `requirements-dev.txt` | y ajoute pytest, pytest-cov et ruff |
 | `requirements-eda.txt` | y ajoute JupyterLab, ipykernel et nbconvert |
 
 > `pip install -r requirements.txt` installe le **PyTorch CPU** publié sur PyPI. Sur un poste GPU, passer par la cible `install`, qui tire d'abord PyTorch depuis l'index CUDA.
@@ -197,6 +197,12 @@ Les cibles ci-dessous sont écrites pour `make`, depuis Git Bash. Sous PowerShel
 | --- | --- |
 | `make install` | Installe PyTorch, les dépendances et le paquet en mode éditable |
 | `make kernel` | Enregistre le kernel Jupyter du dépôt et installe la chaîne Jupyter |
+
+### Qualité
+
+| Cible | Effet |
+| --- | --- |
+| `make lint` | Passe ruff sur le code, les tests et les carnets |
 
 ### Tests
 

@@ -45,6 +45,7 @@ dependencies = [
 dev = [
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
+  "ruff==0.16.4",
 ]
 
 # Analyse exploratoire. Groupe separe : le notebook lit le corpus deja prepare,
@@ -59,6 +60,68 @@ eda = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+# ---------------------------------------------------------------------------
+# Linting
+# ---------------------------------------------------------------------------
+
+# Ruff est seul : la purge du depot a emporte flake8, qui tenait PEP8, et son
+# plafond de ligne. E et W reprennent ce role ici. BLE et SLF sont selectionnes
+# parce que le code porte deja les cinq derogations qui vont avec, une par
+# `except Exception` de frontiere et deux acces a un attribut prive depuis un
+# test : sans la regle, la derogation ne veut plus rien dire.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["data", "reports", "runs", "mlruns", "mlartifacts", ".venv"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle, erreurs
+  "W",    # pycodestyle, avertissements
+  "F",    # pyflakes
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # bugbear
+  "C4",   # comprehensions
+  "SIM",  # simplifications
+  "RET",  # returns
+  "PTH",  # pathlib plutot que os.path
+  "ARG",  # arguments inutilises
+  "N",    # conventions de nommage
+  "D",    # docstrings
+  "BLE",  # except Exception nu
+  "SLF",  # acces a un attribut prive
+]
+ignore = [
+  "D203",  # incompatible avec D211
+  "D213",  # incompatible avec D212
+  "N812",  # import torch.nn.functional as F : convention universelle de PyTorch
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Un test lit les internes de ce qu'il teste, c'est meme souvent son sujet.
+"tests/**" = ["D", "ARG", "SLF001"]
+# Un carnet est une prose qui execute : ses imports viennent apres la cellule
+# qui pose la racine du depot sur sys.path (E402), ses lignes d'affichage
+# alignent des colonnes qu'un retour a la ligne desaligne (E501), le carnet 3
+# appelle les methodes privees du modele parce que c'est ce qu'il montre
+# (SLF001), et une fonction definie dans une cellule est deja expliquee par la
+# cellule de texte au-dessus (D).
+"notebooks/**" = ["E402", "E501", "SLF001", "D"]
+# Les callbacks implementent une interface fixe : un observateur qui n'utilise
+# pas l'etat de la boucle garde quand meme l'argument dans sa signature.
+"src/training/callbacks.py" = ["ARG002"]
+# Meme raison : NullTracker implemente le protocole Tracker et ignore la charge
+# utile par construction. C'est ce qui distingue "ne rien tracer" de "tracer".
+"src/tracking/client.py" = ["ARG002"]
+# Les deux raisons a la fois : NullLiveRun ignore ce qu'il recoit, et
+# LiveMetricsCallback est un observateur qui n'a pas besoin de tout l'etat.
+"src/tracking/live.py" = ["ARG002"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 # ---------------------------------------------------------------------------
 # Tests

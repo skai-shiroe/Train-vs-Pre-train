@@ -107,6 +107,7 @@ $Targets = [ordered]@{
     'kernel'           = 'Enregistre le kernel Jupyter du depot, demande le groupe eda'
     'test'             = 'Lance toute la suite'
     'test-unit'        = 'Lance les tests unitaires'
+    'lint'             = 'Passe ruff sur le code, les tests et les carnets'
     'test-integration' = "Lance les tests d'integration"
     'coverage'         = 'Lance les tests avec le seuil de couverture de 80 pour cent'
     'data'             = 'Telecharge, valide et prepare le corpus de travail'
@@ -152,6 +153,8 @@ switch ($Target) {
         Invoke-Python @('-m', 'ipykernel', 'install', '--sys-prefix',
                         '--name', 'train-vs-pre-train', '--display-name', 'Train-vs-Pre-train (.venv)')
     }
+
+    'lint'             { Invoke-Python @('-m', 'ruff', 'check', '.') }
 
     'test'             { Invoke-Python @('-m', 'pytest') }
     'test-unit'        { Invoke-Python @('-m', 'pytest', 'tests/unit') }
@@ -219,7 +222,7 @@ switch ($Target) {
     'reproduce' { Invoke-Python @('-u', '-m', 'src.experiments.reproduce', '--mode', $Mode) }
 
     'clean' {
-        foreach ($path in '.pytest_cache', 'htmlcov', '.coverage',
+        foreach ($path in '.pytest_cache', '.ruff_cache', 'htmlcov', '.coverage',
                           'reports/junit.xml', 'reports/coverage.xml') {
             if (Test-Path $path) {
                 Remove-Item -Recurse -Force $path
