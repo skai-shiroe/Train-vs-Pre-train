@@ -159,6 +159,8 @@ Le tableau des formes, pour un batch de 8, un article de `S` tokens et un résum
 
 **Les poids évalués sont relus depuis le meilleur checkpoint.** Quand l'arrêt anticipé retient une époque antérieure, l'objet en fin d'entraînement n'est pas celui qui a le meilleur score. Le lanceur reconstruit le modèle depuis le checkpoint avant de le mesurer : le score publié appartient aux poids que le run a sélectionnés, et un checkpoint illisible échoue là plutôt que silencieusement.
 
+**La mémoire du GPU est rendue avant l'évaluation.** Relire le checkpoint construit un second modèle, qui arrive sur la carte pendant que celui de l'entraînement, son optimiseur et les blocs que l'allocateur de torch garde en cache y sont encore. Sur 8 Go les deux ne tiennent pas, et le pilote Windows ne répond pas par un OOM : il déverse la différence en mémoire système, où le run survit en décodant par-dessus le bus PCIe. Le 25 août 2026, `scratch_50` a passé 95 minutes dans une évaluation que `scratch_10` avait rendue en 118 secondes sur les mêmes mille documents, le processus tenant alors 7,8 Gio de VRAM et 5,2 Gio de mémoire système. [`release_accelerator`](src/utils/device.py) tourne donc entre les deux, comme il tourne déjà entre deux expériences d'une campagne. Il collecte avant de vider : un modèle, son optimiseur et son scheduler se référencent mutuellement, et sans passage du ramasse-miettes le cache rendrait des blocs encore détenus.
+
 ---
 
 ## 5. Les métriques
@@ -206,6 +208,8 @@ Le lanceur affiche le magasin obtenu avant la première expérience, mot de pass
 Sans configuration, la résolution rend `None` et MLflow retombe sur un fichier SQLite local. C'est ce qui permet à `make reproduce` de tourner sur un clone frais sans base de données.
 
 La distinction compte : ce repli répond à une **absence de configuration**, pas à un serveur injoignable. Un `.env` en place désigne la base PostgreSQL quoi qu'il arrive, et `make mlflow-ui` échoue sur un timeout si la machine qui l'héberge est éteinte. Un run, lui, survit à ce cas — voir *Un échec de tracking ne fait jamais échouer un run* plus bas — et `python -m src.tracking.log --all` renvoie après coup ce qui n'a pas pu partir.
+
+**Vider le magasin avant de rejouer.** Une campagne rejouée écrase ses enregistrements sur le disque, mais elle s'ajoute dans le magasin : deux réponses par expérience, et rien dans l'interface ne dit laquelle le rapport cite. `python -m src.tracking.purge --all` compte ce qu'il y a, `--yes` le supprime — sans lui la commande ne fait que lister, parce qu'une fois `reports/results/` effacé le magasin est le seul endroit où une mesure existe encore. Deux étapes se cachent derrière la suppression : `delete_run` marque le run et le sort de l'interface sans toucher ni à ses lignes ni à ses artefacts, `mlflow gc` les enlève. [purge.py](src/tracking/purge.py) enchaîne les deux, signale un `gc` qui a échoué plutôt que de le couvrir d'un code de sortie nul, et laisse tranquille ce qui est déjà marqué : c'est exactement ce qu'une collecte échouée demande de relancer.
 
 ### Ce qui est enregistré, quand
 
@@ -293,6 +297,8 @@ Un enregistrement porte un statut, qui décide de son entrée dans les tableaux 
 | `NOT_RUN` | Déclarée, jamais exécutée |
 
 L'agrégation ne lit que les enregistrements `OK` porteurs d'une évaluation, condition écrite dans [`record.py`](src/experiments/record.py).
+
+**L'ordre de la campagne n'est pas celui des noms de fichiers.** [`campaign_order`](src/experiments/config.py) fait passer le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes. Le modèle from scratch est ce à quoi tout le reste se compare, et le zero-shot le point dont le fine-tuning s'écarte : une campagne coupée par un plantage ou une interruption laisse ainsi une famille entière mesurée plutôt que trois fine-tunes sans référence à laquelle les comparer. Les trois entrées qui lancent des runs suivent cet ordre — `make reproduce`, `python -m src.experiments.run --all` et le carnet `02_training`.
 
 ---
 

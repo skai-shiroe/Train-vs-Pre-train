@@ -32,7 +32,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 
-from mlflow.entities import Experiment, ViewType
+from mlflow.entities import Experiment, LifecycleStage, Run, ViewType
 from mlflow.tracking import MlflowClient
 
 from src.tracking.client import DEFAULT_EXPERIMENT
@@ -79,41 +79,66 @@ def selected_experiments(client: MlflowClient, name: str | None) -> list[Experim
     return [experiment for experiment in experiments if experiment.name == name]
 
 
-def runs_of(client: MlflowClient, experiment: Experiment) -> list[str]:
-    """Return the identifiers of every run of an experiment.
+def runs_of(client: MlflowClient, experiment: Experiment) -> list[Run]:
+    """Return every run of an experiment.
 
     Args:
         client: Client on the store.
         experiment: The experiment to read.
 
     Returns:
-        One identifier per run, whatever its status: a run left ``RUNNING`` by
-        a killed campaign is exactly what this command exists to clear.
+        The runs, whatever their status and whatever their lifecycle stage. A
+        run left ``RUNNING`` by a killed campaign is what this command exists
+        to clear, and one already marked deleted is still in the database until
+        the collection removes it.
     """
-    runs = client.search_runs(
+    return client.search_runs(
         [experiment.experiment_id], run_view_type=ViewType.ALL, max_results=PAGE_SIZE
     )
-    return [run.info.run_id for run in runs]
 
 
-def purge_experiment(client: MlflowClient, experiment: Experiment) -> int:
+def active(entity: Experiment | Run) -> bool:
+    """Return whether an experiment or a run is still in the active stage.
+
+    Args:
+        entity: An experiment, which carries its stage, or a run, which carries
+            it under ``info``.
+
+    Returns:
+        ``True`` when it has not been marked deleted yet.
+    """
+    return getattr(entity, "info", entity).lifecycle_stage == LifecycleStage.ACTIVE
+
+
+def purge_experiment(client: MlflowClient, experiment: Experiment) -> tuple[int, int]:
     """Mark every run of an experiment deleted, then the experiment itself.
+
+    What is already marked is left alone. MLflow looks an experiment up among
+    the active ones before deleting it and raises when it is not there, so a
+    second pass over a store whose collection failed would crash on the work
+    the first pass did. That second pass is exactly what a failed collection
+    asks for.
 
     Args:
         client: Client on the store.
         experiment: The experiment to empty.
 
     Returns:
-        The number of runs marked. The experiment is marked too, unless it is
-        the one MLflow recreates on its own.
+        How many runs this pass marked, and how many the experiment holds. The
+        experiment is marked too, unless it is the one MLflow recreates on its
+        own, or it was already marked.
     """
-    run_ids = runs_of(client, experiment)
-    for run_id in run_ids:
-        client.delete_run(run_id)
+    runs = runs_of(client, experiment)
+    marked = 0
+    for run in runs:
+        if not active(run):
+            continue
+        client.delete_run(run.info.run_id)
+        marked += 1
 
-    if experiment.name != DEFAULT_MLFLOW_EXPERIMENT:
+    if experiment.name != DEFAULT_MLFLOW_EXPERIMENT and active(experiment):
         client.delete_experiment(experiment.experiment_id)
-    return len(run_ids)
+    return marked, len(runs)
 
 
 def collect_garbage(tracking_uri: str | None) -> tuple[bool, str]:
@@ -123,10 +148,16 @@ def collect_garbage(tracking_uri: str | None) -> tuple[bool, str]:
     The interpreter is this one, which is what keeps the subprocess inside the
     virtual environment of the repository.
 
+    The URI is passed twice, under the two names the command asks for.
+    ``--backend-store-uri`` says where the rows are, and its own default is a
+    local directory, which would report a clean sweep of a store nobody traced
+    into. ``--tracking-uri`` is what the command resolves the artefact location
+    of every removed run through, and it refuses to start without it. Both hold
+    the same value here: this repository traces straight into the database
+    rather than through a server.
+
     Args:
-        tracking_uri: URI of the store, required by the command itself: its own
-            default is a local directory, which would report a clean sweep of a
-            store nobody traced into.
+        tracking_uri: URI of the store.
 
     Returns:
         Whether it succeeded, and what it said. A failure leaves the runs
@@ -137,7 +168,16 @@ def collect_garbage(tracking_uri: str | None) -> tuple[bool, str]:
         return False, "no store is configured, so there is nothing to collect."
 
     completed = subprocess.run(
-        [sys.executable, "-m", "mlflow", "gc", "--backend-store-uri", tracking_uri],
+        [
+            sys.executable,
+            "-m",
+            "mlflow",
+            "gc",
+            "--backend-store-uri",
+            tracking_uri,
+            "--tracking-uri",
+            tracking_uri,
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -212,15 +252,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"\n{total} run(s) in {len(experiments)} experiment(s). Nothing deleted: add --yes.")
         return 0
 
-    total = 0
+    marked_total = 0
+    held_total = 0
     for experiment in experiments:
-        count = purge_experiment(client, experiment)
-        total += count
+        marked, held = purge_experiment(client, experiment)
+        marked_total += marked
+        held_total += held
         kept = " (kept, MLflow recreates it)" if experiment.name == DEFAULT_MLFLOW_EXPERIMENT else ""
-        print(f"{experiment.name:<26}{count} run(s) marked deleted{kept}")
+        already = f", {held - marked} already were" if held > marked else ""
+        print(f"{experiment.name:<26}{marked} run(s) marked deleted{already}{kept}")
 
     collected, said = collect_garbage(tracking_uri)
-    print(f"\n{total} run(s) marked. mlflow gc: {said or 'nothing to say'}")
+    print(f"\n{held_total} run(s) in the deleted stage. mlflow gc: {said or 'nothing to say'}")
     if not collected:
         print(
             "The collection failed. The runs are marked deleted and the interface no "
@@ -229,7 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
 
-    print(f"{total} run(s) removed, artefacts included.")
+    print(f"{held_total} run(s) removed, artefacts included.")
     return 0
 
 

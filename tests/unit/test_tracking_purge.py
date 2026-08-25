@@ -18,16 +18,23 @@ from typing import Any
 import pytest
 
 from src.tracking import purge as purge_module
-from src.tracking.purge import DEFAULT_MLFLOW_EXPERIMENT, main
+from src.tracking.purge import DEFAULT_MLFLOW_EXPERIMENT, collect_garbage, main
 
 pytestmark = pytest.mark.unit
+
+#: Les deux stades de vie de MLflow, ecrits comme la base les porte.
+ACTIVE = "active"
+DELETED = "deleted"
 
 
 class FakeClient:
     """Client over a store held in a dictionary."""
 
     def __init__(self, runs: dict[str, list[str]]) -> None:
-        self.runs = {name: list(ids) for name, ids in runs.items()}
+        # Une entree par experience, et par run son stade de vie : "active"
+        # tant que rien ne l'a marque, "deleted" ensuite.
+        self.runs = {name: {run_id: ACTIVE for run_id in ids} for name, ids in runs.items()}
+        self.stages = dict.fromkeys(runs, ACTIVE)
         self.deleted_runs: list[str] = []
         self.deleted_experiments: list[str] = []
         self.views: list[Any] = []
@@ -35,7 +42,7 @@ class FakeClient:
     def search_experiments(self, view_type: Any = None) -> list[SimpleNamespace]:
         self.views.append(view_type)
         return [
-            SimpleNamespace(experiment_id=str(index), name=name)
+            SimpleNamespace(experiment_id=str(index), name=name, lifecycle_stage=self.stages[name])
             for index, name in enumerate(self.runs)
         ]
 
@@ -44,13 +51,20 @@ class FakeClient:
     ) -> list[SimpleNamespace]:
         self.views.append(run_view_type)
         name = list(self.runs)[int(experiment_ids[0])]
-        return [SimpleNamespace(info=SimpleNamespace(run_id=run_id)) for run_id in self.runs[name]]
+        return [
+            SimpleNamespace(info=SimpleNamespace(run_id=run_id, lifecycle_stage=stage))
+            for run_id, stage in self.runs[name].items()
+        ]
 
     def delete_run(self, run_id: str) -> None:
         self.deleted_runs.append(run_id)
+        for runs in self.runs.values():
+            if run_id in runs:
+                runs[run_id] = DELETED
 
     def delete_experiment(self, experiment_id: str) -> None:
         self.deleted_experiments.append(experiment_id)
+        self.stages[list(self.runs)[int(experiment_id)]] = DELETED
 
 
 @pytest.fixture
@@ -127,6 +141,53 @@ def test_a_run_left_running_by_a_killed_campaign_is_taken(store: FakeClient) -> 
     main(["--all", "--yes"])
 
     assert all(view is not None for view in store.views)
+
+
+def test_a_second_pass_marks_nothing_and_raises_nothing(
+    store: FakeClient, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Ce que demande une collecte qui a echoue : relancer. MLflow cherche une
+    # experience parmi les actives avant de la supprimer et leve quand elle
+    # n'y est plus, donc la seconde passe tomberait sur le travail de la
+    # premiere.
+    main(["--all", "--yes"])
+    store.deleted_runs.clear()
+    store.deleted_experiments.clear()
+    capsys.readouterr()
+
+    assert main(["--all", "--yes"]) == 0
+
+    assert store.deleted_runs == []
+    assert store.deleted_experiments == []
+    assert "3 already were" in capsys.readouterr().out
+
+
+def test_the_collection_is_told_where_the_store_is(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Both names are required. mlflow gc refuses to start without a tracking
+    # URI, and its own backend store defaults to a local directory: told only
+    # half of it, the command reports a clean sweep of a store nobody traced
+    # into, and the campaign it was meant to clear is still there.
+    seen: list[list[str]] = []
+
+    def fake_run(argv: list[str], **kwargs: Any) -> SimpleNamespace:
+        seen.append(argv)
+        return SimpleNamespace(returncode=0, stdout="2 runs removed", stderr="")
+
+    monkeypatch.setattr(purge_module.subprocess, "run", fake_run)
+
+    collected, said = collect_garbage("postgresql://store")
+
+    assert collected
+    assert said == "2 runs removed"
+    assert seen[0][seen[0].index("--backend-store-uri") + 1] == "postgresql://store"
+    assert seen[0][seen[0].index("--tracking-uri") + 1] == "postgresql://store"
+
+
+def test_a_store_that_is_not_configured_collects_nothing() -> None:
+    collected, said = collect_garbage(None)
+
+    assert not collected
+    assert "no store is configured" in said
 
 
 def test_the_two_selections_are_exclusive() -> None:
