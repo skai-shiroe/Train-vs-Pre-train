@@ -137,7 +137,7 @@ def greedy_search(
     finished = torch.zeros(batch_size, dtype=torch.bool, device=device)
 
     for step in range(config.max_new_tokens):
-        logits, _ = model.decode(decoder_input, memory, memory_mask)
+        logits, _ = model.decode(decoder_input, memory, memory_mask, last_position_only=True)
         log_probabilities = F.log_softmax(logits[:, -1, :].float(), dim=-1)
         log_probabilities = _apply_constraints(
             log_probabilities, decoder_input[:, 1:], config, eos_token_id, step
@@ -239,7 +239,7 @@ def sample_search(
     finished = torch.zeros(batch_size, dtype=torch.bool, device=device)
 
     for step in range(config.max_new_tokens):
-        logits, _ = model.decode(decoder_input, memory, memory_mask)
+        logits, _ = model.decode(decoder_input, memory, memory_mask, last_position_only=True)
         log_probabilities = F.log_softmax(logits[:, -1, :].float(), dim=-1)
         log_probabilities = _apply_constraints(
             log_probabilities, decoder_input[:, 1:], config, eos_token_id, step
@@ -303,7 +303,7 @@ def beam_search(
     finished: list[list[tuple[float, torch.Tensor]]] = [[] for _ in range(batch_size)]
 
     for step in range(config.max_new_tokens):
-        logits, _ = model.decode(sequences, memory, memory_mask)
+        logits, _ = model.decode(sequences, memory, memory_mask, last_position_only=True)
         log_probabilities = F.log_softmax(logits[:, -1, :].float(), dim=-1)
         log_probabilities = _apply_constraints(
             log_probabilities, sequences[:, 1:], config, eos_token_id, step

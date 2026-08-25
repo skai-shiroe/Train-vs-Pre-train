@@ -65,6 +65,7 @@ class Decoder(nn.Module):
         memory_mask: torch.Tensor | None = None,
         *,
         return_weights: bool = False,
+        last_position_only: bool = False,
     ) -> tuple[torch.Tensor, list[DecoderLayerAttentions]]:
         """Decode a batch of target sequences against the source memory.
 
@@ -74,10 +75,23 @@ class Decoder(nn.Module):
             target_mask: Combined causal and target padding mask.
             memory_mask: Source padding mask, applied to cross attention.
             return_weights: Whether to collect the attention weights.
+            last_position_only: Whether to project the last position alone.
+                Generation reads exactly one row of the result and throws the
+                rest away, and that rest is what the projection makes
+                expensive: it is the only tensor of the model whose last
+                dimension is the vocabulary. Decoding four beams over eight
+                documents with a prefix of 128 tokens builds 32 x 128 x 32128
+                floats, 526 MB, to use 4 MB of them. The prefix grows by one
+                token per step, so the caching allocator ends up holding one
+                block of every size between the two, and an evaluation that
+                fits on the card in principle spills into system memory
+                instead. The values are unchanged: this is the same
+                projection, applied to one position.
 
         Returns:
             A pair ``(logits, attentions)`` where ``logits`` has shape
-            ``(batch, target_len, vocab_size)``.
+            ``(batch, target_len, vocab_size)``, or ``(batch, 1, vocab_size)``
+            when only the last position was asked for.
         """
         hidden = self.positional_encoding(self.embedding(target_ids))
 
@@ -93,4 +107,6 @@ class Decoder(nn.Module):
             if return_weights:
                 collected.append(attentions)
 
+        if last_position_only:
+            hidden = hidden[:, -1:, :]
         return self.output_projection(self.final_norm(hidden)), collected
