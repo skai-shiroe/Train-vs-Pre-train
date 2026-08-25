@@ -263,6 +263,7 @@ Un run porte son `git_commit`, son `dataset_version` et sa configuration complè
 ```bash
 python -m src.experiments.run --config configs/experiments/scratch_100.yaml
 python -m src.tracking.log --all      # renvoie des enregistrements déjà écrits
+python -m src.tracking.purge --all    # compte les runs du magasin, les supprime avec --yes
 ```
 
 ---

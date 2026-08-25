@@ -221,11 +221,17 @@ Les cibles ci-dessous sont écrites pour `make`, depuis Git Bash. Sous PowerShel
 | `make reproduce MODE=full` | Rejoue la chaîne scientifique complète |
 | `make mlflow-ui` | Sert l'interface MLflow du magasin configuré sur <http://localhost:5000> |
 
-Une commande complète la chaîne, hors `make` parce qu'elle porte sur des enregistrements déjà écrits :
+Deux commandes complètent la chaîne, hors `make` parce qu'elles portent sur ce qui est déjà écrit :
 
 | Commande | Effet |
 | --- | --- |
 | `python -m src.tracking.log --all` | Renvoie vers MLflow les enregistrements déjà écrits |
+| `python -m src.tracking.purge --all` | Compte les runs du magasin ; les supprime avec `--yes` |
+
+Rejouer une campagne depuis zéro laisse la précédente dans le magasin à côté de la nouvelle : deux
+réponses par expérience, et rien dans l'interface ne dit laquelle le rapport cite. `purge` vide le
+magasin avant la relance. Sans `--yes` il ne fait que compter, parce qu'une fois `reports/results/`
+effacé le magasin est le seul endroit où une mesure existe encore.
 
 Le lanceur trace chaque expérience terminée sans qu'on le lui demande. `--no-tracking` le désactive.
 
