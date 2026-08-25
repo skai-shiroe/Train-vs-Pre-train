@@ -88,8 +88,6 @@ from src.metrics.rouge import REPORTED_VARIANT, ROUGE_VARIANTS
 from src.utils.markdown import (
     FRAGMENTS_DIR,
     MISSING,
-    REGION_BEGIN,
-    REGION_END,
     banner,
     decimal,
     fragment,

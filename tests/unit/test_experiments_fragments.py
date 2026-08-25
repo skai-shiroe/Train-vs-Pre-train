@@ -21,22 +21,20 @@ import yaml
 from src.evaluation.evaluator import PREDICTIONS_FILE
 from src.experiments.fragments import (
     ARCHITECTURE_FRAGMENT,
+    ARCHITECTURE_REGION,
     BANNER,
     CAMPAIGN_FRAGMENT,
     CAPITALISATION_FRAGMENT,
-    DATASET_SIZE_FRAGMENT,
-    FAMILIES_FRAGMENT,
-    HEADLINE_FRAGMENT,
-    ARCHITECTURE_REGION,
     CAPITALISATION_REGION,
+    DATASET_SIZE_FRAGMENT,
     DATASET_SIZE_REGION,
+    FAMILIES_FRAGMENT,
     FAMILIES_REGION,
+    HEADLINE_FRAGMENT,
     HEADLINE_REGION,
     METRICS_FRAGMENT,
     PLAN_FRAGMENT,
     PRETRAINED_FRAGMENT,
-    REGION_BEGIN,
-    REGION_END,
     best_name,
     build,
     capitalisation,
@@ -60,6 +58,7 @@ from src.experiments.record import (
     write_record,
 )
 from src.experiments.registry import collect
+from src.utils.markdown import REGION_BEGIN, REGION_END
 
 pytestmark = pytest.mark.unit
 
