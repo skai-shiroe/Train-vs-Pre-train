@@ -15,6 +15,16 @@ model construction and buys two things: the reported score belongs to the
 weights the run selected, and a checkpoint that cannot be reloaded fails here,
 during the run that wrote it, rather than the day someone tries to reuse it.
 
+**The training memory is given back before the evaluation asks for its own.**
+Rebuilding from the checkpoint means a second model reaches the card while the
+trained one, its optimiser and the blocks the caching allocator holds are still
+resident. On a card of eight gigabytes the two do not fit, and the Windows
+driver answers by spilling the difference into system memory instead of raising
+an out of memory error: the run survives and decodes across the PCIe bus, which
+turned a two minute evaluation into hours during the campaign of August 2026.
+:func:`src.utils.device.release_accelerator` runs between the two, for the
+reason it already runs between two experiments.
+
 **Both sides go through the same three steps.** The from scratch Transformer and
 ``t5-small`` differ in how they are built and in their loss adapter, and in
 nothing else: same corpus, same loader, same trainer, same decoding, same
@@ -110,7 +120,7 @@ from src.training.checkpoint import CheckpointManager, load_checkpoint
 from src.training.sampler import build_training_dataloader
 from src.training.state import TrainingResult
 from src.training.trainer import make_scratch_batch_loss, train_model
-from src.utils.device import describe_hardware, resolve_device
+from src.utils.device import describe_hardware, release_accelerator, resolve_device
 from src.utils.seed import set_seed
 
 #: Where the run directories are created, per section 17.
@@ -506,6 +516,12 @@ def execute(
             best_weights(config.name, training_result, checkpoints), map_location="cpu"
         )
         state_dict = payload["model"]
+        # The weights just read sit in host memory, so nothing of the training
+        # is needed any more. Releasing here rather than after the evaluation
+        # is what keeps a single model on the card at a time: the summariser
+        # built below is a second one, and both resident at once is what the
+        # driver answers with system memory rather than with an error.
+        release_accelerator()
 
     device = resolve_device(config.training.device if config.training else "auto")
     summarizer = build_experiment_summarizer(config, corpus, state_dict=state_dict).to(device)
