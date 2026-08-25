@@ -30,6 +30,11 @@ reports/results/*
 # versionnees, et make figures les reecrit depuis les memes enregistrements que
 # les tableaux.
 
+# La chaine recopie ces memes figures sous docs/ pour le site, qui n existe
+# pas encore dans le depot. Une seule copie est suivie, celle que RAPPORT.md
+# affiche ; la seconde est un double reecrit a chaque campagne.
+docs/assets/figures/
+
 # Verification de la chaine : make reproduce MODE=quick ecrit tout ici, records
 # plafonnes, tableaux et figures compris. Rien de ce qui s'y trouve n'est un
 # resultat, et rien ne doit entrer dans le depot.
