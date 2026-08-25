@@ -1,6 +1,6 @@
 # Guide de lecture
 
-Ce guide suit un batch de données du fichier brut jusqu'au tableau de comparaison, en nommant à chaque étape le fichier qui fait le travail. Il ne remplace pas le [rapport](RAPPORT.md), qui présente les résultats : il explique le code qui les produit.
+Ce guide suit un batch de données du fichier brut jusqu'au tableau de comparaison, en nommant à chaque étape le fichier qui fait le travail. Le [rapport](RAPPORT.md) présente les résultats, ce guide explique le code qui les produit.
 
 ```text
 corpus  ->  tokenisation  ->  Transformer  ->  loss  ->  backward  ->  optimiseur
@@ -8,7 +8,7 @@ corpus  ->  tokenisation  ->  Transformer  ->  loss  ->  backward  ->  optimiseu
    comparaison  <-  MLflow  <-  métriques  <-  validation  <-  checkpoint <+
 ```
 
-Le code est en anglais, ce guide en français. Chaque section renvoie au fichier concerné : le guide donne l'intention et la forme des tenseurs, le code donne le détail. En cas de doute, le code a raison.
+Le code est en anglais, ce guide en français. Chaque section renvoie au fichier concerné : le guide donne l'intention et la forme des tenseurs, le code donne le détail.
 
 Pour voir les tenseurs réels traverser le modèle, exécutez [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) : il reprend les étapes de la section 3 en affichant les formes à chaque passage.
 
@@ -18,7 +18,7 @@ Les valeurs numériques citées sont celles de `scratch_100`, l'expérience de r
 
 ## 1. Du dataset au corpus figé
 
-**Répertoire :** [src/data/](src/data/) — **Commande :** `make data`
+**Répertoire :** [src/data/](src/data/) · **Commande :** `make data`
 
 CNN/DailyMail 3.0.0 compte 287 113 articles d'entraînement, 13 368 de validation et 11 490 de test. Le projet en fige 22 000 sous la graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais le corpus complet.
 
@@ -48,9 +48,7 @@ Example(
 
 Les highlights arrivent en plusieurs lignes, une puce par phrase. Le nettoyage les joint en une seule ligne, ce que le JSONL impose ; c'est aussi ce qui rend ROUGE-L plus sévère ici que le ROUGE-Lsum publié, point développé en section 5.
 
-Deux propriétés comptent pour la suite.
-
-**Le corpus est figé, pas régénéré.** `manifest.json` porte un `dataset_version`, empreinte des trois splits. Chaque run enregistre cette empreinte. Deux scores calculés sous des empreintes différentes ne se comparent pas, et le dépôt le sait.
+**Le corpus est figé, pas régénéré.** `manifest.json` porte un `dataset_version`, empreinte des trois splits. Chaque run enregistre cette empreinte. Deux scores calculés sous des empreintes différentes ne se comparent pas.
 
 **Les sous-ensembles d'ablation sont emboîtés.** 10 % est un préfixe de 50 %, lui-même préfixe de 100 %. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.
 
@@ -100,7 +98,7 @@ Le préfixe `"summarize: "` vient de la convention T5, qui multiplexe les tâche
 batch 8   mélangé : 3,8 % de padding      groupé : 1,0 %
 ```
 
-**Sur ce corpus, le sampler rapporte peu, et il faut le dire.** 85 % des articles atteignent le plafond de 512 tokens, donc dès la taille de batch 4 tous les batchs sont à 512 : le padding dynamique s'est déjà effondré en padding fixe, mais ce qu'il laisse à récupérer ne fait que 3,8 %. Le groupement en reprend 2,8 points. Il est conservé parce qu'il coûte un tri par fenêtre et ne peut pas nuire, pas parce qu'il serait ici l'optimisation décisive — celle-ci serait d'allonger la troncature, et elle est bornée par le budget GPU.
+**Sur ce corpus, le sampler rapporte peu.** 85 % des articles atteignent le plafond de 512 tokens, donc dès la taille de batch 4 tous les batchs sont à 512 : le padding dynamique s'est déjà effondré en padding fixe, mais ce qu'il laisse à récupérer ne fait que 3,8 %. Le groupement en reprend 2,8 points. Il est conservé parce qu'il coûte un tri par fenêtre et ne peut pas nuire, pas parce qu'il serait ici l'optimisation décisive ; celle-ci serait d'allonger la troncature, et elle est bornée par le budget GPU.
 
 Le groupement conserve un aléa entre les mega-batchs, pour que l'ordre change à chaque époque, et place le batch le plus large en tête : le pic mémoire de l'époque est payé au premier pas, donc une configuration qui ne tient pas dans les 8 Go échoue tout de suite plutôt qu'après vingt minutes.
 
@@ -108,7 +106,7 @@ Le groupement conserve un aléa entre les mega-batchs, pour que l'ordre change �
 
 ## 3. Le Transformer, de bout en bout
 
-**Répertoire :** [src/models/scratch/](src/models/scratch/) — un concept par fichier.
+**Répertoire :** [src/models/scratch/](src/models/scratch/), un concept par fichier.
 
 Configuration de référence : `d_model=256`, `num_heads=8`, donc `d_head=32`, 4 couches d'encodeur, 4 de décodeur, `d_ff=1024`. Vocabulaire T5 : 32 100 entrées. Total : 15,6 M paramètres, dont 52,7 % dans la seule table d'embedding.
 
@@ -128,9 +126,9 @@ Le tableau des formes, pour un batch de 8, un article de `S` tokens et un résum
 | Sortie du décodeur | `(8, T, 256)` |
 | Logits | `(8, T, 32100)` |
 
-`(8, 8, S, S)` est le seul tenseur dont la taille croît comme le **carré** de la longueur, et c'est pourquoi la troncature à 512 tokens coûte ce qu'elle coûte.
+`(8, 8, S, S)` est le seul tenseur dont la taille croît comme le **carré** de la longueur : c'est lui qui fixe le prix de la troncature à 512 tokens.
 
-**La mise à l'échelle par `sqrt(d_model)` n'est pas cosmétique.** La table est initialisée avec un écart-type de `d_model ** -0.5`, soit environ 0,0625 ici. L'encodage positionnel qu'on va lui ajouter vit dans `[-1, 1]`. Sans le facteur `sqrt(256) = 16`, le signal de position écraserait le signal de token.
+**Pourquoi la table est mise à l'échelle par `sqrt(d_model)`.** La table est initialisée avec un écart-type de `d_model ** -0.5`, soit environ 0,0625 ici. L'encodage positionnel qu'on va lui ajouter vit dans `[-1, 1]`. Sans le facteur `sqrt(256) = 16`, le signal de position écraserait le signal de token.
 
 **Le décalage à droite.** [`shift_target_right`](src/models/scratch/transformer.py) construit l'entrée du décodeur en décalant la cible d'une position et en préfixant le token de départ. La position `t` du décodeur contient donc le token `t - 1` de la cible : prédire le token `t` ne demande que ce que le masque causal autorise à voir. Le tokenizer T5 n'a pas de token de début de séquence, donc l'identifiant de padding joue ce rôle, exactement comme T5 lui-même.
 
@@ -143,13 +141,13 @@ Le tableau des formes, pour un batch de 8, un article de `S` tokens et un résum
 | `greedy_search` | Prend le token le plus probable à chaque pas |
 | `beam_search` | Garde les `num_beams` hypothèses les plus probables, 4 ici |
 
-**À la génération, une seule ligne de logits est calculée.** Le décodeur est rejoué sur tout le préfixe à chaque pas — il n'y a pas de cache de clés-valeurs — mais la boucle ne lit que la dernière position. Projeter les autres construit le seul tenseur du modèle dont la dernière dimension est le vocabulaire : à 8 documents, 4 faisceaux et 128 tokens générés, `(32, 128, 32100)` pèse 526 Mio pour en utiliser 4. Le préfixe grandissant d'un token par pas, l'allocateur de torch finit par détenir un bloc de chaque taille intermédiaire. Mesuré sur le checkpoint de `scratch_50`, 32 documents : 105,9 s et 11,90 Gio réservés en projetant tout, 4,4 s et 0,30 Gio en ne projetant que la dernière position, pour des résumés identiques au mot près. Sur une carte de 8 Gio la première version ne tient pas, et le pilote Windows la fait déborder en mémoire système plutôt que d'échouer : c'est ainsi qu'une évaluation de deux minutes en a pris quatre-vingt-quinze le 25 août 2026. `Decoder.forward` prend donc `last_position_only`, que les trois boucles de [generation.py](src/models/scratch/generation.py) passent.
+**À la génération, une seule ligne de logits est calculée.** Le décodeur est rejoué sur tout le préfixe à chaque pas (il n'y a pas de cache de clés-valeurs), mais la boucle ne lit que la dernière position. Projeter les autres construit le seul tenseur du modèle dont la dernière dimension est le vocabulaire : à 8 documents, 4 faisceaux et 128 tokens générés, `(32, 128, 32100)` pèse 526 Mio pour en utiliser 4. Le préfixe grandissant d'un token par pas, l'allocateur de torch finit par détenir un bloc de chaque taille intermédiaire. Mesuré sur le checkpoint de `scratch_50`, 32 documents : 105,9 s et 11,90 Gio réservés en projetant tout, 4,4 s et 0,30 Gio en ne projetant que la dernière position, pour des résumés identiques au mot près. Sur une carte de 8 Gio la première version ne tient pas, et le pilote Windows la fait déborder en mémoire système plutôt que d'échouer : c'est ainsi qu'une évaluation de deux minutes en a pris quatre-vingt-quinze. `Decoder.forward` prend donc `last_position_only`, que les trois boucles de [generation.py](src/models/scratch/generation.py) passent.
 
 ---
 
 ## 4. L'entraînement
 
-**Répertoire :** [src/training/](src/training/) — **Commandes :** `make train-scratch`, `make train-pretrained`
+**Répertoire :** [src/training/](src/training/) · **Commandes :** `make train-scratch`, `make train-pretrained`
 
 **Le lissage de labels** retire 10 % de la masse au token de référence et l'étale sur le vocabulaire. Le modèle est ainsi pénalisé s'il devient trop confiant, ce qui réduit le surapprentissage sur un petit corpus.
 
@@ -161,7 +159,7 @@ Le tableau des formes, pour un batch de 8, un article de `S` tokens et un résum
 
 **Les poids évalués sont relus depuis le meilleur checkpoint.** Quand l'arrêt anticipé retient une époque antérieure, l'objet en fin d'entraînement n'est pas celui qui a le meilleur score. Le lanceur reconstruit le modèle depuis le checkpoint avant de le mesurer : le score publié appartient aux poids que le run a sélectionnés, et un checkpoint illisible échoue là plutôt que silencieusement.
 
-**La mémoire du GPU est rendue avant l'évaluation.** Relire le checkpoint construit un second modèle, qui arrive sur la carte pendant que celui de l'entraînement, son optimiseur et les blocs que l'allocateur de torch garde en cache y sont encore. [`release_accelerator`](src/utils/device.py) tourne entre les deux, comme il tourne déjà entre deux expériences d'une campagne. Il collecte avant de vider : un modèle, son optimiseur et son scheduler se référencent mutuellement, et sans passage du ramasse-miettes le cache rendrait des blocs encore détenus. Ce n'est pas ce qui remplissait la carte pendant les évaluations de la campagne du 25 août 2026 — la cause était la projection du décodeur, section 3 — mais deux modèles résidents à la fois sur 8 Gio restent deux de trop.
+**La mémoire du GPU est rendue avant l'évaluation.** Relire le checkpoint construit un second modèle, qui arrive sur la carte pendant que celui de l'entraînement, son optimiseur et les blocs que l'allocateur de torch garde en cache y sont encore. [`release_accelerator`](src/utils/device.py) tourne entre les deux, comme il tourne déjà entre deux expériences d'une campagne. Il collecte avant de vider : un modèle, son optimiseur et son scheduler se référencent mutuellement, et sans passage du ramasse-miettes le cache rendrait des blocs encore détenus. Ce n'est pas ce qui remplissait la carte pendant les évaluations de la campagne (la cause était la projection du décodeur, section 3), mais deux modèles résidents à la fois sur 8 Gio restent deux de trop.
 
 ---
 
@@ -183,7 +181,7 @@ ROUGE-L est la métrique rapportée : elle tolère les réordonnancements, ce qu
 
 **L'ordre des arguments compte.** `RougeScorer.score` prend la référence en premier et la prédiction en second. Les intervertir laisse la F-mesure inchangée, donc l'erreur survit à tout test écrit sur F seule, pendant que précision et rappel échangent silencieusement leurs places. [`score_example`](src/metrics/rouge.py) fixe l'ordre une fois, et un test asymétrique l'épingle.
 
-**Chaque score porte un intervalle de confiance.** Le calcul rééchantillonne 1 000 fois les documents notés et rend l'intervalle de percentiles à 95 %. Un score seul ne dit pas s'il diffère de son voisin, et deux intervalles qui se recouvrent ne permettent pas de conclure. Le rapport applique cette règle, y compris quand elle l'empêche de conclure.
+**Chaque score porte un intervalle de confiance.** Le calcul rééchantillonne 1 000 fois les documents notés et rend l'intervalle de percentiles à 95 %. Un score seul ne dit pas s'il diffère de son voisin, et deux intervalles qui se recouvrent ne permettent pas de conclure.
 
 L'évaluation est faite sur les mêmes 1 000 documents de test pour toutes les expériences, sans quoi les scores ne se compareraient pas.
 
@@ -191,7 +189,7 @@ L'évaluation est faite sur les mêmes 1 000 documents de test pour toutes les e
 
 ## 6. MLflow : les runs et les modèles
 
-**Répertoire :** [src/tracking/](src/tracking/) — **Interface :** `make mlflow-ui`, sur <http://localhost:5000>
+**Répertoire :** [src/tracking/](src/tracking/) · **Interface :** `make mlflow-ui`, sur <http://localhost:5000>
 
 MLflow répond à une question : quel run a produit ce score, avec quelle configuration, sur quel corpus, depuis quel commit, et où sont ses poids.
 
@@ -205,13 +203,13 @@ Les métadonnées vont dans une base **PostgreSQL** dédiée. L'URI porte un mot
 | `.env` | La valeur, ignorée par git |
 | [store.py](src/tracking/store.py) | Résout l'URI, l'environnement d'abord, le fichier ensuite |
 
-Le lanceur affiche le magasin obtenu avant la première expérience, mot de passe masqué. Une campagne qui aurait tracé dans un fichier SQLite local au lieu de la base partagée le dit à la première seconde, plutôt que d'être découverte six heures plus tard.
+Le lanceur affiche le magasin obtenu avant la première expérience, mot de passe masqué. Une campagne qui aurait tracé dans un fichier SQLite local au lieu de la base partagée le dit à la première seconde.
 
 Sans configuration, la résolution rend `None` et MLflow retombe sur un fichier SQLite local. C'est ce qui permet à `make reproduce` de tourner sur un clone frais sans base de données.
 
-La distinction compte : ce repli répond à une **absence de configuration**, pas à un serveur injoignable. Un `.env` en place désigne la base PostgreSQL quoi qu'il arrive, et `make mlflow-ui` échoue sur un timeout si la machine qui l'héberge est éteinte. Un run, lui, survit à ce cas — voir *Un échec de tracking ne fait jamais échouer un run* plus bas — et `python -m src.tracking.log --all` renvoie après coup ce qui n'a pas pu partir.
+La distinction compte : ce repli répond à une **absence de configuration**, pas à un serveur injoignable. Un `.env` en place désigne la base PostgreSQL quoi qu'il arrive, et `make mlflow-ui` échoue sur un timeout si la machine qui l'héberge est éteinte. Un run, lui, survit à ce cas (voir *Un échec de tracking ne fait jamais échouer un run* plus bas), et `python -m src.tracking.log --all` renvoie après coup ce qui n'a pas pu partir.
 
-**Vider le magasin avant de rejouer.** Une campagne rejouée écrase ses enregistrements sur le disque, mais elle s'ajoute dans le magasin : deux réponses par expérience, et rien dans l'interface ne dit laquelle le rapport cite. `python -m src.tracking.purge --all` compte ce qu'il y a, `--yes` le supprime — sans lui la commande ne fait que lister, parce qu'une fois `reports/results/` effacé le magasin est le seul endroit où une mesure existe encore. Deux étapes se cachent derrière la suppression : `delete_run` marque le run et le sort de l'interface sans toucher ni à ses lignes ni à ses artefacts, `mlflow gc` les enlève. [purge.py](src/tracking/purge.py) enchaîne les deux, signale un `gc` qui a échoué plutôt que de le couvrir d'un code de sortie nul, et laisse tranquille ce qui est déjà marqué : c'est exactement ce qu'une collecte échouée demande de relancer.
+**Vider le magasin avant de rejouer.** Une campagne rejouée écrase ses enregistrements sur le disque, mais elle s'ajoute dans le magasin : deux réponses par expérience, et rien dans l'interface ne dit laquelle le rapport cite. `python -m src.tracking.purge --all` compte ce qu'il y a, `--yes` le supprime ; sans lui la commande ne fait que lister, parce qu'une fois `reports/results/` effacé le magasin est le seul endroit où une mesure existe encore. Deux étapes se cachent derrière la suppression : `delete_run` marque le run et le sort de l'interface sans toucher ni à ses lignes ni à ses artefacts, `mlflow gc` les enlève. [purge.py](src/tracking/purge.py) enchaîne les deux, signale un `gc` qui a échoué plutôt que de le couvrir d'un code de sortie nul, et laisse tranquille ce qui est déjà marqué : c'est exactement ce qu'une collecte échouée demande de relancer.
 
 ### Ce qui est enregistré, quand
 
@@ -222,11 +220,11 @@ La distinction compte : ce repli répond à une **absence de configuration**, pa
 | Après l'évaluation | Le modèle mesuré, et son entrée au registre | [model.py](src/tracking/model.py) |
 | À la fermeture | Paramètres, métriques finales, tags, artefacts | [payload.py](src/tracking/payload.py) |
 
-**Paramètres** : ce que l'expérience a déclaré et qu'un rejeu devrait répéter — graine, proportion de corpus, architecture, hyperparamètres d'entraînement et de décodage.
+**Paramètres** : ce que l'expérience a déclaré et qu'un rejeu devrait répéter, à savoir graine, proportion de corpus, architecture, hyperparamètres d'entraînement et de décodage.
 
 **Métriques** : ROUGE-1, ROUGE-2, ROUGE-L, durée d'entraînement, meilleure loss de validation.
 
-**Tags** : où le run a tourné — GPU, version de torch, commit git, propreté de l'arbre de travail.
+**Tags** : où le run a tourné, à savoir GPU, version de torch, commit git, propreté de l'arbre de travail.
 
 **Artefacts** : `run.json`, `metrics.json`, `history.json`, `qualitative.json`, et le modèle.
 
@@ -246,15 +244,15 @@ import mlflow
 model = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
 ```
 
-Trois règles, écrites dans [model.py](src/tracking/model.py) :
+Ce que [model.py](src/tracking/model.py) impose :
 
 **La base ne porte aucun poids.** PostgreSQL stocke les métadonnées et un pointeur ; les fichiers vont sous `MLFLOW_ARTIFACT_ROOT`. Compter environ 1,5 Go pour une campagne complète.
 
 **Ce sont les poids évalués qui sont déposés**, relus depuis le meilleur checkpoint, pas l'objet en fin d'entraînement. Quand l'arrêt anticipé a retenu une époque antérieure, les deux diffèrent.
 
-**Seul un run `OK` entre au registre.** Un run `PARTIAL` a vu deux pas d'optimisation et huit documents de test : ses poids existent et ne veulent rien dire, et une entrée au registre est exactement ce que quelqu'un recharge plus tard sans lire le statut à côté.
+**Seul un run `OK` entre au registre.** Un run `PARTIAL` a vu deux pas d'optimisation et huit documents de test : ses poids existent et ne veulent rien dire.
 
-### Trois règles qui expliquent le reste du code
+### Invariants du traçage
 
 **Un échec de tracking ne fait jamais échouer un run.** Le résultat d'une expérience est l'enregistrement sur disque ; le magasin en est un miroir. Un serveur injoignable ne doit pas transformer six heures d'entraînement en plantage après que la mesure a été prise. Tout passe par `log_safely` et `log_model_safely`.
 
@@ -276,11 +274,11 @@ python -m src.tracking.purge --all    # compte les runs du magasin, les supprime
 
 ## 7. Comparer les expérimentations
 
-**Répertoire :** [src/experiments/](src/experiments/) — le seul module que ce guide ne détaille pas.
+**Répertoire :** [src/experiments/](src/experiments/)
 
-Il porte la machinerie de campagne : lecture des fichiers d'expérience, boucle sur les neuf runs, ablations, tableaux, figures. Ce n'est pas de l'apprentissage automatique, c'est de l'orchestration, et on peut comprendre tout le reste sans l'ouvrir.
+Il porte la machinerie de campagne : lecture des fichiers d'expérience, boucle sur les neuf runs, ablations, tableaux, figures.
 
-Ce qu'il faut en savoir tient en quatre commandes :
+Les commandes qui s'en servent :
 
 | Commande | Effet |
 | --- | --- |
@@ -300,17 +298,17 @@ Un enregistrement porte un statut, qui décide de son entrée dans les tableaux 
 
 L'agrégation ne lit que les enregistrements `OK` porteurs d'une évaluation, condition écrite dans [`record.py`](src/experiments/record.py).
 
-**L'ordre de la campagne n'est pas celui des noms de fichiers.** [`campaign_order`](src/experiments/config.py) fait passer le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes. Le modèle from scratch est ce à quoi tout le reste se compare, et le zero-shot le point dont le fine-tuning s'écarte : une campagne coupée par un plantage ou une interruption laisse ainsi une famille entière mesurée plutôt que trois fine-tunes sans référence à laquelle les comparer. Les trois entrées qui lancent des runs suivent cet ordre — `make reproduce`, `python -m src.experiments.run --all` et le carnet `02_training`.
+**L'ordre de la campagne n'est pas celui des noms de fichiers.** [`campaign_order`](src/experiments/config.py) fait passer le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes. Le modèle from scratch est ce à quoi tout le reste se compare, et le zero-shot le point dont le fine-tuning s'écarte : une campagne coupée par un plantage ou une interruption laisse ainsi une famille entière mesurée plutôt que trois fine-tunes sans référence à laquelle les comparer. Les trois entrées qui lancent des runs suivent cet ordre : `make reproduce`, `python -m src.experiments.run --all` et le carnet `02_training`.
 
 ---
 
 ## 8. Par où commencer
 
-Dans cet ordre, en une soirée :
+Dans cet ordre :
 
-0. `make kernel` — enregistrer le kernel du dépôt, sans quoi les carnets tournent sur l'interpréteur du PATH. Sous PowerShell, `.\make.ps1 kernel`.
-1. `notebooks/00_environment_check.ipynb` — ce poste peut-il exécuter la chaîne, et sur quoi.
-2. `make data` — construire le corpus, une fois.
-3. [notebooks/01_eda_cnn_dailymail.ipynb](notebooks/01_eda_cnn_dailymail.ipynb) — les mesures qui fixent les plafonds et le budget de décodage.
-4. [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) — voir un batch réel traverser le modèle, forme par forme.
-5. `notebooks/02_training.ipynb` en `MODE = "quick"` — rejouer les neuf expériences en une minute et voir la mécanique de bout en bout.
+0. `make kernel` : enregistrer le kernel du dépôt, sans quoi les carnets tournent sur l'interpréteur du PATH. Sous PowerShell, `.\make.ps1 kernel`.
+1. `notebooks/00_environment_check.ipynb` : ce poste peut-il exécuter la chaîne, et sur quoi.
+2. `make data` : construire le corpus, une fois.
+3. [notebooks/01_eda_cnn_dailymail.ipynb](notebooks/01_eda_cnn_dailymail.ipynb) : les mesures qui fixent les plafonds et le budget de décodage.
+4. [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) : voir un batch réel traverser le modèle, forme par forme.
+5. `notebooks/02_training.ipynb` en `MODE = "quick"` : rejouer les neuf expériences en une minute et voir la mécanique de bout en bout.

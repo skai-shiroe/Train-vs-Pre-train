@@ -12,7 +12,7 @@ Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis 
 
 L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
-> **État.** Corpus figé, `dataset_version = 00c0ee4e`. La campagne du 25 août 2026 a rendu ses neuf expériences, toutes `OK`, en 2 h 43 de GPU. Tous les tableaux de ce rapport sont générés depuis les enregistrements de runs.
+> **État.** Corpus figé, `dataset_version = 00c0ee4e`. La campagne a rendu ses neuf expériences, toutes `OK`, en 2 h 43 de GPU.
 
 ## 1. Le corpus
 
@@ -26,11 +26,11 @@ Le projet compare deux familles de modèles sur les mêmes données ; il ne cher
 
 Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des neuf expériences avec lui. Ce que cette dépense achèterait est mesurable : à 20 000 exemples, le modèle from scratch voit environ 9,9 millions de tokens source, soit à peu près 3 400 fois moins que ce que `t5-small` a vu en pré-entraînement ; à 287 113 exemples il en verrait 141 millions, soit 240 fois moins. L'écart change d'amplitude, pas de nature, et la conclusion qu'il porte non plus.
 
-Ce choix a une limite, et elle porte sur un résultat précis. La couverture du vocabulaire — la part des entrées du tokenizer que le corpus permet d'apprendre, section 4 — est la seule grandeur du rapport qui dépende du nombre d'exemples plutôt que de la nature du corpus. Elle vaut 76,0 % ici, et la part de paramètres jamais mis à jour 12,5 %. La dépendance existe, mais la loi de Zipf la rend logarithmique, et c'est vérifié plutôt que supposé : porter le corpus à 30 000 exemples ne déplace la couverture que de 76,0 % à 77,0 %, et les paramètres morts de 12,5 % à 12,1 %. Il faudrait un ordre de grandeur d'exemples en plus pour que la conclusion en dépende.
+Ce choix a une limite, et elle porte sur un résultat précis. La couverture du vocabulaire (la part des entrées du tokenizer que le corpus permet d'apprendre, section 4) est la seule grandeur du rapport qui dépende du nombre d'exemples plutôt que de la nature du corpus. Elle vaut 76,0 % ici, et la part de paramètres jamais mis à jour 12,5 %. La dépendance existe, mais la loi de Zipf la rend logarithmique : porter le corpus à 30 000 exemples ne déplace la couverture que de 76,0 % à 77,0 %, et les paramètres morts de 12,5 % à 12,1 %. Il faudrait un ordre de grandeur d'exemples en plus pour que la conclusion en dépende.
 
 Le tirage, lui, remplace une troncature. Garder les 20 000 premiers exemples reprendrait l'ordre du fichier amont, dont rien ne garantit qu'il soit aléatoire. La graine casse cet ordre de façon rejouable : elle est écrite dans la configuration, et les empreintes du manifeste permettent de vérifier après coup qu'on a bien le même tirage.
 
-La valeur 42 n'a aucune propriété particulière. Ce qui compte est qu'elle soit fixée et enregistrée, pas ce qu'elle vaut. Les trois splits reçoivent des graines dérivées, 42, 43 et 44, de sorte que changer `train_size` ne déplace ni la validation ni le test : porter l'entraînement à 30 000 exemples puis le ramener à 20 000 a laissé leurs deux empreintes identiques.
+Les trois splits reçoivent des graines dérivées, 42, 43 et 44, de sorte que changer `train_size` ne déplace ni la validation ni le test : porter l'entraînement à 30 000 exemples puis le ramener à 20 000 a laissé leurs deux empreintes identiques.
 
 La validation ne relève aucun champ vide, aucun identifiant dupliqué, aucun résumé plus long que son document, et aucun document partagé entre les trois splits. Treize documents apparaissent deux fois dans l'entraînement, soit 0,065 % de la pondération. Ce sont des dépêches republiées, et les retirer serait un nettoyage silencieux du corpus de référence.
 
@@ -77,13 +77,13 @@ C'est le compromis le plus coûteux du projet.
 
 À 512 tokens, 85 % des articles sont coupés et l'encodeur ne voit que la moitié du texte source. L'attention coûte le carré de la longueur : passer à 1 024 pour récupérer 32 points multiplierait par quatre le coût de l'encodeur, ce que le budget d'une carte portable de 8 Go ne permet pas. C'est aussi le budget d'encodage de la littérature T5 sur ce corpus ; les travaux qui vont à 1 024 le font sur BART ou PEGASUS.
 
-Deux choses tempèrent le chiffre. Les deux familles de modèles subissent exactement la même troncature, donc la comparaison reste équitable : ce qui est perdu est une part du plafond atteignable, pas l'équité. Et l'article de presse est écrit en pyramide inversée, l'essentiel d'abord, les puces de highlights suivant cet ordre : couper la queue coûte moins que « la moitié du texte » ne le laisse craindre.
+Les deux familles de modèles subissent exactement la même troncature, donc la comparaison reste équitable : ce qui est perdu est une part du plafond atteignable, pas l'équité. Et l'article de presse est écrit en pyramide inversée, l'essentiel d'abord, les puces de highlights suivant cet ordre : couper la queue coûte moins que « la moitié du texte » ne le laisse craindre.
 
 Le plafond des cibles, 128 tokens, coupe 5,3 % des résumés et suit le p95 mesuré à 130. Un plafond de 64 tokens, celui qu'un corpus de résumé extrême autoriserait, en couperait 60 %.
 
 ## 2. Le Transformer from scratch
 
-`torch.nn.Transformer` existe et fonctionne. L'objet du projet est de démontrer la compréhension de l'architecture, pas d'en consommer une implémentation. Chaque bloc est écrit séparément, et chaque décision de conception est couverte par un test qui échouerait si elle était fausse.
+`torch.nn.Transformer` existe et fonctionne. L'objet du projet est de démontrer la compréhension de l'architecture, pas d'en consommer une implémentation. Chaque bloc est écrit séparément.
 
 ```text
 src/models/scratch/
@@ -110,7 +110,7 @@ Attention(Q, K, V) = softmax(Q Kt / sqrt(d_k)) V
 
 `Q Kt` attribue à chaque requête un score contre chaque clé, le softmax en fait une distribution, et le produit avec `V` renvoie une moyenne pondérée des valeurs.
 
-La division par `sqrt(d_k)` n'est pas cosmétique. Si les composantes de `Q` et `K` sont indépendantes, centrées et de variance unité, leur produit scalaire sur `d_k` dimensions a une variance de `d_k`. Quand `d_k` grandit, les scores s'étalent, le softmax sature et son gradient s'annule. La division ramène la variance à un.
+Si les composantes de `Q` et `K` sont indépendantes, centrées et de variance unité, leur produit scalaire sur `d_k` dimensions a une variance de `d_k`. Quand `d_k` grandit, les scores s'étalent, le softmax sature et son gradient s'annule. La division ramène la variance à un.
 
 L'attention multi-têtes n'instancie pas `h` petites projections mais quatre projections larges, `W_Q`, `W_K`, `W_V` et `W_O`, toutes de `d_model` vers `d_model`, initialisées en Xavier uniforme avec des biais nuls. Le découpage en têtes est une opération de forme : le tenseur passe de `(2, seq, 256)` à `(2, 8, seq, 32)` par une vue et une transposition, l'attention s'applique tête par tête, puis le chemin inverse recompose `(2, seq, 256)` avant `W_O`.
 
@@ -152,7 +152,7 @@ Sur les 32 100 entrées du tokenizer, 24 480 apparaissent au moins une fois dans
 
 La concentration aggrave le constat : 50 % des occurrences tiennent dans 92 types, et il faut 15 863 types pour couvrir 99 % du texte. Les 2 326 types vus moins de dix fois ont une ligne d'embedding mise à jour trop peu souvent pour valoir mieux que du bruit.
 
-La table pèse 69 % du modèle à 2 couches, 52,7 % à 4 et 42,6 % à 6. Faire varier la profondeur ne fait donc varier qu'une minorité des paramètres pendant que la majorité reste sous-entraînée. Un tokenizer réduit au corpus libérerait plusieurs millions de paramètres mais casserait le partage avec la baseline, donc l'équité de la comparaison : c'est un compromis explicite.
+La table pèse 69 % du modèle à 2 couches, 52,7 % à 4 et 42,6 % à 6. Faire varier la profondeur ne fait donc varier qu'une minorité des paramètres pendant que la majorité reste sous-entraînée. Un tokenizer réduit au corpus libérerait plusieurs millions de paramètres mais casserait le partage avec la baseline, donc l'équité de la comparaison.
 
 ### Ce que les tests garantissent
 
@@ -173,8 +173,6 @@ Les quatre mesures sont prises sous la révision `df1b051c49625cf57a3d0d8d3863ed
 Le bloc d'évaluation est identique dans les neuf fichiers d'expérience : `num_beams` 4, `max_new_tokens` 128, `no_repeat_ngram_size` 3, 1 000 rééchantillonnages bootstrap à 95 %. Le budget de décodage suit le plafond des cibles, lui-même posé sur le p95 des références mesuré section 1.
 
 **ROUGE-L, pas ROUGE-Lsum.** `rougeLsum` découpe la référence sur ses sauts de ligne et apparie chaque phrase séparément ; ROUGE-L exige une seule sous-séquence traversant toute la paire. Sur une référence de trois à quatre phrases, la seconde mesure est nettement plus sévère, et les chiffres publiés sur CNN/DailyMail sont des ROUGE-Lsum. **Aucun chiffre de ce rapport ne s'y compare.** Toutes les comparaisons faites ici sont internes : même métrique, même jeu de test, pour tous les modèles.
-
-Quatre règles encadrent la mesure.
 
 Une prédiction vide vaut zéro et reste dans la moyenne. Retirer les documents sur lesquels un modèle a échoué relèverait sa moyenne pour avoir échoué. Le compte des prédictions vides est reporté à côté du score, ce qui sépare un score faible d'un modèle cassé.
 
@@ -202,9 +200,7 @@ Des runs mesurés différemment ne sont pas mis dans un même tableau ni sur une
 | `pretrained_zero_shot` | sans objet | sans objet | 0,2751 | [0,2672, 0,2829] |
 <!-- syntra:end dataset_size -->
 
-**C'est le pré-entraînement qui fait l'écart, pas le fine-tuning.** `t5-small` sans aucun entraînement obtient 0,2751. Fine-tuné sur les 20 000 exemples, 0,2914 : 6 % de mieux, et les deux intervalles ne se séparent que d'un cheveu, [0,2672, 0,2829] contre [0,2838, 0,2994]. Sur 10 % du corpus ils se recouvrent, donc à cette taille le gain n'est pas démontré. Le meilleur modèle from scratch, lui, atteint 0,1492 — 46 % en dessous d'un modèle qui n'a jamais vu le corpus.
-
-Ce que le fine-tuning apporte se voit mieux en section 6 : il ne donne pas de connaissance, il donne le format.
+**C'est le pré-entraînement qui fait l'écart, pas le fine-tuning.** `t5-small` sans aucun entraînement obtient 0,2751. Fine-tuné sur les 20 000 exemples, 0,2914 : 6 % de mieux, et les deux intervalles ne se séparent que d'un cheveu, [0,2672, 0,2829] contre [0,2838, 0,2994]. Sur 10 % du corpus ils se recouvrent, donc à cette taille le gain n'est pas démontré. Le meilleur modèle from scratch, lui, atteint 0,1492, soit 46 % en dessous d'un modèle qui n'a jamais vu le corpus.
 
 ### Performance contre taille du corpus d'entraînement
 
@@ -220,17 +216,17 @@ Ce que le fine-tuning apporte se voit mieux en section 6 : il ne donne pas de co
 | 100 % | 20 000 | 0,1492 | 0,2914 | 0,1422 | +95 % |
 <!-- syntra:end families -->
 
-**Les deux familles ne réagissent pas aux données de la même façon.** Multiplier le corpus par dix fait passer le from scratch de 0,0837 à 0,1492, soit +78 %. Le même facteur fait passer le fine-tuné de 0,2861 à 0,2914, soit +2 %. Si l'écart relatif se resserre — 242 %, puis 135 %, puis 95 % — c'est parce que le premier progresse, pas parce que le second faiblit.
+**Les deux familles ne réagissent pas aux données de la même façon.** Multiplier le corpus par dix fait passer le from scratch de 0,0837 à 0,1492, soit +78 %. Le même facteur fait passer le fine-tuné de 0,2861 à 0,2914, soit +2 %. Si l'écart relatif se resserre (242 %, puis 135 %, puis 95 %), c'est parce que le premier progresse, pas parce que le second faiblit.
 
-**Le from scratch ne sature pas encore.** Sur les trois points mesurés, son score est linéaire dans le logarithme du nombre d'exemples, et chaque doublement du corpus rapporte autant que le précédent : +18 % de 2 000 à 10 000 exemples, +21 % de 10 000 à 20 000. Rien n'annonce un plafond à cette échelle.
+**Le from scratch ne sature pas encore.** Sur les trois points mesurés, son score est linéaire dans le logarithme du nombre d'exemples, et chaque doublement du corpus rapporte autant que le précédent : +18 % de 2 000 à 10 000 exemples, +21 % de 10 000 à 20 000.
 
 ### À partir de quelle taille le from scratch devient-il compétitif ?
 
-En prolongeant cette droite, il atteindrait 0,2751 — le zero-shot, celui qui ne s'entraîne pas — vers **2 millions d'exemples**. En n'ajustant que sur les deux derniers points, les plus proches du régime visé, vers **600 000**. Soit 30 à 100 fois le corpus de travail, et 2 à 7 fois les 287 113 exemples d'entraînement de CNN/DailyMail au complet.
+En prolongeant cette droite, il atteindrait 0,2751 (le zero-shot, celui qui ne s'entraîne pas) vers **2 millions d'exemples**. En n'ajustant que sur les deux derniers points, les plus proches du régime visé, vers **600 000**. Soit 30 à 100 fois le corpus de travail, et 2 à 7 fois les 287 113 exemples d'entraînement de CNN/DailyMail au complet.
 
 **La réponse est donc : pas avec ce corpus, ni avec celui dont il est tiré.** Il n'y a pas assez de texte dans CNN/DailyMail pour qu'un Transformer entraîné de zéro rattrape un modèle pré-entraîné sur un corpus sans commune mesure.
 
-Deux réserves. L'extrapolation porte deux ordres de grandeur au-delà du dernier point mesuré : elle donne un ordre de grandeur, pas une valeur. Et elle suppose l'architecture inchangée, alors qu'un corpus cent fois plus grand en justifierait une autre — l'ablation suivante montre que la profondeur seule n'y suffirait pas.
+L'extrapolation porte deux ordres de grandeur au-delà du dernier point mesuré : elle donne un ordre de grandeur, pas une valeur. Et elle suppose l'architecture inchangée, alors qu'un corpus cent fois plus grand en justifierait une autre ; l'ablation suivante montre que la profondeur seule n'y suffirait pas.
 
 ### Ablation d'architecture
 
@@ -252,17 +248,17 @@ Une seconde ablation fait varier la profondeur, tout le reste étant identique, 
 
 Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs.
 
-Le même article résumé par les trois modèles — un mur de traces de dinosaures en Bolivie, document `dec77c4f` :
+Le même article résumé par les trois modèles (un mur de traces de dinosaures en Bolivie, document `dec77c4f`) :
 
 > **Référence.** There are 462 trails of 5,055 prints on a vertical limestone slab in Bolivia . Rock was pushed upwards by tectonic movement, standing 390 feet tall . Site's thought to be the largest dinosaur trackway in the world […]
 
-> **From scratch, 100 % du corpus — ROUGE-L 0,151.** Hundreds of a satatats of the tatat. It is one of the first time of the world's. This is the first of the most most most popular. The images were found in the world, which can be used to.
+> **From scratch, 100 % du corpus, ROUGE-L 0,151.** Hundreds of a satatats of the tatat. It is one of the first time of the world's. This is the first of the most most most popular. The images were found in the world, which can be used to.
 
-> **`t5-small` zero-shot — 0,208.** the attraction, at Fancesa limestone quarry in Sucre, is the result of tectonic activity forcing earth upwards. it comprises some 462 trails made up of 5,055 prints - and frequent landslides reveal new ones […]
+> **`t5-small` zero-shot, 0,208.** the attraction, at Fancesa limestone quarry in Sucre, is the result of tectonic activity forcing earth upwards. it comprises some 462 trails made up of 5,055 prints - and frequent landslides reveal new ones […]
 
-> **`t5-small` fine-tuné, 100 % — 0,254.** The attraction, at Fancesa limestone quarry in Sucre, Bolivia, comprises some 462 trails made up of 5,055 prints. The wall, which is the largest dinosaur trackway in the world, is approximately 390 feet (120 metres) tall […]
+> **`t5-small` fine-tuné, 100 %, 0,254.** The attraction, at Fancesa limestone quarry in Sucre, Bolivia, comprises some 462 trails made up of 5,055 prints. The wall, which is the largest dinosaur trackway in the world, is approximately 390 feet (120 metres) tall […]
 
-Trois comportements. Le from scratch a appris la forme d'une phrase anglaise et rien d'autre : la syntaxe tient, les mots sont parfois inventés — « satatats » —, la répétition passe sous le `no_repeat_ngram_size` parce qu'elle ne répète pas exactement un trigramme, et aucun fait de l'article n'apparaît. Le zero-shot reprend de vraies phrases de l'article, en minuscules et sans les resserrer. Le fine-tuné dit la même chose, capitalisée et raccourcie.
+Le from scratch a appris la forme d'une phrase anglaise et rien d'autre : la syntaxe tient, les mots sont parfois inventés (« satatats »), la répétition passe sous le `no_repeat_ngram_size` parce qu'elle ne répète pas exactement un trigramme, et aucun fait de l'article n'apparaît. Le zero-shot reprend de vraies phrases de l'article, en minuscules et sans les resserrer. Le fine-tuné dit la même chose, capitalisée et raccourcie.
 
 **Le fine-tuning apprend le format, pas le contenu.** Le tableau ci-dessous compte les prédictions commençant par une minuscule : 71 % en zero-shot, moins de 1 % dès le premier fine-tunage. Le contenu, lui, ne bouge pas, et c'est ce qui explique que ROUGE ne gagne que 0,016 entre les deux.
 
@@ -294,8 +290,6 @@ L'URI de connexion porte un mot de passe et ne vit donc pas dans le dépôt. `.e
 **La base ne porte aucun poids.** Elle porte les métadonnées des runs : paramètres, métriques, tags, et un pointeur vers les artefacts. Ceux-ci sont des fichiers, écrits sous `MLFLOW_ARTIFACT_ROOT`.
 
 **Les modèles mesurés sont déposés dans le magasin.** Un modèle par run complet, dans la saveur qui lui correspond : `mlflow.transformers` pour `t5-small`, qui fait le tour du tokenizer et de la configuration de génération avec les poids, et `mlflow.pytorch` pour le Transformer écrit à la main, qui n'a pas de saveur dédiée. Chacun est enregistré au registre sous `syntra-<expérience>` et se recharge par ce nom.
-
-Trois précisions sur ce dépôt de modèles :
 
 - Les poids déposés sont ceux qui ont été **évalués**, relus depuis le meilleur checkpoint, et non l'objet en fin d'entraînement. Quand l'arrêt anticipé a retenu une époque antérieure, les deux diffèrent, et déposer le second stockerait des poids que personne n'a mesurés.
 - Seul un run `OK` entre au registre. Un run `PARTIAL` a vu deux pas d'optimisation et huit documents de test : ses poids existent et ne veulent rien dire.
@@ -336,7 +330,7 @@ make report-sync                              # les tableaux de ce rapport
 make corpus-sync                              # les tableaux du corpus
 ```
 
-Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`. `make report-sync` et `make corpus-sync` les régénèrent depuis les enregistrements, dans `reports/_generated/` et directement entre les marqueurs de ce fichier.
+Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`.
 
 Le magasin demande un `.env` rempli sur le modèle de `.env.example` :
 

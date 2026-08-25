@@ -2,7 +2,7 @@
 
 Chaîne ML expérimentale de résumé automatique. Le projet compare un Transformer encodeur-décodeur implémenté à la main en PyTorch à un modèle pré-entraîné T5, en zero-shot puis fine-tuné, sur un jeu de test strictement identique.
 
-Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow. Ni backend, ni conteneurs, ni frontend.
+Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow.
 
 ## Démarrage rapide
 
@@ -13,7 +13,7 @@ make install
 make reproduce MODE=quick
 ```
 
-Quatre commandes depuis un dépôt fraîchement cloné. La dernière enchaîne toute la chaîne scientifique : elle construit le corpus s'il manque, joue les neuf expériences plafonnées à deux pas d'optimisation, agrège les tableaux et trace les figures. Elle vérifie que la chaîne tourne sur ce poste ; elle ne produit aucun résultat, et le dit. Comptez une minute une fois le corpus construit, mesuré sur GPU RTX 5060 portable.
+La dernière commande enchaîne toute la chaîne scientifique : elle construit le corpus s'il manque, joue les neuf expériences plafonnées à deux pas d'optimisation, agrège les tableaux et trace les figures. Elle vérifie que la chaîne tourne sur ce poste ; elle ne produit aucun résultat, et le dit. Comptez une minute une fois le corpus construit, mesuré sur GPU RTX 5060 portable.
 
 Le premier appel télécharge CNN/DailyMail et construit le corpus de travail, ce qui domine le temps total : l'archive fait 1,3 Go. Les appels suivants sautent cette étape : `make data` est idempotent, et la chaîne affiche le `dataset_version` du corpus qu'elle a lu.
 
@@ -22,7 +22,7 @@ make coverage               # la suite de tests, seuil de couverture compris
 make reproduce MODE=full    # la campagne réelle, plusieurs heures de GPU
 ```
 
-Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell — la raison est dans [Prérequis](#prérequis). Pour rester sous PowerShell, `make.ps1` porte les mêmes cibles :
+Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell ; la raison est dans [Prérequis](#prérequis). Pour rester sous PowerShell, `make.ps1` porte les mêmes cibles :
 
 ```powershell
 .\make.ps1                       # la liste des cibles
@@ -65,7 +65,7 @@ Il faut ensuite **appeler `make` depuis Git Bash, pas depuis PowerShell**. Les r
 make: *** [Makefile:27: help] Error 255
 ```
 
-Depuis Git Bash, la même cible passe. Trois façons d'y arriver :
+Depuis Git Bash, la même cible passe. Pour l'ouvrir :
 
 ```text
 VS Code       menu déroulant du terminal, profil Git Bash
@@ -88,7 +88,7 @@ Rien de ce qui précède n'est nécessaire si l'on passe par `make.ps1`, qui por
 .\make.ps1 reproduce -Mode full  # equivaut a make reproduce MODE=full
 ```
 
-Le `Makefile` reste la référence — c'est lui qui tourne en CI. Les deux fichiers listent les mêmes cibles, et une cible ajoutée d'un côté doit l'être de l'autre.
+Le `Makefile` reste la référence : c'est lui qui tourne en CI. Les deux fichiers listent les mêmes cibles, et une cible ajoutée d'un côté doit l'être de l'autre.
 
 ### Quand le venv manque
 
@@ -221,7 +221,7 @@ Les cibles ci-dessous sont écrites pour `make`, depuis Git Bash. Sous PowerShel
 | `make reproduce MODE=full` | Rejoue la chaîne scientifique complète |
 | `make mlflow-ui` | Sert l'interface MLflow du magasin configuré sur <http://localhost:5000> |
 
-Deux commandes complètent la chaîne, hors `make` parce qu'elles portent sur ce qui est déjà écrit :
+Deux commandes vivent hors de `make`, parce qu'elles portent sur ce qui est déjà écrit :
 
 | Commande | Effet |
 | --- | --- |
@@ -274,30 +274,15 @@ model = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
 | `make corpus-sync` | Régénère les tableaux du corpus depuis le manifeste, et les réinjecte dans le rapport |
 | `make clean` | Supprime les caches et les rapports générés |
 
-## Intégrité scientifique
+## Statuts et conventions
 
-Les tableaux de ce README et du rapport sont générés depuis les enregistrements de runs par `make report-sync`, puis injectés entre marqueurs. Une nouvelle campagne les réécrit. Tant qu'une expérience n'a pas tourné, sa ligne existe et porte `NOT_RUN` : le tableau ne raccourcit pas, il dit ce qui manque.
-
-Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Seuls les enregistrements `OK` entrent dans les tableaux.
+Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Seuls les enregistrements `OK` entrent dans les tableaux, qui ne raccourcissent jamais : une ligne `NOT_RUN` dit ce qui manque.
 
 Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples, pas CNN/DailyMail complet. Cette convention est rappelée sur chaque tableau et chaque figure.
 
-## État d'avancement
-
-| Étape | Contenu | État |
-| --- | --- | --- |
-| 1 à 4 | Requirements, architecture, bootstrap | Fait |
-| 5 | Data pipeline, corpus de travail construit | Fait |
-| 6 et 7 | Transformer from scratch et ses tests | Fait |
-| 8 à 11 | Entraînement, baseline, évaluation, ablations | Chaîne complète, campagne CNN/DailyMail en cours |
-| 12 et 13 | Traçage MLflow | Chaîne complète, magasin remis à zéro avec le changement de corpus |
-| 18 | Rapport | `RAPPORT.md`, sections de résultats en attente de la campagne |
-
-Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compris. Le mode `full` joue la campagne réelle ; le mode `quick` vérifie la chaîne sur un budget plafonné et n'écrit rien hors de `reports/quick/`.
-
 ## Résultats
 
-Campagne du 25 août 2026 : neuf expériences, toutes `OK`, 2 h 43 de GPU. Le tableau est régénéré depuis les enregistrements de runs, et la lecture des résultats est en section 5 du [rapport](RAPPORT.md).
+Campagne de neuf expériences, toutes `OK`, 2 h 43 de GPU. Le tableau est régénéré depuis les enregistrements de runs, et la lecture des résultats est en section 5 du [rapport](RAPPORT.md).
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
@@ -317,9 +302,7 @@ Les quatre mesures `t5-small` sont prises sous la révision `df1b051c`, épingl�
 
 ## Documentation
 
-Deux documents, deux usages.
-
-Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, Transformer couche par couche, étape d'entraînement, métriques, MLflow. C'est la porte d'entrée pour un nouveau contributeur.
+Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, Transformer couche par couche, étape d'entraînement, métriques, MLflow.
 
 Le [rapport](RAPPORT.md) présente **ce que les expériences ont montré** : le corpus, l'architecture, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
 
@@ -329,7 +312,7 @@ Les quatre carnets demandent le groupe optionnel `eda`, et le kernel du dépôt 
 make kernel                 # .\make.ps1 kernel sous PowerShell
 ```
 
-Cette cible installe la chaîne Jupyter puis enregistre un kernel nommé `train-vs-pre-train`, affiché **Train-vs-Pre-train (.venv)** dans le sélecteur de VS Code. C'est celui qu'il faut choisir. Le kernel `python3` que Jupyter propose à côté n'est pas équivalent : son `argv` est un `python` nu, résolu depuis le PATH au lancement, donc pas nécessairement celui du dépôt. Les carnets épinglent le bon dans leur métadonnée, et `tests/unit/test_notebooks.py` échoue si l'éditeur les réassigne — ce qu'il fait dès que le kernel du dépôt n'est plus enregistré.
+Cette cible installe la chaîne Jupyter puis enregistre un kernel nommé `train-vs-pre-train`, affiché **Train-vs-Pre-train (.venv)** dans le sélecteur de VS Code. C'est celui qu'il faut choisir. Le kernel `python3` que Jupyter propose à côté n'est pas équivalent : son `argv` est un `python` nu, résolu depuis le PATH au lancement, donc pas nécessairement celui du dépôt. Les carnets épinglent le bon dans leur métadonnée, et `tests/unit/test_notebooks.py` échoue si l'éditeur les réassigne, ce qu'il fait dès que le kernel du dépôt n'est plus enregistré.
 
 L'analyse exploratoire qui fixe les réglages d'entraînement est dans `notebooks/01_eda_cnn_dailymail.ipynb`.
 
@@ -337,10 +320,10 @@ Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste 
 
 Le notebook [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) fait traverser le Transformer à un vrai batch en affichant la forme des tenseurs à chaque étape. Il accompagne la section 3 du guide, tourne sur CPU en une minute et n'écrit rien.
 
-Le notebook `notebooks/02_training.ipynb` lance une campagne et la donne à suivre. `EXPERIMENTS` nomme celles à jouer, dans l'ordre voulu, ou `None` pour les neuf déclarées, dans l'ordre de la campagne : le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes — c'est le défaut, avec `MODE = "full"`, donc un Run All lance la campagne complète. Chaque expérience ouvre une bannière `i/N`, ses pas s'écrivent au fil de l'eau, et une ligne la referme ; un tableau final aligne les neuf sur leur statut, leur durée et leur ROUGE-L. Une expérience qui échoue est enregistrée `FAILED` sans interrompre les suivantes, et une interruption au clavier laisse le bilan s'imprimer sur ce qui a tourné. Les sections 5 à 8 détaillent ensuite une seule expérience, que `FOCUS` désigne.
+Le notebook `notebooks/02_training.ipynb` lance une campagne et la donne à suivre. `EXPERIMENTS` nomme celles à jouer, dans l'ordre voulu, ou `None` pour les neuf déclarées, dans l'ordre de la campagne : le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes ; c'est le défaut, avec `MODE = "full"`, donc un Run All lance la campagne complète. Chaque expérience ouvre une bannière `i/N`, ses pas s'écrivent au fil de l'eau, et une ligne la referme ; un tableau final aligne les neuf sur leur statut, leur durée et leur ROUGE-L. Une expérience qui échoue est enregistrée `FAILED` sans interrompre les suivantes, et une interruption au clavier laisse le bilan s'imprimer sur ce qui a tourné. Les sections 5 à 8 détaillent ensuite une seule expérience, que `FOCUS` désigne.
 
 Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds.
 
-Il sait aussi décrire une campagne qu'il n'a pas lancée : après un `make reproduce MODE=full` au terminal, exécuter les sections 1 à 3 puis sauter à la section 5 suffit — elle relit les enregistrements de `reports/results/`, et rien n'est réentraîné.
+Il sait aussi décrire une campagne qu'il n'a pas lancée : après un `make reproduce MODE=full` au terminal, exécuter les sections 1 à 3 puis sauter à la section 5 suffit ; elle relit les enregistrements de `reports/results/`, et rien n'est réentraîné.
 
-> Une campagne complète dure plusieurs heures et meurt avec le noyau : fermer VS Code l'emporte. Pour la lancer sans cette contrainte, passer par un terminal — `make reproduce MODE=full`, ou `.\make.ps1 reproduce -Mode full`.
+> Une campagne complète dure plusieurs heures et meurt avec le noyau : fermer VS Code l'emporte. Pour la lancer sans cette contrainte, passer par un terminal : `make reproduce MODE=full`, ou `.\make.ps1 reproduce -Mode full`.
