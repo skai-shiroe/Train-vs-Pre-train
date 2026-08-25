@@ -15,11 +15,12 @@ venv/
 .coverage
 .coverage.*
 htmlcov/
+# Sauvegardes que JupyterLab ecrit a cote des carnets a chaque enregistrement.
+.ipynb_checkpoints/
 
 # Rapports generes
 reports/junit.xml
 reports/coverage.xml
-metrics.json
 
 # Resultats d'experiences : produits par un run, jamais edites a la main.
 reports/results/*
@@ -53,7 +54,6 @@ mlartifacts/
 mlflow.db
 checkpoints/
 runs/
-runs.zip
 *.pt
 *.pth
 *.safetensors
