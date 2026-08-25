@@ -58,6 +58,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     STUDIES,
     ExperimentConfig,
+    campaign_order,
     discover_experiments,
 )
 from src.experiments.record import STATUS_FAILED, RunRecord
@@ -360,7 +361,11 @@ def prepare_corpus(data_config: Path, *, rebuild: bool) -> Outcome:
 
 
 def run_experiments(settings: Settings) -> Outcome:
-    """Run every declared experiment, in name order.
+    """Run every declared experiment, from scratch family first.
+
+    The order is :func:`src.experiments.config.campaign_order`, not the name
+    order of the files: a sweep that stops on a crash or a keyboard interrupt
+    has then measured the from scratch family before touching ``t5-small``.
 
     Args:
         settings: The invocation.
@@ -370,7 +375,7 @@ def run_experiments(settings: Settings) -> Outcome:
         :data:`FAILED` and names it: the sweep itself does not stop, because
         section 44 asks for the failure to be recorded, but the chain does.
     """
-    configs = discover_experiments(settings.experiments_dir)
+    configs = campaign_order(discover_experiments(settings.experiments_dir))
     if not configs:
         return FAILED, f"no experiment file under {settings.experiments_dir}"
 

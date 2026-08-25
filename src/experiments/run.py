@@ -81,6 +81,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     ExperimentConfig,
     ScratchModelConfig,
+    campaign_order,
     discover_experiments,
     load_experiment_config,
 )
@@ -676,7 +677,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
     selection.add_argument(
         "--all",
         action="store_true",
-        help="Run every experiment declared under the experiments directory, in name order.",
+        help=(
+            "Run every experiment declared under the experiments directory, from scratch "
+            "family first, then the zero shot baseline, then the fine tunes."
+        ),
     )
 
     parser.add_argument(
@@ -739,7 +743,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(warning, file=sys.stderr)
 
     configs = (
-        discover_experiments(args.experiments_dir)
+        campaign_order(discover_experiments(args.experiments_dir))
         if args.all
         else [load_experiment_config(args.config)]
     )

@@ -33,7 +33,7 @@ escape the results directory or come back mangled from a CSV.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -54,6 +54,9 @@ STUDIES: tuple[str, ...] = ("dataset_size", "architecture")
 SCRATCH = "scratch"
 PRETRAINED_FINE_TUNED = "pretrained_ft"
 PRETRAINED_ZERO_SHOT = "pretrained_zero_shot"
+
+#: Order the families are trained in, used by :func:`campaign_order`.
+CAMPAIGN_FAMILIES: tuple[str, ...] = (SCRATCH, PRETRAINED_ZERO_SHOT, PRETRAINED_FINE_TUNED)
 
 #: Default data pipeline an experiment reads its corpus from.
 DEFAULT_DATA_CONFIG = Path("configs") / "data" / "cnn_dailymail.yaml"
@@ -542,3 +545,33 @@ def discover_experiments(
         configs[config.name] = config
 
     return [configs[name] for name in sorted(configs)]
+
+
+def campaign_order(configs: Iterable[ExperimentConfig]) -> list[ExperimentConfig]:
+    """Order experiments the way a campaign trains them.
+
+    Name order is a property of the file names, not of the study: it opens on
+    the three ``pretrained_ft_*`` runs and leaves the from scratch family for
+    the end. The study runs the other way round. The from scratch Transformer
+    is what section 2.1 compares everything else against, and the zero shot
+    baseline is the point the fine tuning moves away from, so a campaign cut
+    short by a crash or a keyboard interrupt leaves whole families measured
+    rather than three fine tunes with nothing to compare them to.
+
+    Args:
+        configs: The experiments to order.
+
+    Returns:
+        The from scratch runs first, then the zero shot baseline, then the fine
+        tunes, each family by growing corpus proportion. Ties fall back on the
+        name so the order does not depend on the order the files were read in.
+    """
+
+    def key(config: ExperimentConfig) -> tuple[int, int, str]:
+        return (
+            CAMPAIGN_FAMILIES.index(config.variant),
+            config.dataset.percentage or 0,
+            config.name,
+        )
+
+    return sorted(configs, key=key)
