@@ -2,13 +2,13 @@
 
 | Modèle | Prédictions commençant par une minuscule |
 | --- | --- |
-| `pretrained_ft_10` | 2,0 % |
-| `pretrained_ft_50` | 0,0 % |
-| `pretrained_ft_100` | 0,1 % |
-| `scratch_10` | 100,0 % |
-| `scratch_50` | 99,6 % |
-| `scratch_100` | 62,9 % |
-| `scratch_100_layers2` | 73,7 % |
-| `scratch_100_layers6` | 84,7 % |
-| `pretrained_zero_shot` | 87,7 % |
+| `pretrained_ft_10` | 0,8 % |
+| `pretrained_ft_50` | 0,5 % |
+| `pretrained_ft_100` | 0,3 % |
+| `scratch_10` | 16,6 % |
+| `scratch_50` | 63,4 % |
+| `scratch_100` | 30,0 % |
+| `scratch_100_layers2` | 50,9 % |
+| `scratch_100_layers6` | 13,1 % |
+| `pretrained_zero_shot` | 71,0 % |
 | Références | 0,0 % |

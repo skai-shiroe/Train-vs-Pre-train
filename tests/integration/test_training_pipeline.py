@@ -52,7 +52,7 @@ def spread_examples() -> list[Example]:
     """Return documents whose lengths span the truncation budget.
 
     A third of them reach the truncation length, which is the shape that makes
-    dynamic padding degenerate on XSum.
+    dynamic padding degenerate on CNN/DailyMail.
     """
     examples = []
     for index in range(160):

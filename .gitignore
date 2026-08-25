@@ -10,16 +10,18 @@ venv/
 
 # Outillage
 .pytest_cache/
+.ruff_cache/
 # Caches d'outils ecrits dans le repertoire de travail plutot que sous HOME.
 .cache/
 .coverage
 .coverage.*
 htmlcov/
+# Sauvegardes que JupyterLab ecrit a cote des carnets a chaque enregistrement.
+.ipynb_checkpoints/
 
 # Rapports generes
 reports/junit.xml
 reports/coverage.xml
-metrics.json
 
 # Resultats d'experiences : produits par un run, jamais edites a la main.
 reports/results/*
@@ -29,6 +31,11 @@ reports/results/*
 # forge avec des images manquantes ne montre pas ce qu'il argumente. Elles sont
 # versionnees, et make figures les reecrit depuis les memes enregistrements que
 # les tableaux.
+
+# La chaine recopie ces memes figures sous docs/ pour le site, qui n existe
+# pas encore dans le depot. Une seule copie est suivie, celle que RAPPORT.md
+# affiche ; la seconde est un double reecrit a chaque campagne.
+docs/assets/figures/
 
 # Verification de la chaine : make reproduce MODE=quick ecrit tout ici, records
 # plafonnes, tableaux et figures compris. Rien de ce qui s'y trouve n'est un
@@ -48,11 +55,14 @@ mlartifacts/
 mlflow.db
 checkpoints/
 runs/
-runs.zip
 *.pt
 *.pth
 *.safetensors
 *.bin
+
+# Secrets du poste. .env.example en donne le modele, sans valeur.
+.env
+.env.local
 
 # Systeme et editeurs
 .DS_Store

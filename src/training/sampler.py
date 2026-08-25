@@ -3,28 +3,32 @@
 ## The problem
 
 The collator pads each batch to its own longest sequence, so the padding is
-already dynamic. On XSum that is almost worthless on the source side. The
-source truncation is 512 tokens and 38 percent of the documents reach it, so a
-single long document in a batch pushes the whole batch to 512. Measured on 256
-test documents, every batch hits the cap from batch size 8 upwards, and about a
-quarter of the encoder positions carry padding:
+already dynamic. On CNN/DailyMail the source truncation is 512 tokens and 85
+percent of the articles reach it, so a single long article in a batch pushes
+the whole batch to 512. Measured on 256 test documents:
 
 ```text
  batch    batches at cap   shuffled waste   grouped waste
 ------  ----------------  ---------------  --------------
-     1         103 / 256            0.0 %           0.0 %
-     2          84 / 128           17.0 %           0.6 %
-     4           56 / 64           23.5 %           1.4 %
-     8           31 / 32           24.8 %           1.5 %
-    16           16 / 16           24.9 %           3.2 %
+     1         214 / 256            0.0 %           0.0 %
+     2         125 / 128            3.7 %           0.4 %
+     4           64 / 64            3.8 %           0.6 %
+     8           32 / 32            3.8 %           1.0 %
+    16           16 / 16            3.8 %           1.6 %
 ```
 
-Dynamic padding degenerates into fixed padding exactly at the batch sizes the
-training uses, and grouping recovers about a quarter of the encoder
-computation. The table above is the verbatim output of:
+**On this corpus the sampler buys little, and the measurement is what says so.**
+Every batch hits the cap from batch size 4 upwards, so dynamic padding has
+already collapsed into fixed padding; but because the articles that do not
+reach 512 are a small minority, the waste that collapse leaves behind is 3.8
+percent and not a quarter. Grouping recovers 2.8 points of encoder computation
+at batch size 8. It is kept because it costs one sort per window and cannot
+hurt, not because it is the optimisation this corpus needed. The lever here is
+the truncation length, and that one is bounded by the GPU budget rather than by
+the batching. The table above is the verbatim output of:
 
 ```bash
-python -m scripts.measure_padding --processed-dir data/processed/xsum
+python -m scripts.measure_padding --processed-dir data/processed/cnn_dailymail
 ```
 
 ## The fix

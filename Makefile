@@ -25,7 +25,7 @@ COV_ARGS := --cov=src \
 TORCH_INDEX ?= https://download.pytorch.org/whl/cu130
 
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration coverage \
+.PHONY: help install kernel test test-unit test-integration coverage \
         data train-scratch train-pretrained evaluate ablation figures mlflow-ui \
         report-sync corpus-sync reproduce clean
 
@@ -42,6 +42,30 @@ install: ## Installe les dependances
 	$(PIP) install --upgrade pip
 	$(PIP) install "torch>=2.13,<3.0" --index-url $(TORCH_INDEX)
 	$(PIP) install -e ".[dev]"
+
+# Les notebooks declarent le kernel 'train-vs-pre-train'. Sans cette cible,
+# Jupyter leur donne le 'python3' qu'il trouve sur son chemin de donnees, dont
+# l'argv est un 'python' nu resolu depuis le PATH au lancement : le notebook
+# tourne alors avec d'autres versions que celles que make vient d'installer, et
+# rien ne le dit. --sys-prefix ecrit le kernel dans .venv, donc il suit
+# l'environnement.
+#
+# Le nom comme le libelle portent celui du depot, pas celui du paquet. Un
+# kernel appele 'syntra' se confond dans le selecteur de VS Code avec le projet
+# voisin du meme nom ; le mauvais choix ne se voit qu'a l'execution, et la
+# confusion a deja coute deux sessions.
+kernel: ## Enregistre le kernel Jupyter du depot, demande le groupe eda
+	$(PIP) install -e ".[eda]"
+	$(PY) -m ipykernel install --sys-prefix --name train-vs-pre-train --display-name "Train-vs-Pre-train (.venv)"
+
+# ---------------------------------------------------------------------------
+# Qualite
+# ---------------------------------------------------------------------------
+
+# Ruff porte seul le linting depuis que la purge a emporte flake8. Les carnets
+# sont dans le perimetre : le point du chemin les inclut.
+lint: ## Passe ruff sur le code, les tests et les carnets
+	$(PY) -m ruff check .
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -65,7 +89,7 @@ coverage: ## Lance les tests avec le seuil de couverture de 80 pour cent
 # ---------------------------------------------------------------------------
 
 data: ## Telecharge, valide et prepare le corpus de travail
-	$(PY) -m src.data.build --config configs/data/xsum.yaml
+	$(PY) -m src.data.build --config configs/data/cnn_dailymail.yaml
 
 train-scratch: ## Entraine le Transformer from scratch sur 100 pour cent du corpus
 	$(PY) -m src.experiments.run --config configs/experiments/scratch_100.yaml
@@ -86,11 +110,12 @@ ablation: ## Rejoue les ablations taille de corpus et architecture
 figures: ## Trace les quatre figures dans reports/figures
 	$(PY) -m src.experiments.figures
 
-# Le magasin est passe explicitement : sans argument, la commande bascule vers
-# ./mlruns des que ce repertoire existe, alors que le client de tracking ecrit
-# dans la base SQLite dans tous les cas.
-mlflow-ui: ## Sert l'interface MLflow sur le magasin local, port 5000
-	$(PY) -m mlflow ui --backend-store-uri sqlite:///mlflow.db
+# Le magasin vient de .env, jamais du Makefile : une URI PostgreSQL porte un mot
+# de passe, et un Makefile est un fichier suivi. Sans .env la cible s'arrete en
+# le disant, plutot que de servir un magasin local vide qui ressemble a une
+# campagne perdue.
+mlflow-ui: ## Sert l'interface MLflow sur le magasin configure, port 5000
+	@set -a; [ -f .env ] && . ./.env; set +a; 	  test -n "$$MLFLOW_TRACKING_URI" || { 	    echo "MLFLOW_TRACKING_URI absent. Copier .env.example en .env et le remplir."; 	    exit 1; }; 	  $(PY) -m mlflow ui 	    --backend-store-uri "$$MLFLOW_TRACKING_URI" 	    --default-artifact-root "$${MLFLOW_ARTIFACT_ROOT:-mlartifacts}"
 
 # ---------------------------------------------------------------------------
 # Artefacts derives
@@ -116,5 +141,5 @@ reproduce: ## Reproduit la chaine scientifique complete. MODE=full ou quick
 	$(PY) -m src.experiments.reproduce --mode $(or $(MODE),quick)
 
 clean: ## Supprime les caches et les rapports generes
-	rm -rf .pytest_cache htmlcov
+	rm -rf .pytest_cache .ruff_cache htmlcov
 	rm -f .coverage reports/junit.xml reports/coverage.xml

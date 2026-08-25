@@ -213,6 +213,24 @@ def test_attention_weights_are_discarded_by_default(model: ScratchTransformer) -
 
 
 @pytest.mark.unit
+def test_projecting_the_last_position_gives_the_same_scores(model: ScratchTransformer) -> None:
+    # C'est la seule ligne qu'une boucle de generation lit, et projeter les
+    # autres est ce qui coute : au dela de la derniere position, le tenseur
+    # produit est le seul du modele dont la derniere dimension est le
+    # vocabulaire. Les valeurs doivent etre identiques, sinon le decodage
+    # change de resultat.
+    source = torch.randint(2, VOCAB_SIZE, (2, 9))
+    decoder_input = torch.randint(2, VOCAB_SIZE, (2, 6))
+    memory, memory_mask, _ = model.encode(source)
+
+    whole, _ = model.decode(decoder_input, memory, memory_mask)
+    last, _ = model.decode(decoder_input, memory, memory_mask, last_position_only=True)
+
+    assert last.shape == (2, 1, VOCAB_SIZE)
+    assert torch.allclose(last[:, -1, :], whole[:, -1, :], atol=1e-6)
+
+
+@pytest.mark.unit
 def test_a_decoder_position_never_reads_the_future(model: ScratchTransformer) -> None:
     source = torch.randint(2, VOCAB_SIZE, (1, 8))
     decoder_input = torch.randint(2, VOCAB_SIZE, (1, 7))

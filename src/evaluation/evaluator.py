@@ -266,7 +266,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs") / "data" / "xsum.yaml",
+        default=Path("configs") / "data" / "cnn_dailymail.yaml",
         help="Data pipeline configuration, which locates the corpus and the tokeniser.",
     )
     parser.add_argument(

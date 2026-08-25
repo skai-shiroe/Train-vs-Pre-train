@@ -188,7 +188,7 @@ class LiveMetricsCallback(Callback):
             return
         try:
             self._run.log_metrics(metrics, step=step)
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             # Caught on purpose, and only once. The measurement is not at
             # stake here, and a store that died at step 50 of 6250 would
             # otherwise print the same warning a hundred times.
@@ -216,7 +216,7 @@ def open_live_run(tracker: object | None, name: str) -> LiveRun | None:
         return None
     try:
         return tracker.open(name)
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # A store that cannot be reached costs the live view, not the run.
         print(
             f"live tracking unavailable for {name}: {type(error).__name__}: {error}",
@@ -238,7 +238,7 @@ def finish_safely(run: LiveRun, payload: TrackedRun) -> str | None:
     """
     try:
         return run.finish(payload)
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # Same contract as log_safely: the measurement is already on disk, and
         # losing its mirror is a degraded run rather than a failed one.
         print(

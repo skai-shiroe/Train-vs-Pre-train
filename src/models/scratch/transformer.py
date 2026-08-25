@@ -133,6 +133,7 @@ class ScratchTransformer(nn.Module):
         memory_mask: torch.Tensor,
         *,
         return_weights: bool = False,
+        last_position_only: bool = False,
     ) -> tuple[torch.Tensor, list[DecoderLayerAttentions]]:
         """Run the decoder over an already built decoder input.
 
@@ -141,9 +142,13 @@ class ScratchTransformer(nn.Module):
             memory: Encoder output.
             memory_mask: Source padding mask.
             return_weights: Whether to collect the attention weights.
+            last_position_only: Whether to project the last position alone,
+                which is what a generation loop reads. See
+                :meth:`src.models.scratch.decoder.Decoder.forward`.
 
         Returns:
-            A pair ``(logits, attentions)``.
+            A pair ``(logits, attentions)``. The logits cover every position,
+            or the last one alone when it was the only one asked for.
         """
         target_mask = build_decoder_mask(decoder_input_ids, self.config.pad_token_id)
         decoded: tuple[torch.Tensor, list[DecoderLayerAttentions]] = self.decoder(
@@ -152,6 +157,7 @@ class ScratchTransformer(nn.Module):
             target_mask,
             memory_mask,
             return_weights=return_weights,
+            last_position_only=last_position_only,
         )
         return decoded
 

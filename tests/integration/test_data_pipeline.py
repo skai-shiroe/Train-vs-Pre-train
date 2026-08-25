@@ -212,8 +212,8 @@ def test_an_empty_summary_stops_the_build(
 # ---------------------------------------------------------------------------
 
 
-def test_the_default_configuration_is_the_xsum_one() -> None:
-    assert parse_args([]).config == Path("configs/data/xsum.yaml")
+def test_the_default_configuration_is_the_cnn_dailymail_one() -> None:
+    assert parse_args([]).config == Path("configs/data/cnn_dailymail.yaml")
 
 
 def test_arguments_are_parsed() -> None:

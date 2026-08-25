@@ -2,6 +2,6 @@
 
 | Split | Documents tronqués | Résumés tronqués |
 | --- | --- | --- |
-| Entraînement | 7 686 sur 20 000 (38,4 %) | 84 sur 20 000 (0,4 %) |
-| Validation | 383 sur 1 000 (38,3 %) | 7 sur 1 000 (0,7 %) |
-| Test | 397 sur 1 000 (39,7 %) | 2 sur 1 000 (0,2 %) |
+| Entraînement | 17 067 sur 20 000 (85,3 %) | 1 052 sur 20 000 (5,3 %) |
+| Validation | 815 sur 1 000 (81,5 %) | 74 sur 1 000 (7,4 %) |
+| Test | 845 sur 1 000 (84,5 %) | 57 sur 1 000 (5,7 %) |

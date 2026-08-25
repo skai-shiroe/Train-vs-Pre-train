@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.tracking import client
 from src.tracking.client import (
     DEFAULT_EXPERIMENT,
     MlflowTracker,
@@ -71,11 +72,53 @@ def test_a_working_store_returns_its_identifier() -> None:
     assert [payload.name for payload in tracker.seen] == ["scratch_10"]
 
 
-def test_the_tracking_uri_is_left_to_mlflow_when_absent() -> None:
-    # Section 21.1 forbids reading the environment outside the settings module.
-    # Passing nothing lets MLflow resolve its own, which is what makes
-    # MLFLOW_TRACKING_URI work without this project ever reading it.
-    assert MlflowTracker().tracking_uri is None
+def test_an_explicit_uri_is_kept_as_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The command line wins over everything: --tracking-uri exists to send one
+    # run somewhere else without touching the configuration of the machine.
+    monkeypatch.setattr(client, "resolve_tracking_uri", lambda: "postgresql://configure@h/d")
+
     assert (
         MlflowTracker(tracking_uri="http://localhost:5000").tracking_uri == "http://localhost:5000"
     )
+
+
+def test_the_configured_uri_is_resolved_when_none_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The store moved to PostgreSQL, so the URI carries a password and lives in
+    # an ignored file rather than in the repository. What is pinned here is the
+    # wiring; :mod:`tests.unit.test_tracking_store` pins the resolution itself.
+    monkeypatch.setattr(client, "resolve_tracking_uri", lambda: "postgresql://configure@h/d")
+
+    assert MlflowTracker().tracking_uri == "postgresql://configure@h/d"
+
+
+def test_nothing_configured_leaves_mlflow_to_resolve_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Not an error: a fresh clone with no database still traces, into a local
+    # SQLite file, and the runner prints which of the two it got.
+    monkeypatch.setattr(client, "resolve_tracking_uri", lambda: None)
+
+    assert MlflowTracker().tracking_uri is None
+
+
+def test_a_local_artifact_root_becomes_an_absolute_uri(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A relative root would be resolved against the working directory of
+    # whoever reads the store next, which is not the one that wrote it.
+    monkeypatch.setattr(client, "resolve_tracking_uri", lambda: None)
+    tracker = MlflowTracker(artifact_root="mlartifacts")
+
+    location = tracker._artifact_location()
+
+    assert location.startswith("file://")
+    assert location.endswith("/mlartifacts")
+
+
+def test_an_artifact_root_that_is_already_a_uri_is_left_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(client, "resolve_tracking_uri", lambda: None)
+    tracker = MlflowTracker(artifact_root="s3://bucket/artefacts")
+
+    assert tracker._artifact_location() == "s3://bucket/artefacts"

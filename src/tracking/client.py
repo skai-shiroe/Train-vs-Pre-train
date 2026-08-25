@@ -22,11 +22,17 @@ record alone.
 selects :class:`NullTracker`, which returns ``None`` and says so. There is no
 mode that pretends to have logged.
 
-MLflow resolves its own tracking URI when none is given, and no module here
-reads the environment itself. With nothing configured, MLflow 3 resolves to a
-SQLite database in the working directory, so an experiment run offline is still
-traced and no server has to be started before training. ``make mlflow-ui``
-serves that same database when you want to look at it.
+**The store is PostgreSQL, and the repository does not know its password.**
+:mod:`src.tracking.store` resolves the URI from the environment or from an
+ignored ``.env``, so a checkout carries the shape of the connection and never a
+credential. With nothing configured it resolves to ``None``, MLflow falls back
+to a SQLite file in the working directory, and the runner prints which of the
+two it got: a campaign that traced locally when it meant to trace to the shared
+database says so on its first line instead of being discovered afterwards.
+
+**The database holds metadata, never a weight.** Experiments are created with an
+artefact root taken from the same place, and that is where the logged models go.
+:mod:`src.tracking.model` is what puts them there.
 
 One URI does not work and is worth knowing about: a ``file://`` path. MLflow 3
 put the filesystem tracking backend in maintenance mode and raises rather than
@@ -42,6 +48,7 @@ from typing import Protocol
 
 from src.tracking.live import LiveRun, NullLiveRun
 from src.tracking.payload import TrackedRun
+from src.tracking.store import resolve_artifact_root, resolve_tracking_uri
 
 #: Experiment the runs are grouped under. Every run of the campaign lands here,
 #: which is what makes the nine of them comparable in one table of the MLflow
@@ -170,18 +177,25 @@ class MlflowTracker:
     """Tracker writing to an MLflow store."""
 
     def __init__(
-        self, *, tracking_uri: str | None = None, experiment: str = DEFAULT_EXPERIMENT
+        self,
+        *,
+        tracking_uri: str | None = None,
+        experiment: str = DEFAULT_EXPERIMENT,
+        artifact_root: str | None = None,
     ) -> None:
         """Build the tracker.
 
         Args:
-            tracking_uri: Where the store lives. ``None`` leaves MLflow to its
-                own resolution, which ends on a local ``mlruns`` directory when
-                nothing else is configured.
+            tracking_uri: Where the store lives. ``None`` asks
+                :mod:`src.tracking.store` for the configured one, and leaves
+                MLflow to its own resolution when nothing is configured.
             experiment: Name the runs are grouped under.
+            artifact_root: Where the artefacts of the experiment go, models
+                included. ``None`` asks :mod:`src.tracking.store`.
         """
-        self.tracking_uri = tracking_uri
+        self.tracking_uri = tracking_uri if tracking_uri is not None else resolve_tracking_uri()
         self.experiment = experiment
+        self.artifact_root = artifact_root or resolve_artifact_root()
 
     def _connect(self) -> None:
         """Point MLflow at the store this tracker writes to.
@@ -194,7 +208,29 @@ class MlflowTracker:
 
         if self.tracking_uri:
             mlflow.set_tracking_uri(self.tracking_uri)
+
+        # Created explicitly rather than left to ``set_experiment``: the
+        # artefact root is only read when the experiment is created, so an
+        # experiment created by a previous default keeps writing where that
+        # default pointed. Creating it here is what puts the models under the
+        # configured root the first time.
+        if mlflow.get_experiment_by_name(self.experiment) is None:
+            mlflow.create_experiment(self.experiment, artifact_location=self._artifact_location())
         mlflow.set_experiment(self.experiment)
+
+    def _artifact_location(self) -> str:
+        """Return the artefact root as a URI MLflow accepts.
+
+        Returns:
+            The configured root unchanged when it already carries a scheme, and
+            an absolute ``file://`` URI when it is a local path. A relative path
+            would be resolved against the working directory of whoever reads the
+            store next, which is not necessarily the one that wrote it.
+        """
+        root = self.artifact_root
+        if "://" in root:
+            return root
+        return Path(root).resolve().as_uri()
 
     def open(self, name: str) -> MlflowLiveRun:
         """Start a run and leave it open for the training to fill.
@@ -252,13 +288,17 @@ def build_tracker(
     enabled: bool = True,
     tracking_uri: str | None = None,
     experiment: str = DEFAULT_EXPERIMENT,
+    artifact_root: str | None = None,
 ) -> Tracker:
     """Return the tracker a run should use.
 
     Args:
         enabled: Whether the run is traced at all.
-        tracking_uri: Where the store lives.
+        tracking_uri: Where the store lives. ``None`` resolves the configured
+            one, per :mod:`src.tracking.store`.
         experiment: Name the runs are grouped under.
+        artifact_root: Where the artefacts go. ``None`` resolves the configured
+            one.
 
     Returns:
         An :class:`MlflowTracker`, or a :class:`NullTracker` when tracking is
@@ -266,7 +306,9 @@ def build_tracker(
     """
     if not enabled:
         return NullTracker()
-    return MlflowTracker(tracking_uri=tracking_uri, experiment=experiment)
+    return MlflowTracker(
+        tracking_uri=tracking_uri, experiment=experiment, artifact_root=artifact_root
+    )
 
 
 def log_safely(tracker: Tracker, payload: TrackedRun) -> str | None:
@@ -282,7 +324,7 @@ def log_safely(tracker: Tracker, payload: TrackedRun) -> str | None:
     """
     try:
         return tracker.log(payload)
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # Every exception is caught on purpose. The measurement is already on
         # disk; losing its mirror is a degraded run, not a failed one.
         print(

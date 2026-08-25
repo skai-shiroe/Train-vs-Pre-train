@@ -445,6 +445,55 @@ def test_the_evaluated_weights_come_from_the_best_checkpoint(
     assert loaded == [Path(record.training["best_checkpoint"])]
 
 
+def test_the_training_memory_is_released_before_the_evaluation(
+    scratch_experiment: ExperimentConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The evaluation builds a second model from the checkpoint. Both resident
+    # at once is what an eight gigabyte card answers with system memory rather
+    # than with an error: the run survives and decodes across the PCIe bus,
+    # which is hours where it was minutes.
+    order: list[str] = []
+    train = run_module.train_experiment
+    measure = run_module.evaluate_experiment
+
+    def trained(*args: Any, **kwargs: Any) -> TrainingResult:
+        result = train(*args, **kwargs)
+        order.append("train")
+        return result
+
+    def measured(*args: Any, **kwargs: Any) -> Any:
+        order.append("evaluate")
+        return measure(*args, **kwargs)
+
+    monkeypatch.setattr(run_module, "train_experiment", trained)
+    monkeypatch.setattr(run_module, "release_accelerator", lambda: order.append("release"))
+    monkeypatch.setattr(run_module, "evaluate_experiment", measured)
+
+    execute(scratch_experiment, results_dir=tmp_path / "results", runs_dir=tmp_path / "runs")
+
+    assert order == ["train", "release", "evaluate"]
+
+
+def test_a_zero_shot_run_has_no_training_memory_to_release(
+    data_config_file: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Its weights never move, so there is no second model and nothing to give
+    # back before the measurement.
+    released: list[str] = []
+    monkeypatch.setattr(run_module, "release_accelerator", lambda: released.append("release"))
+    zero_shot = ExperimentConfig.model_validate(
+        {
+            "experiment": {"name": "zero_shot_test", "studies": ["dataset_size"]},
+            "dataset": {"config": str(data_config_file)},
+            "model": {"type": "pretrained", "mode": "zero_shot"},
+        }
+    )
+
+    execute(zero_shot, results_dir=tmp_path / "results", runs_dir=tmp_path / "runs")
+
+    assert released == []
+
+
 def test_the_checkpoint_carries_the_corpus_it_was_trained_on(
     scratch_experiment: ExperimentConfig, tmp_path: Path
 ) -> None:
