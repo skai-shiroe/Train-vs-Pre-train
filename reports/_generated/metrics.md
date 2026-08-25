@@ -1,13 +1,13 @@
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-| Expérience | ROUGE-1 | ROUGE-2 | ROUGE-L | IC 95 % sur ROUGE-L | Statut |
-| --- | --- | --- | --- | --- | --- |
-| `pretrained_ft_10` |  |  |  |  | `NOT_RUN` |
-| `pretrained_ft_100` |  |  |  |  | `NOT_RUN` |
-| `pretrained_ft_50` |  |  |  |  | `NOT_RUN` |
-| `pretrained_zero_shot` |  |  |  |  | `NOT_RUN` |
-| `scratch_10` |  |  |  |  | `NOT_RUN` |
-| `scratch_100` |  |  |  |  | `NOT_RUN` |
-| `scratch_100_layers2` |  |  |  |  | `NOT_RUN` |
-| `scratch_100_layers6` |  |  |  |  | `NOT_RUN` |
-| `scratch_50` |  |  |  |  | `NOT_RUN` |
+| Expérience | ROUGE-1 | ROUGE-2 | ROUGE-L | IC 95 % sur ROUGE-L |
+| --- | --- | --- | --- | --- |
+| `pretrained_ft_100` | 0,4135 | 0,1933 | **0,2914** | [0,2838, 0,2994] |
+| `pretrained_ft_50` | 0,4114 | 0,1917 | 0,2896 | [0,2818, 0,2975] |
+| `pretrained_ft_10` | 0,4069 | 0,1890 | 0,2861 | [0,2777, 0,2939] |
+| `pretrained_zero_shot` | 0,3885 | 0,1768 | 0,2751 | [0,2672, 0,2829] |
+| `scratch_100` | 0,2230 | 0,0405 | 0,1492 | [0,1462, 0,1523] |
+| `scratch_100_layers6` | 0,2136 | 0,0341 | 0,1413 | [0,1382, 0,1443] |
+| `scratch_100_layers2` | 0,1982 | 0,0321 | 0,1320 | [0,1287, 0,1351] |
+| `scratch_50` | 0,1797 | 0,0251 | 0,1234 | [0,1206, 0,1263] |
+| `scratch_10` | 0,1102 | 0,0076 | 0,0837 | [0,0812, 0,0861] |

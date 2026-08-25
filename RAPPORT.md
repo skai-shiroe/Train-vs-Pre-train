@@ -12,7 +12,7 @@ Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis 
 
 L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
-> **État.** Le corpus de travail est construit et figé, `dataset_version = 00c0ee4e`. Les sections 1 à 4 et 7 sont écrites sur des grandeurs mesurées. Les sections 5 et 6 portent `NOT_RUN` : leurs tableaux sont générés depuis les enregistrements de runs et restent vides tant que la campagne n'a pas écrit.
+> **État.** Corpus figé, `dataset_version = 00c0ee4e`. La campagne du 25 août 2026 a rendu ses neuf expériences, toutes `OK`, en 2 h 43 de GPU. Tous les tableaux de ce rapport sont générés depuis les enregistrements de runs.
 
 ## 1. Le corpus
 
@@ -186,7 +186,25 @@ Des runs mesurés différemment ne sont pas mis dans un même tableau ni sur une
 
 ## 5. Résultats
 
-> `NOT_RUN`. Les tableaux ci-dessous sont générés par `make report-sync` depuis les enregistrements de runs. Les lectures seront écrites sur les mesures, pas avant.
+### Zero-shot, puis fine-tuné
+
+<!-- syntra:begin dataset_size -->
+<!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
+
+| Variante | Corpus | Exemples | ROUGE-L | IC 95 % |
+| --- | --- | --- | --- | --- |
+| `pretrained_ft` | 10 % | 2 000 | 0,2861 | [0,2777, 0,2939] |
+| `pretrained_ft` | 50 % | 10 000 | 0,2896 | [0,2818, 0,2975] |
+| `pretrained_ft` | 100 % | 20 000 | 0,2914 | [0,2838, 0,2994] |
+| `scratch` | 10 % | 2 000 | 0,0837 | [0,0812, 0,0861] |
+| `scratch` | 50 % | 10 000 | 0,1234 | [0,1206, 0,1263] |
+| `scratch` | 100 % | 20 000 | 0,1492 | [0,1462, 0,1523] |
+| `pretrained_zero_shot` | sans objet | sans objet | 0,2751 | [0,2672, 0,2829] |
+<!-- syntra:end dataset_size -->
+
+**C'est le pré-entraînement qui fait l'écart, pas le fine-tuning.** `t5-small` sans aucun entraînement obtient 0,2751. Fine-tuné sur les 20 000 exemples, 0,2914 : 6 % de mieux, et les deux intervalles ne se séparent que d'un cheveu, [0,2672, 0,2829] contre [0,2838, 0,2994]. Sur 10 % du corpus ils se recouvrent, donc à cette taille le gain n'est pas démontré. Le meilleur modèle from scratch, lui, atteint 0,1492 — 46 % en dessous d'un modèle qui n'a jamais vu le corpus.
+
+Ce que le fine-tuning apporte se voit mieux en section 6 : il ne donne pas de connaissance, il donne le format.
 
 ### Performance contre taille du corpus d'entraînement
 
@@ -195,12 +213,24 @@ Des runs mesurés différemment ne sont pas mis dans un même tableau ni sur une
 <!-- syntra:begin families -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-| Proportion | Exemples | from scratch | `t5-small` fine-tuné | Écart absolu | Écart relatif | Statut |
-| --- | --- | --- | --- | --- | --- | --- |
-| 10 % |  |  |  |  |  | `scratch_10` `NOT_RUN`, `pretrained_ft_10` `NOT_RUN` |
-| 50 % |  |  |  |  |  | `scratch_50` `NOT_RUN`, `pretrained_ft_50` `NOT_RUN` |
-| 100 % |  |  |  |  |  | `scratch_100` `NOT_RUN`, `pretrained_ft_100` `NOT_RUN` |
+| Proportion | Exemples | from scratch | `t5-small` fine-tuné | Écart absolu | Écart relatif |
+| --- | --- | --- | --- | --- | --- |
+| 10 % | 2 000 | 0,0837 | 0,2861 | 0,2025 | +242 % |
+| 50 % | 10 000 | 0,1234 | 0,2896 | 0,1662 | +135 % |
+| 100 % | 20 000 | 0,1492 | 0,2914 | 0,1422 | +95 % |
 <!-- syntra:end families -->
+
+**Les deux familles ne réagissent pas aux données de la même façon.** Multiplier le corpus par dix fait passer le from scratch de 0,0837 à 0,1492, soit +78 %. Le même facteur fait passer le fine-tuné de 0,2861 à 0,2914, soit +2 %. Si l'écart relatif se resserre — 242 %, puis 135 %, puis 95 % — c'est parce que le premier progresse, pas parce que le second faiblit.
+
+**Le from scratch ne sature pas encore.** Sur les trois points mesurés, son score est linéaire dans le logarithme du nombre d'exemples, et chaque doublement du corpus rapporte autant que le précédent : +18 % de 2 000 à 10 000 exemples, +21 % de 10 000 à 20 000. Rien n'annonce un plafond à cette échelle.
+
+### À partir de quelle taille le from scratch devient-il compétitif ?
+
+En prolongeant cette droite, il atteindrait 0,2751 — le zero-shot, celui qui ne s'entraîne pas — vers **2 millions d'exemples**. En n'ajustant que sur les deux derniers points, les plus proches du régime visé, vers **600 000**. Soit 30 à 100 fois le corpus de travail, et 2 à 7 fois les 287 113 exemples d'entraînement de CNN/DailyMail au complet.
+
+**La réponse est donc : pas avec ce corpus, ni avec celui dont il est tiré.** Il n'y a pas assez de texte dans CNN/DailyMail pour qu'un Transformer entraîné de zéro rattrape un modèle pré-entraîné sur un corpus sans commune mesure.
+
+Deux réserves. L'extrapolation porte deux ordres de grandeur au-delà du dernier point mesuré : elle donne un ordre de grandeur, pas une valeur. Et elle suppose l'architecture inchangée, alors qu'un corpus cent fois plus grand en justifierait une autre — l'ablation suivante montre que la profondeur seule n'y suffirait pas.
 
 ### Ablation d'architecture
 
@@ -209,24 +239,51 @@ Une seconde ablation fait varier la profondeur, tout le reste étant identique, 
 <!-- syntra:begin architecture -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-| Expérience | Couches | Paramètres | ROUGE-L | IC 95 % | Entraînement | Statut |
-| --- | --- | --- | --- | --- | --- | --- |
-| `scratch_100_layers2` | 2 + 2 |  |  |  |  | `NOT_RUN` |
-| `scratch_100` | 4 + 4 |  |  |  |  | `NOT_RUN` |
-| `scratch_100_layers6` | 6 + 6 |  |  |  |  | `NOT_RUN` |
+| Expérience | Couches | Paramètres | ROUGE-L | IC 95 % | Entraînement |
+| --- | --- | --- | --- | --- | --- |
+| `scratch_100_layers2` | 2 + 2 | 11 905 024 | 0,1320 | [0,1287, 0,1351] | 1 052 s |
+| `scratch_100` | 4 + 4 | 15 591 424 | 0,1492 | [0,1462, 0,1523] | 2 106 s |
+| `scratch_100_layers6` | 6 + 6 | 19 277 824 | 0,1413 | [0,1382, 0,1443] | 2 100 s |
 <!-- syntra:end architecture -->
+
+**La profondeur ne remplace pas les données.** Quatre couches battent deux, 0,1492 contre 0,1320, et battent aussi six, 0,1413 : les trois intervalles sont disjoints. Six couches coûtent 3,7 M de paramètres de plus que quatre et le même temps d'entraînement, pour un score inférieur. Sur 20 000 exemples, il n'y a pas de quoi entraîner la profondeur supplémentaire.
 
 ## 6. Analyse qualitative
 
 Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs.
 
-> `NOT_RUN`. Les exemples seront pris dans les enregistrements de la campagne.
+Le même article résumé par les trois modèles — un mur de traces de dinosaures en Bolivie, document `dec77c4f` :
+
+> **Référence.** There are 462 trails of 5,055 prints on a vertical limestone slab in Bolivia . Rock was pushed upwards by tectonic movement, standing 390 feet tall . Site's thought to be the largest dinosaur trackway in the world […]
+
+> **From scratch, 100 % du corpus — ROUGE-L 0,151.** Hundreds of a satatats of the tatat. It is one of the first time of the world's. This is the first of the most most most popular. The images were found in the world, which can be used to.
+
+> **`t5-small` zero-shot — 0,208.** the attraction, at Fancesa limestone quarry in Sucre, is the result of tectonic activity forcing earth upwards. it comprises some 462 trails made up of 5,055 prints - and frequent landslides reveal new ones […]
+
+> **`t5-small` fine-tuné, 100 % — 0,254.** The attraction, at Fancesa limestone quarry in Sucre, Bolivia, comprises some 462 trails made up of 5,055 prints. The wall, which is the largest dinosaur trackway in the world, is approximately 390 feet (120 metres) tall […]
+
+Trois comportements. Le from scratch a appris la forme d'une phrase anglaise et rien d'autre : la syntaxe tient, les mots sont parfois inventés — « satatats » —, la répétition passe sous le `no_repeat_ngram_size` parce qu'elle ne répète pas exactement un trigramme, et aucun fait de l'article n'apparaît. Le zero-shot reprend de vraies phrases de l'article, en minuscules et sans les resserrer. Le fine-tuné dit la même chose, capitalisée et raccourcie.
+
+**Le fine-tuning apprend le format, pas le contenu.** Le tableau ci-dessous compte les prédictions commençant par une minuscule : 71 % en zero-shot, moins de 1 % dès le premier fine-tunage. Le contenu, lui, ne bouge pas, et c'est ce qui explique que ROUGE ne gagne que 0,016 entre les deux.
 
 <!-- syntra:begin capitalisation -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-Aucun run complet n'a écrit de prédictions : la table est vide.
+| Modèle | Prédictions commençant par une minuscule |
+| --- | --- |
+| `pretrained_ft_10` | 0,8 % |
+| `pretrained_ft_50` | 0,5 % |
+| `pretrained_ft_100` | 0,3 % |
+| `scratch_10` | 16,6 % |
+| `scratch_50` | 63,4 % |
+| `scratch_100` | 30,0 % |
+| `scratch_100_layers2` | 50,9 % |
+| `scratch_100_layers6` | 13,1 % |
+| `pretrained_zero_shot` | 71,0 % |
+| Références | 0,0 % |
 <!-- syntra:end capitalisation -->
+
+Les chiffres du from scratch ne se lisent pas de la même façon : ses 30 % de minuscules ne sont pas un progrès sur le zero-shot, mais le hasard d'un modèle qui commence ses phrases n'importe où.
 
 ## 7. Traçage et magasin de modèles
 
@@ -258,7 +315,9 @@ Chaque configuration n'est entraînée que sous une graine, 42. Les intervalles 
 
 La profondeur est la seule grandeur d'architecture explorée. La largeur `d_model` et la taille du vocabulaire, que la section 2 désigne comme le levier plus probable, n'ont pas été balayées faute de budget de calcul.
 
-Les limites qui se lisent sur les résultats seront écrites avec eux.
+**Le from scratch produit un texte vide de contenu, et ROUGE le note quand même.** Ses 0,1492 viennent de mots fréquents tombés au bon endroit, pas de faits repris de l'article : la section 6 le montre sur un exemple, et le taux de prédictions commençant par une minuscule le confirme sur les mille. L'écart réel entre les deux familles est donc plus grand que celui des scores.
+
+**La taille de corpus qui rendrait le from scratch compétitif est extrapolée, pas mesurée.** Elle prolonge trois points sur deux ordres de grandeur : elle situe, elle ne prédit pas.
 
 ## Pour reproduire
 

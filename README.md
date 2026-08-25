@@ -297,20 +297,20 @@ Toutes les cibles de la chaîne ML sont opérationnelles, `make reproduce` compr
 
 ## Résultats
 
-Le tableau ci-dessous est régénéré depuis les enregistrements de runs et porte `NOT_RUN` tant que la campagne n'a pas écrit.
+Campagne du 25 août 2026 : neuf expériences, toutes `OK`, 2 h 43 de GPU. Le tableau est régénéré depuis les enregistrements de runs, et la lecture des résultats est en section 5 du [rapport](RAPPORT.md).
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
-| Modèle | Corpus | ROUGE-L | IC 95 % | Statut |
-| --- | --- | --- | --- | --- |
-| `t5-small` fine-tuné | 10 % |  |  | `NOT_RUN` |
-| `t5-small` fine-tuné | 100 % |  |  | `NOT_RUN` |
-| `t5-small` fine-tuné | 50 % |  |  | `NOT_RUN` |
-| `t5-small` zero-shot | sans objet |  |  | `NOT_RUN` |
-| from scratch | 10 % |  |  | `NOT_RUN` |
-| from scratch | 100 % |  |  | `NOT_RUN` |
-| from scratch | 50 % |  |  | `NOT_RUN` |
+| Modèle | Corpus | ROUGE-L | IC 95 % |
+| --- | --- | --- | --- |
+| `t5-small` fine-tuné | 100 % | **0,2914** | [0,2838, 0,2994] |
+| `t5-small` fine-tuné | 50 % | 0,2896 | [0,2818, 0,2975] |
+| `t5-small` fine-tuné | 10 % | 0,2861 | [0,2777, 0,2939] |
+| `t5-small` zero-shot | sans objet | 0,2751 | [0,2672, 0,2829] |
+| from scratch | 100 % | 0,1492 | [0,1462, 0,1523] |
+| from scratch | 50 % | 0,1234 | [0,1206, 0,1263] |
+| from scratch | 10 % | 0,0837 | [0,0812, 0,0861] |
 <!-- syntra:end headline -->
 
 Les quatre mesures `t5-small` sont prises sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`, et le corpus sous `dataset_version = 00c0ee4e` : les deux voyagent dans chaque enregistrement de run.

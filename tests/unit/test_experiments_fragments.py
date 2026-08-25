@@ -29,6 +29,7 @@ from src.experiments.fragments import (
     HEADLINE_FRAGMENT,
     ARCHITECTURE_REGION,
     CAPITALISATION_REGION,
+    DATASET_SIZE_REGION,
     FAMILIES_REGION,
     HEADLINE_REGION,
     METRICS_FRAGMENT,
@@ -61,6 +62,14 @@ from src.experiments.record import (
 from src.experiments.registry import collect
 
 pytestmark = pytest.mark.unit
+
+#: Les regions que le rapport reserve, dans l'ordre ou il les porte.
+REPORT_REGIONS = (
+    DATASET_SIZE_REGION,
+    FAMILIES_REGION,
+    ARCHITECTURE_REGION,
+    CAPITALISATION_REGION,
+)
 
 
 def declare(directory: Path, name: str, **overrides: Any) -> Path:
@@ -185,12 +194,12 @@ def readme_at(directory: Path) -> Path:
 
 
 def report_at(directory: Path) -> Path:
-    """Return a page carrying the three report markers, writing the stub if absent."""
+    """Return a page carrying every report marker, writing the stub if absent."""
     path = directory / "RAPPORT.md"
     if not path.is_file():
         markers = "\n\n".join(
             f"{REGION_BEGIN.format(name=name)}\n{REGION_END.format(name=name)}"
-            for name in (FAMILIES_REGION, ARCHITECTURE_REGION, CAPITALISATION_REGION)
+            for name in REPORT_REGIONS
         )
         path.write_text(
             f"# Rapport\n\nCe qui précède les tableaux.\n\n{markers}\n\nCe qui les suit.\n",
@@ -380,7 +389,7 @@ def test_every_fragment_says_it_is_generated(tmp_path: Path) -> None:
     assert rendered[readme].startswith("# Titre")
     assert f"{REGION_BEGIN.format(name=HEADLINE_REGION)}\n{BANNER}" in rendered[readme]
     assert rendered[report].startswith("# Rapport")
-    for name in (FAMILIES_REGION, ARCHITECTURE_REGION, CAPITALISATION_REGION):
+    for name in REPORT_REGIONS:
         assert f"{REGION_BEGIN.format(name=name)}\n{BANNER}" in rendered[report]
 
 
