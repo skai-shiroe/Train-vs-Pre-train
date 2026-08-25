@@ -121,7 +121,8 @@ QUICK_MAX_NEW_TOKENS = 16
 QUICK_BOOTSTRAP_SAMPLES = 50
 
 #: Where the published figures are copied for the documentation, alongside
-#: ``reports/figures``. The Makefile draws them twice for the same reason.
+#: ``reports/figures``. A full run is what draws both: ``make figures`` writes
+#: the copy the report reads, the only one the repository tracks.
 DOCS_FIGURES_DIR = Path("docs") / "assets" / "figures"
 
 #: Root of everything a quick run writes. One directory, outside every path the
