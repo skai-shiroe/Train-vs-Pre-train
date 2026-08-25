@@ -14,7 +14,7 @@ experiment:
   description: t5-small fine-tune sur 10 pour cent du corpus de travail.
 
 dataset:
-  config: configs/data/xsum.yaml
+  config: configs/data/cnn_dailymail.yaml
   percentage: 10
 
 model:
@@ -46,7 +46,7 @@ training:
 evaluation:
   split: test
   batch_size: 8
-  max_new_tokens: 64
+  max_new_tokens: 128
   min_new_tokens: 0
   num_beams: 4
   no_repeat_ngram_size: 3

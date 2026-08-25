@@ -1,0 +1,14 @@
+# Outillage de test et de linting. Reflet du groupe
+# [project.optional-dependencies] dev de pyproject.toml, verrouille par
+# tests/unit/test_requirements.py.
+#
+# Versions exactes et non des plages : un seuil de couverture et des marqueurs
+# stricts se comportent autrement d'une version de pytest a l'autre, une regle
+# de ruff apparait d'une version a l'autre, et un echec doit venir du code, pas
+# de l'outil qui le mesure.
+
+-r requirements.txt
+
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.16.4

@@ -8,6 +8,7 @@ import torch
 from src.utils.device import (
     VALID_DEVICES,
     describe_hardware,
+    release_accelerator,
     resolve_device,
     supports_mixed_precision,
 )
@@ -59,3 +60,35 @@ def test_hardware_summary_is_flat_and_serialisable() -> None:
     assert summary["torch_version"] == torch.__version__
     assert set(summary) >= {"torch_version", "cuda_available"}
     assert all(isinstance(value, str) for value in summary.values())
+
+
+@pytest.mark.unit
+def test_releasing_the_accelerator_is_safe_without_cuda() -> None:
+    """The campaign calls this after every experiment, GPU or not.
+
+    A chain that only ran on the reference machine would break the moment it
+    was replayed on a laptop without CUDA, and the failure would land in the
+    middle of a campaign rather than at its first line.
+    """
+    release_accelerator()
+    release_accelerator()
+
+
+@pytest.mark.unit
+@pytest.mark.gpu
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="demande un GPU CUDA")
+def test_releasing_the_accelerator_returns_reserved_memory() -> None:
+    """What the caching allocator holds must go back before the next run.
+
+    Nine experiments share one process. Without this, what the earlier ones
+    reserved is still held when a later one builds its model, and the card of
+    the reference machine fails on a driver level out of memory although each
+    experiment fits by itself.
+    """
+    block = torch.empty(256 * 1024 * 1024 // 4, dtype=torch.float32, device="cuda")
+    del block
+    reserved_before = torch.cuda.memory_reserved()
+
+    release_accelerator()
+
+    assert torch.cuda.memory_reserved() < reserved_before

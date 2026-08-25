@@ -60,7 +60,7 @@ def record(name: str) -> RunRecord:
         experiment=name,
         status=STATUS_OK,
         config={"experiment": {"name": name, "seed": 42}, "model": {"type": "scratch"}},
-        dataset={"config": "configs/data/xsum.yaml", "version": "abc"},
+        dataset={"config": "configs/data/cnn_dailymail.yaml", "version": "abc"},
         model={"model": "scratch"},
         hardware={},
         provenance={"git_commit": "deadbeef"},

@@ -24,6 +24,7 @@ from src.experiments.config import (
     ExperimentConfig,
     PretrainedModelConfig,
     ScratchModelConfig,
+    campaign_order,
     discover_experiments,
     iter_experiment_files,
     load_experiment_config,
@@ -37,7 +38,7 @@ def scratch_payload(**overrides: Any) -> dict[str, Any]:
     """Return a valid from scratch experiment, with optional overrides."""
     payload: dict[str, Any] = {
         "experiment": {"name": "scratch_test", "seed": 7, "studies": ["dataset_size"]},
-        "dataset": {"config": "configs/data/xsum.yaml", "percentage": 10},
+        "dataset": {"config": "configs/data/cnn_dailymail.yaml", "percentage": 10},
         "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
         "training": {"epochs": 1, "batch_size": 2},
     }
@@ -49,7 +50,7 @@ def zero_shot_payload(**overrides: Any) -> dict[str, Any]:
     """Return a valid zero shot experiment, with optional overrides."""
     payload: dict[str, Any] = {
         "experiment": {"name": "zero_shot_test"},
-        "dataset": {"config": "configs/data/xsum.yaml"},
+        "dataset": {"config": "configs/data/cnn_dailymail.yaml"},
         "model": {"type": "pretrained", "baseline": "t5", "mode": "zero_shot"},
     }
     payload.update(overrides)
@@ -100,7 +101,9 @@ def test_the_seed_is_refused_even_when_it_agrees() -> None:
 
 
 def test_a_zero_shot_run_cannot_declare_a_proportion() -> None:
-    payload = zero_shot_payload(dataset={"config": "configs/data/xsum.yaml", "percentage": 10})
+    payload = zero_shot_payload(
+        dataset={"config": "configs/data/cnn_dailymail.yaml", "percentage": 10}
+    )
 
     with pytest.raises(ValueError, match="does not depend on the training corpus size"):
         ExperimentConfig.model_validate(payload)
@@ -127,7 +130,7 @@ def test_a_zero_shot_run_is_valid_without_either() -> None:
 
 
 def test_a_trained_run_without_a_proportion_is_refused() -> None:
-    payload = scratch_payload(dataset={"config": "configs/data/xsum.yaml"})
+    payload = scratch_payload(dataset={"config": "configs/data/cnn_dailymail.yaml"})
 
     with pytest.raises(ValueError, match="declares no corpus"):
         ExperimentConfig.model_validate(payload)
@@ -316,6 +319,54 @@ def test_an_empty_directory_declares_nothing(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# The order a campaign runs in
+# ---------------------------------------------------------------------------
+
+
+def test_a_campaign_trains_from_scratch_before_touching_the_baseline() -> None:
+    scratch = ExperimentConfig.model_validate(scratch_payload())
+    zero_shot = ExperimentConfig.model_validate(zero_shot_payload())
+    fine_tuned = ExperimentConfig.model_validate(
+        {
+            "experiment": {"name": "pretrained_ft_10"},
+            "dataset": {"percentage": 10},
+            "model": {"type": "pretrained", "mode": "fine_tuned"},
+            "training": {"epochs": 1, "batch_size": 2},
+        }
+    )
+
+    ordered = campaign_order([fine_tuned, zero_shot, scratch])
+
+    assert [config.variant for config in ordered] == [
+        SCRATCH,
+        PRETRAINED_ZERO_SHOT,
+        PRETRAINED_FINE_TUNED,
+    ]
+
+
+def test_a_family_is_ordered_by_growing_corpus_proportion() -> None:
+    configs = [
+        ExperimentConfig.model_validate(
+            scratch_payload(
+                experiment={"name": f"scratch_{percentage}", "studies": ["dataset_size"]},
+                dataset={"percentage": percentage},
+            )
+        )
+        for percentage in (100, 10, 50)
+    ]
+
+    assert [config.dataset.percentage for config in campaign_order(configs)] == [10, 50, 100]
+
+
+def test_the_campaign_order_does_not_depend_on_the_order_the_files_were_read() -> None:
+    # The order has to be a property of the experiments, not of the directory
+    # listing: a campaign resumed on another machine runs the same sweep.
+    declared = discover_experiments(DEFAULT_EXPERIMENTS_DIR)
+
+    assert campaign_order(reversed(declared)) == campaign_order(declared)
+
+
+# ---------------------------------------------------------------------------
 # The experiments the repository actually declares
 # ---------------------------------------------------------------------------
 
@@ -334,6 +385,22 @@ def test_every_declared_experiment_validates() -> None:
         "pretrained_ft_50",
         "pretrained_ft_100",
     }
+
+
+def test_the_declared_campaign_opens_on_the_from_scratch_family() -> None:
+    ordered = campaign_order(discover_experiments(DEFAULT_EXPERIMENTS_DIR))
+
+    assert [config.name for config in ordered] == [
+        "scratch_10",
+        "scratch_50",
+        "scratch_100",
+        "scratch_100_layers2",
+        "scratch_100_layers6",
+        "pretrained_zero_shot",
+        "pretrained_ft_10",
+        "pretrained_ft_50",
+        "pretrained_ft_100",
+    ]
 
 
 def test_the_corpus_size_ablation_has_one_zero_shot_point() -> None:

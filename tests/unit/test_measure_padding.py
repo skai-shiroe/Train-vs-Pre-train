@@ -75,7 +75,7 @@ def test_the_table_reports_the_measurement() -> None:
 def test_the_defaults_point_at_the_frozen_corpus() -> None:
     args = parse_args([])
 
-    assert args.processed_dir == Path("data/processed/xsum")
+    assert args.processed_dir == Path("data/processed/cnn_dailymail")
     assert args.split == "test"
     assert args.limit == 256
 

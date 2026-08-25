@@ -352,6 +352,34 @@ def test_a_full_sweep_runs_the_declared_experiment_as_declared(
     assert call["config"] == declared
 
 
+def test_a_full_sweep_trains_from_scratch_before_the_baseline(
+    offline_sweep: Callable[..., Sweep],
+) -> None:
+    # The files are discovered in name order, which opens on the fine tunes.
+    # A sweep interrupted halfway must leave the family the comparison is
+    # anchored on measured, not three fine tunes with nothing to compare them
+    # to.
+    fine_tuned = ExperimentConfig.model_validate(
+        {
+            "experiment": {"name": "pretrained_ft_10"},
+            "dataset": {"percentage": 10},
+            "model": {"type": "pretrained", "mode": "fine_tuned"},
+            "training": {"epochs": 1, "batch_size": 2},
+        }
+    )
+    sweep = offline_sweep(
+        configs=[fine_tuned, zero_shot_config(), scratch_config()], status=STATUS_OK
+    )
+
+    run_experiments(Settings(mode=MODE_FULL))
+
+    assert [call["config"].name for call in sweep.calls] == [
+        "scratch_10",
+        "pretrained_zero_shot",
+        "pretrained_ft_10",
+    ]
+
+
 def test_a_failed_experiment_fails_the_step_and_names_itself(
     offline_sweep: Callable[..., Sweep],
 ) -> None:

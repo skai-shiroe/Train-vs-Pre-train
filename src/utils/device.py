@@ -8,6 +8,8 @@ reports.
 
 from __future__ import annotations
 
+import gc
+
 import torch
 
 VALID_DEVICES = ("auto", "cpu", "cuda")
@@ -77,3 +79,27 @@ def describe_hardware() -> dict[str, str]:
         major, minor = torch.cuda.get_device_capability(0)
         summary["gpu_capability"] = f"sm_{major}{minor}"
     return summary
+
+
+def release_accelerator() -> None:
+    """Give the GPU memory of a finished run back to the driver.
+
+    A campaign runs its experiments in one process, one after the other. Torch
+    keeps freed blocks in its caching allocator rather than returning them, so
+    what the previous experiments reserved is still held when the next one
+    builds its model. On a card with little memory the sixth run then fails on
+    a driver level ``CUDA error: out of memory`` although it fits by itself,
+    and every run after it fails the same way: that error leaves the CUDA
+    context unusable for the rest of the process.
+
+    Collecting first matters. A model, its optimiser and its scheduler
+    reference each other, so the cycle collector is what drops them; without
+    it, ``empty_cache`` returns blocks that are still owned and frees almost
+    nothing.
+
+    This is a no-op without CUDA.
+    """
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()

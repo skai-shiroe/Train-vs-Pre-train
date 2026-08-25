@@ -14,22 +14,38 @@ from src.data.config import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-XSUM_CONFIG = REPO_ROOT / "configs" / "data" / "xsum.yaml"
+CORPUS_CONFIG = REPO_ROOT / "configs" / "data" / "cnn_dailymail.yaml"
 
 
 @pytest.mark.unit
-def test_the_shipped_xsum_configuration_is_valid() -> None:
-    config = load_pipeline_config(XSUM_CONFIG)
+def test_the_shipped_cnn_dailymail_configuration_is_valid() -> None:
+    config = load_pipeline_config(CORPUS_CONFIG)
 
-    assert config.name == "xsum"
-    assert config.dataset.hf_id == "EdinburghNLP/xsum"
+    assert config.name == "cnn_dailymail"
+    assert config.dataset.hf_id == "abisee/cnn_dailymail"
     assert config.tokenizer.hf_id == "t5-small"
     assert config.working_corpus.seed == 42
 
 
 @pytest.mark.unit
+def test_the_dataset_configuration_name_is_pinned() -> None:
+    """The hub publishes three versions of the corpus under one identifier.
+
+    Only 3.0.0 is the non anonymised version the summarisation literature
+    reports against. Leaving the field empty would let the hub choose, and a
+    silent switch to an anonymised variant would change every score without
+    changing a line of this repository.
+    """
+    config = load_pipeline_config(CORPUS_CONFIG)
+
+    assert config.dataset.hf_config == "3.0.0"
+    assert config.dataset.source_column == "article"
+    assert config.dataset.target_column == "highlights"
+
+
+@pytest.mark.unit
 def test_the_shipped_configuration_matches_the_locked_decisions() -> None:
-    config = load_pipeline_config(XSUM_CONFIG)
+    config = load_pipeline_config(CORPUS_CONFIG)
 
     assert config.working_corpus.train_size == 20000
     assert config.working_corpus.validation_size == 1000

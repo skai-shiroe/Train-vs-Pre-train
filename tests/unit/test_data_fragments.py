@@ -49,10 +49,10 @@ pytestmark = pytest.mark.unit
 def manifest_payload(**overrides: Any) -> dict[str, Any]:
     """Return a corpus manifest shaped like the one ``make data`` writes."""
     payload: dict[str, Any] = {
-        "name": "xsum",
+        "name": "cnn_dailymail",
         "seed": 42,
         "tokenizer": "t5-small",
-        "source_dataset": "EdinburghNLP/xsum",
+        "source_dataset": "abisee/cnn_dailymail",
         "dataset_version": "aaaa1111",
         "splits": {"train": 200, "validation": 10, "test": 10},
         "split_checksums": {"train": "bbbb2222", "validation": "cccc3333", "test": "dddd4444"},
@@ -342,14 +342,15 @@ def test_main_writes_the_fragments(tmp_path: Path) -> None:
     """The command puts on disk exactly what build renders."""
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
+    report = report_at(tmp_path)
 
     exit_code = main(
-        ["--processed", str(processed), "--output", str(output), "--report", str(report_at(tmp_path))]
+        ["--processed", str(processed), "--output", str(output), "--report", str(report)]
     )
 
     assert exit_code == 0
     assert (output / STATISTICS_FRAGMENT).is_file()
-    assert stale(build(processed_dir=processed, output_dir=output, report=report_at(tmp_path))) == []
+    assert stale(build(processed_dir=processed, output_dir=output, report=report)) == []
 
 
 def test_main_reports_up_to_date_fragments(tmp_path: Path) -> None:

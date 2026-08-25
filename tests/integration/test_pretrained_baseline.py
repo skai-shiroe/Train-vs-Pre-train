@@ -7,7 +7,7 @@ shared, and that fine tuning the baseline runs through the same training loop as
 the from scratch model.
 
 Nothing here reports a score. The corpus is a handful of hand written
-paragraphs, and any number measured on it would say nothing about XSum.
+paragraphs, and any number measured on it would say nothing about CNN/DailyMail.
 """
 
 from __future__ import annotations

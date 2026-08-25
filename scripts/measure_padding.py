@@ -14,7 +14,7 @@ grouped    what src.training.sampler.LengthGroupedSampler produces
 Run it against the frozen corpus:
 
 ```bash
-python -m scripts.measure_padding --processed-dir data/processed/xsum
+python -m scripts.measure_padding --processed-dir data/processed/cnn_dailymail
 ```
 
 The padding figures behind the batching decision come from this command. Nothing
@@ -159,13 +159,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--processed-dir",
         type=Path,
-        default=Path("data/processed/xsum"),
+        default=Path("data/processed/cnn_dailymail"),
         help="Directory holding the frozen corpus.",
     )
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/data/xsum.yaml"),
+        default=Path("configs/data/cnn_dailymail.yaml"),
         help="Data pipeline configuration, read for the tokeniser and the truncation.",
     )
     parser.add_argument("--split", default="test", help="Split to measure.")

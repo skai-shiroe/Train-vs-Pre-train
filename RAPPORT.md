@@ -2,59 +2,88 @@
 
 Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis le comparer à un modèle pré-entraîné de référence sur les mêmes données de test.
 
-Les chiffres viennent de la campagne des 8 et 9 août 2026.
-
 | Exigence | Ce qui a été fait |
 | --- | --- |
 | Transformer encodeur-décodeur from scratch | Écrit composant par composant en PyTorch, 15,6 M paramètres, entraîné sur 10 %, 50 % et 100 % du corpus |
 | Modèle pré-entraîné, zero-shot puis fine-tuné | `t5-small`, 60,5 M paramètres, une mesure zero-shot et trois fine-tunages |
 | Ablation sur la taille du corpus | Sept runs, sous-ensembles emboîtés, budget d'époques constant |
+| Ablation d'architecture | Trois profondeurs, 2, 4 et 6 couches, tout le reste identique |
 | Métrique et analyse qualitative | ROUGE-1, ROUGE-2, ROUGE-L avec intervalles bootstrap à 95 %, plus une sélection d'exemples par run |
-
-La campagne compte 9 expériences déclarées et 9 runs complets, aucun échec, pour 125 minutes de calcul cumulé sur une RTX 5060 Laptop sous `torch 2.13.0+cu130`. Chaque score est mesuré sur les mêmes 1 000 documents de test.
 
 L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
+> **État.** Corpus figé, `dataset_version = 00c0ee4e`. La campagne a rendu ses neuf expériences, toutes `OK`, en 2 h 43 de GPU.
+
 ## 1. Le corpus
 
-Le corpus de travail est un tirage figé de 22 000 exemples de **XSum** sous graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais les 204 045 de XSum complet.
+Le corpus de travail est un tirage figé de 22 000 exemples de **CNN/DailyMail**, configuration `3.0.0`, sous graine 42 : 20 000 pour l'entraînement, 1 000 pour la validation, 1 000 pour le test. Le « 100 % » des ablations désigne ces 20 000 exemples, jamais les 287 113 exemples d'entraînement du corpus complet.
 
-La validation du corpus ne relève aucun champ vide, aucun identifiant dupliqué, et aucun document partagé entre les trois splits. Deux documents apparaissent deux fois dans l'entraînement, et un exemple porte un résumé plus long que son document. J'ai gardé les trois : nettoyer en silence le corpus de référence aurait rendu les scores incomparables avec la littérature XSum, ce qui coûte plus cher que trois exemples douteux sur 20 000.
+La configuration `3.0.0` est épinglée. Le hub publie trois versions sous le même identifiant et seule celle-ci laisse les entités nommées en clair ; ne pas la fixer laisserait un score changer sans qu'une ligne du dépôt bouge.
 
-Les sous-ensembles d'ablation sont emboîtés, 10 % préfixe de 50 %, lui-même préfixe de 100 %, vérifié par comparaison des identifiants. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.
+### Pourquoi un sous-ensemble, et pourquoi tiré
+
+Le projet compare deux familles de modèles sur les mêmes données ; il ne cherche pas à égaler un score publié. La comparaison exige que les deux familles voient exactement le même corpus, elle n'exige pas que ce corpus soit tout ce qui est disponible.
+
+Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des neuf expériences avec lui. Ce que cette dépense achèterait est mesurable : à 20 000 exemples, le modèle from scratch voit environ 9,9 millions de tokens source, soit à peu près 3 400 fois moins que ce que `t5-small` a vu en pré-entraînement ; à 287 113 exemples il en verrait 141 millions, soit 240 fois moins. L'écart change d'amplitude, pas de nature, et la conclusion qu'il porte non plus.
+
+Ce choix a une limite, et elle porte sur un résultat précis. La couverture du vocabulaire (la part des entrées du tokenizer que le corpus permet d'apprendre, section 4) est la seule grandeur du rapport qui dépende du nombre d'exemples plutôt que de la nature du corpus. Elle vaut 76,0 % ici, et la part de paramètres jamais mis à jour 12,5 %. La dépendance existe, mais la loi de Zipf la rend logarithmique : porter le corpus à 30 000 exemples ne déplace la couverture que de 76,0 % à 77,0 %, et les paramètres morts de 12,5 % à 12,1 %. Il faudrait un ordre de grandeur d'exemples en plus pour que la conclusion en dépende.
+
+Le tirage, lui, remplace une troncature. Garder les 20 000 premiers exemples reprendrait l'ordre du fichier amont, dont rien ne garantit qu'il soit aléatoire. La graine casse cet ordre de façon rejouable : elle est écrite dans la configuration, et les empreintes du manifeste permettent de vérifier après coup qu'on a bien le même tirage.
+
+Les trois splits reçoivent des graines dérivées, 42, 43 et 44, de sorte que changer `train_size` ne déplace ni la validation ni le test : porter l'entraînement à 30 000 exemples puis le ramener à 20 000 a laissé leurs deux empreintes identiques.
+
+La validation ne relève aucun champ vide, aucun identifiant dupliqué, aucun résumé plus long que son document, et aucun document partagé entre les trois splits. Treize documents apparaissent deux fois dans l'entraînement, soit 0,065 % de la pondération. Ce sont des dépêches republiées, et les retirer serait un nettoyage silencieux du corpus de référence.
+
+Les sous-ensembles d'ablation sont emboîtés, 10 % préfixe de 50 %, lui-même préfixe de 100 %. Tirés indépendamment, un écart entre deux points de la courbe mélangerait l'effet de la taille et celui de la composition de l'échantillon.
 
 <!-- syntra:begin statistics -->
 <!-- Généré par python -m src.data.fragments. Ne pas éditer à la main. -->
 
 | Grandeur | Entraînement | Validation | Test |
 | --- | --- | --- | --- |
-| Mots par document, médiane | 296,5 | 287,5 | 302,0 |
-| Mots par résumé, médiane | 21,0 | 21,0 | 21,0 |
-| Tokens par document, moyenne | 525,3 | 533,2 | 535,2 |
-| Tokens par document, médiane | 414,0 | 403,5 | 421,5 |
-| Tokens par document, p95 | 1 305,0 | 1 329,8 | 1 380,4 |
-| Tokens par résumé, médiane | 30,0 | 30,0 | 30,0 |
-| Tokens par résumé, p95 | 43,0 | 43,0 | 42,0 |
-| Taux de compression | 0,097 | 0,098 | 0,093 |
+| Mots par document, médiane | 634,0 | 617,0 | 637,5 |
+| Mots par résumé, médiane | 49,0 | 54,0 | 52,0 |
+| Tokens par document, moyenne | 988,5 | 965,5 | 1 000,2 |
+| Tokens par document, médiane | 899,0 | 862,5 | 892,5 |
+| Tokens par document, p95 | 1 961,1 | 1 946,8 | 2 006,1 |
+| Tokens par résumé, médiane | 70,0 | 78,0 | 75,0 |
+| Tokens par résumé, p95 | 130,0 | 145,1 | 133,1 |
+| Taux de compression | 0,091 | 0,105 | 0,095 |
 <!-- syntra:end statistics -->
 
-La compression est le trait dominant du corpus. Le résumé médian fait 30 tokens pour un document médian de 414, soit 7,2 %. À ce niveau, recopier des phrases du source ne peut pas produire un bon score : la tâche est réellement abstractive. C'est aussi pourquoi un ROUGE-L de 0,23 sur XSum ne se compare pas à un ROUGE-L publié sur CNN/DailyMail, où la référence autorise la reprise de phrases entières.
+### La tâche est extractive
 
-Reste la troncature, qui est le compromis le plus coûteux du projet.
+Le taux de compression, 9 %, ressemble à celui d'un corpus de résumé extrême. C'est un faux ami : l'article est long et la référence l'est aussi, trois à quatre phrases pour 70 tokens médians. La grandeur qui dit la tâche est la part du résumé déjà présente dans l'article.
+
+| Recouvrement résumé → article | Entraînement | Test |
+| --- | --- | --- |
+| Unigrammes | 84,5 % | 85,5 % |
+| Bigrammes | 46,5 % | 48,6 % |
+| Trigrammes | 27,4 % | 29,0 % |
+
+Cinq mots sur six du résumé figurent dans le document, et près d'un bigramme sur deux. Sélectionner et recopier les bons fragments est donc une stratégie payante, ce qui change ce qu'on doit attendre du modèle from scratch : la copie n'est pas une impasse ici, elle est une part de la solution.
+
+### La troncature
+
+C'est le compromis le plus coûteux du projet.
 
 | Plafond source | Documents coupés | Texte conservé | Coût relatif de l'encodeur |
 | --- | --- | --- | --- |
-| 256 | 74,3 % | 44,0 % | 0,25x |
-| **512** | **38,4 %** | **70,9 %** | **1,0x** |
-| 768 | 20,3 % | 84,7 % | 2,2x |
-| 1 024 | 10,8 % | 92,1 % | 4,0x |
-| 1 536 | 2,5 % | 97,8 % | 9,0x |
+| 256 | 98,6 % | 25,8 % | 0,25x |
+| **512** | **85,3 %** | **50,0 %** | **1,0x** |
+| 768 | 62,0 % | 69,1 % | 2,2x |
+| 1 024 | 39,6 % | 82,2 % | 4,0x |
+| 1 536 | 13,5 % | 94,9 % | 9,0x |
 
-À 512 tokens, 38 % des documents sont coupés et 29 % du texte source est perdu. Passer à 1 024 en récupérerait 21 points, pour quatre fois le coût de l'encodeur, l'attention étant quadratique. Le budget GPU disponible ne le permettait pas. Les deux familles de modèles subissent exactement la même troncature : ce qui est perdu, c'est une part du plafond atteignable, pas l'équité de la comparaison. Le plafond des cibles, 64 tokens, ne coupe que 0,42 % des résumés et est essentiellement gratuit.
+À 512 tokens, 85 % des articles sont coupés et l'encodeur ne voit que la moitié du texte source. L'attention coûte le carré de la longueur : passer à 1 024 pour récupérer 32 points multiplierait par quatre le coût de l'encodeur, ce que le budget d'une carte portable de 8 Go ne permet pas. C'est aussi le budget d'encodage de la littérature T5 sur ce corpus ; les travaux qui vont à 1 024 le font sur BART ou PEGASUS.
+
+Les deux familles de modèles subissent exactement la même troncature, donc la comparaison reste équitable : ce qui est perdu est une part du plafond atteignable, pas l'équité. Et l'article de presse est écrit en pyramide inversée, l'essentiel d'abord, les puces de highlights suivant cet ordre : couper la queue coûte moins que « la moitié du texte » ne le laisse craindre.
+
+Le plafond des cibles, 128 tokens, coupe 5,3 % des résumés et suit le p95 mesuré à 130. Un plafond de 64 tokens, celui qu'un corpus de résumé extrême autoriserait, en couperait 60 %.
 
 ## 2. Le Transformer from scratch
 
-`torch.nn.Transformer` existe et fonctionne. L'objet du projet est de démontrer la compréhension de l'architecture, pas d'en consommer une implémentation. Chaque bloc est donc écrit séparément, et chaque décision de conception est couverte par un test qui échouerait si elle était fausse.
+`torch.nn.Transformer` existe et fonctionne. L'objet du projet est de démontrer la compréhension de l'architecture, pas d'en consommer une implémentation. Chaque bloc est écrit séparément.
 
 ```text
 src/models/scratch/
@@ -81,15 +110,15 @@ Attention(Q, K, V) = softmax(Q Kt / sqrt(d_k)) V
 
 `Q Kt` attribue à chaque requête un score contre chaque clé, le softmax en fait une distribution, et le produit avec `V` renvoie une moyenne pondérée des valeurs.
 
-La division par `sqrt(d_k)` n'est pas cosmétique. Si les composantes de `Q` et `K` sont indépendantes, centrées et de variance unité, leur produit scalaire sur `d_k` dimensions a une variance de `d_k`. Quand `d_k` grandit, les scores s'étalent, le softmax sature et son gradient s'annule. La division ramène la variance à un.
+Si les composantes de `Q` et `K` sont indépendantes, centrées et de variance unité, leur produit scalaire sur `d_k` dimensions a une variance de `d_k`. Quand `d_k` grandit, les scores s'étalent, le softmax sature et son gradient s'annule. La division ramène la variance à un.
 
-L'attention multi-têtes n'instancie pas `h` petites projections mais quatre projections larges, `W_Q`, `W_K`, `W_V` et `W_O`, toutes de `d_model` vers `d_model`, initialisées en Xavier uniforme avec des biais nuls. Le découpage en têtes est une opération de forme : le tenseur passe de `(2, seq, 256)` à `(2, 8, seq, 32)` par une vue et une transposition, l'attention s'applique tête par tête, puis le chemin inverse recompose `(2, seq, 256)` avant `W_O`. Les 32 dimensions par tête sont le `d_k` de la formule, et le coût total égale celui d'une tête unique de largeur `d_model`.
+L'attention multi-têtes n'instancie pas `h` petites projections mais quatre projections larges, `W_Q`, `W_K`, `W_V` et `W_O`, toutes de `d_model` vers `d_model`, initialisées en Xavier uniforme avec des biais nuls. Le découpage en têtes est une opération de forme : le tenseur passe de `(2, seq, 256)` à `(2, 8, seq, 32)` par une vue et une transposition, l'attention s'applique tête par tête, puis le chemin inverse recompose `(2, seq, 256)` avant `W_O`.
 
 ### Les masques
 
 Le masque de padding empêche le modèle de lire le remplissage ; sans lui, les prédictions dépendraient de la composition du lot. Le masque causal empêche la position `t` de voir les positions suivantes pendant le teacher forcing ; sans lui, le modèle lit la réponse qu'on lui demande de prédire, la perte s'effondre et la génération reste aléatoire.
 
-Un détail d'implémentation mérite d'être signalé : les positions interdites reçoivent la plus petite valeur finie du type, et non moins l'infini. Sur une séquence entièrement remplie de padding, moins l'infini donne une ligne de zéros divisée par zéro, donc des NaN. Un test couvre ce cas précis, parce qu'il ne se déclenche pas sur un lot ordinaire.
+Les positions interdites reçoivent la plus petite valeur finie du type, et non moins l'infini. Sur une séquence entièrement remplie de padding, moins l'infini donne une ligne de zéros divisée par zéro, donc des NaN. Un test couvre ce cas, qui ne se déclenche pas sur un lot ordinaire.
 
 ### Pre-norm plutôt que post-norm
 
@@ -98,7 +127,7 @@ post-norm  x = LayerNorm(x + Sublayer(x))     article original
 pre-norm   x = x + Sublayer(LayerNorm(x))     défaut du projet
 ```
 
-Le pre-norm laisse le chemin résiduel libre de toute normalisation, donc le gradient atteint la première couche sans distorsion, et il s'entraîne sans le long warmup que le post-norm réclame. Pour un modèle entraîné from scratch sur un petit corpus, c'était le choix le moins risqué. Le post-norm reste accessible par `norm_first: false`, et les deux dispositions sont couvertes par les tests.
+Le pre-norm laisse le chemin résiduel libre de toute normalisation, donc le gradient atteint la première couche sans distorsion, et il s'entraîne sans le long warmup que le post-norm réclame. Le post-norm reste accessible par `norm_first: false`, et les deux dispositions sont couvertes par les tests.
 
 ### La configuration retenue et son coût
 
@@ -115,15 +144,21 @@ encoder_layers: 4     decoder_layers: 4    norm_first: true
 | Encodeur, 4 couches | 3 159 552 | 20,3 % |
 | **Total** | **15 591 424** | **100 %** |
 
-Une seule table sert l'encodeur, le décodeur et la projection de sortie. Elle est créée en premier et passée aux deux tours, pas recréée dans chacune : `encoder.embedding` et `decoder.embedding` sont le même objet en mémoire, et `decoder.output_projection.weight is embedding.weight` vaut `True`. L'attachement économise `vocab_size * d_model` paramètres, soit 15 591 424 au lieu de 23 809 024, et régularise un modèle entraîné sur peu de données en forçant les vues d'entrée et de sortie d'un token à s'accorder.
+Une seule table sert l'encodeur, le décodeur et la projection de sortie : `encoder.embedding` et `decoder.embedding` sont le même objet en mémoire, et `decoder.output_projection.weight is embedding.weight` vaut `True`. L'attachement économise `vocab_size * d_model` paramètres, 15 591 424 au lieu de 23 809 024, et force la vue d'entrée et la vue de sortie d'un token à s'accorder.
 
-Ce tableau est le fait le plus important du modèle from scratch. La table d'embedding pèse plus que l'encodeur et le décodeur réunis, et le corpus ne permet pas de l'apprendre : sur les 32 100 entrées du tokenizer, 23 458 apparaissent au moins une fois, soit 73 %. Les 8 642 restantes représentent 2 212 352 paramètres, 14,2 % du modèle, qui ne reçoivent jamais le moindre gradient. La concentration aggrave le constat : 50 % des occurrences tiennent dans 100 types, et il faut 14 510 types pour couvrir 99 % du texte.
+### Le vocabulaire décide plus que la profondeur
+
+Sur les 32 100 entrées du tokenizer, 24 480 apparaissent au moins une fois dans les 21,3 millions d'occurrences du corpus d'entraînement, soit 76 %. Les 7 620 restantes représentent 1 950 720 paramètres, **12,5 % du modèle, qui ne reçoivent jamais le moindre gradient** : initialisés au hasard, sauvegardés dans chaque checkpoint, ils n'apprennent rien.
+
+La concentration aggrave le constat : 50 % des occurrences tiennent dans 92 types, et il faut 15 863 types pour couvrir 99 % du texte. Les 2 326 types vus moins de dix fois ont une ligne d'embedding mise à jour trop peu souvent pour valoir mieux que du bruit.
+
+La table pèse 69 % du modèle à 2 couches, 52,7 % à 4 et 42,6 % à 6. Faire varier la profondeur ne fait donc varier qu'une minorité des paramètres pendant que la majorité reste sous-entraînée. Un tokenizer réduit au corpus libérerait plusieurs millions de paramètres mais casserait le partage avec la baseline, donc l'équité de la comparaison.
 
 ### Ce que les tests garantissent
 
 Deux propriétés ne se voient pas sur une courbe de perte. Le décodeur ne lit pas le futur : modifier le token de l'entrée décodeur à la position `k` laisse les logits des positions antérieures strictement inchangés, et modifie ceux de la position `k` ; la seconde moitié de l'assertion compte autant que la première, sans quoi un modèle qui ignorerait entièrement son entrée passerait le test. Le padding ne change rien : ajouter du remplissage à la source laisse les logits identiques, et un masque mal diffusé fait échouer ce test alors que la perte continue de descendre.
 
-S'y ajoutent la vérification de la formule d'attention sur une entrée construite à la main, l'absence de NaN sur une ligne entièrement masquée, la reproduction de l'encodage positionnel publié position par position, l'économie exacte de `vocab_size * d_model` paramètres par l'attachement, et le surapprentissage d'un lot unique jusqu'à moins de 20 % de la perte initiale. À l'initialisation, la perte vaut 10,9 sur un lot aléatoire contre 10,4 attendus pour une distribution uniforme sur 32 100 classes : c'est le contrôle le moins cher du projet, et une valeur très éloignée signale un câblage défectueux avant le premier entraînement.
+S'y ajoutent la vérification de la formule d'attention sur une entrée construite à la main, l'absence de NaN sur une ligne entièrement masquée, la reproduction de l'encodage positionnel publié position par position, l'économie exacte de `vocab_size * d_model` paramètres par l'attachement, et le surapprentissage d'un lot unique jusqu'à moins de 20 % de la perte initiale. À l'initialisation, la perte vaut environ 10,9 sur un lot aléatoire contre 10,4 attendus pour une distribution uniforme sur 32 100 classes : une valeur très éloignée signale un câblage défectueux avant le premier entraînement.
 
 ## 3. La baseline pré-entraînée
 
@@ -131,13 +166,15 @@ S'y ajoutent la vérification de la formule d'attention sur une entrée construi
 
 Les deux familles partagent le tokenizer, le corpus, le chargeur, la boucle d'entraînement, le décodage et la métrique. Le modèle zero-shot saute l'étape d'entraînement parce que ses poids ne bougent pas, pas parce qu'il emprunte un autre chemin.
 
-Les quatre mesures sont prises sous la révision `df1b051c49625cf57a3d0d8d3863ed4d13564fe4` de `t5-small`. Ce n'était pas le cas de la première série : les poids fine-tunés sont les nôtres, mais l'architecture dans laquelle ils sont chargés vient du hub, et sans révision fixée elle peut changer sans que rien ne change dans le dépôt. J'ai épinglé la révision et rejoué les quatre runs le 9 août plutôt que de garder des chiffres qu'un tiers n'aurait pas pu retrouver.
+Les quatre mesures sont prises sous la révision `df1b051c49625cf57a3d0d8d3863ed4d13564fe4` de `t5-small`. Les poids fine-tunés sont les nôtres, mais l'architecture dans laquelle ils sont chargés vient du hub, et sans révision fixée elle peut changer sans que rien ne change dans le dépôt.
 
 ## 4. Protocole d'évaluation
 
-Le bloc d'évaluation est identique dans les neuf fichiers d'expérience : `num_beams` 4, `max_new_tokens` 64, `no_repeat_ngram_size` 3, 1 000 rééchantillonnages bootstrap à 95 %. Quatre règles encadrent la mesure.
+Le bloc d'évaluation est identique dans les neuf fichiers d'expérience : `num_beams` 4, `max_new_tokens` 128, `no_repeat_ngram_size` 3, 1 000 rééchantillonnages bootstrap à 95 %. Le budget de décodage suit le plafond des cibles, lui-même posé sur le p95 des références mesuré section 1.
 
-Une prédiction vide vaut zéro et reste dans la moyenne. Retirer les documents sur lesquels un modèle a échoué relèverait sa moyenne pour avoir échoué. Le compte des prédictions vides est reporté à côté du score, ce qui sépare un score faible d'un modèle cassé ; aucun des neuf modèles n'en a produit.
+**ROUGE-L, pas ROUGE-Lsum.** `rougeLsum` découpe la référence sur ses sauts de ligne et apparie chaque phrase séparément ; ROUGE-L exige une seule sous-séquence traversant toute la paire. Sur une référence de trois à quatre phrases, la seconde mesure est nettement plus sévère, et les chiffres publiés sur CNN/DailyMail sont des ROUGE-Lsum. **Aucun chiffre de ce rapport ne s'y compare.** Toutes les comparaisons faites ici sont internes : même métrique, même jeu de test, pour tous les modèles.
+
+Une prédiction vide vaut zéro et reste dans la moyenne. Retirer les documents sur lesquels un modèle a échoué relèverait sa moyenne pour avoir échoué. Le compte des prédictions vides est reporté à côté du score, ce qui sépare un score faible d'un modèle cassé.
 
 Chaque score porte un intervalle bootstrap à 95 %, calculé sous la graine du run. Sans lui, un écart de deux millièmes se lit comme un classement.
 
@@ -147,21 +184,25 @@ Des runs mesurés différemment ne sont pas mis dans un même tableau ni sur une
 
 ## 5. Résultats
 
-| Expérience | ROUGE-1 | ROUGE-2 | ROUGE-L | IC 95 % sur ROUGE-L |
+### Zero-shot, puis fine-tuné
+
+<!-- syntra:begin dataset_size -->
+<!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
+
+| Variante | Corpus | Exemples | ROUGE-L | IC 95 % |
 | --- | --- | --- | --- | --- |
-| `pretrained_ft_100` | 0,2947 | 0,0898 | **0,2295** | [0,2227, 0,2365] |
-| `pretrained_ft_50` | 0,2835 | 0,0808 | 0,2191 | [0,2129, 0,2256] |
-| `pretrained_ft_10` | 0,2392 | 0,0585 | 0,1843 | [0,1782, 0,1900] |
-| `scratch_100_layers2` | 0,2141 | 0,0442 | 0,1657 | [0,1605, 0,1710] |
-| `scratch_100` | 0,2104 | 0,0439 | 0,1634 | [0,1581, 0,1686] |
-| `scratch_100_layers6` | 0,2018 | 0,0395 | 0,1573 | [0,1525, 0,1627] |
-| `scratch_50` | 0,2003 | 0,0385 | 0,1550 | [0,1499, 0,1600] |
-| `pretrained_zero_shot` | 0,2028 | 0,0304 | 0,1366 | [0,1328, 0,1406] |
-| `scratch_10` | 0,1573 | 0,0228 | 0,1250 | [0,1207, 0,1293] |
+| `pretrained_ft` | 10 % | 2 000 | 0,2861 | [0,2777, 0,2939] |
+| `pretrained_ft` | 50 % | 10 000 | 0,2896 | [0,2818, 0,2975] |
+| `pretrained_ft` | 100 % | 20 000 | 0,2914 | [0,2838, 0,2994] |
+| `scratch` | 10 % | 2 000 | 0,0837 | [0,0812, 0,0861] |
+| `scratch` | 50 % | 10 000 | 0,1234 | [0,1206, 0,1263] |
+| `scratch` | 100 % | 20 000 | 0,1492 | [0,1462, 0,1523] |
+| `pretrained_zero_shot` | sans objet | sans objet | 0,2751 | [0,2672, 0,2829] |
+<!-- syntra:end dataset_size -->
+
+**C'est le pré-entraînement qui fait l'écart, pas le fine-tuning.** `t5-small` sans aucun entraînement obtient 0,2751. Fine-tuné sur les 20 000 exemples, 0,2914 : 6 % de mieux, et les deux intervalles ne se séparent que d'un cheveu, [0,2672, 0,2829] contre [0,2838, 0,2994]. Sur 10 % du corpus ils se recouvrent, donc à cette taille le gain n'est pas démontré. Le meilleur modèle from scratch, lui, atteint 0,1492, soit 46 % en dessous d'un modèle qui n'a jamais vu le corpus.
 
 ### Performance contre taille du corpus d'entraînement
-
-C'est le livrable central du projet.
 
 ![Performance selon la taille du corpus](reports/figures/performance_vs_dataset_size.png)
 
@@ -170,39 +211,22 @@ C'est le livrable central du projet.
 
 | Proportion | Exemples | from scratch | `t5-small` fine-tuné | Écart absolu | Écart relatif |
 | --- | --- | --- | --- | --- | --- |
-| 10 % | 2 000 | 0,1250 | 0,1843 | 0,0593 | +47 % |
-| 50 % | 10 000 | 0,1550 | 0,2191 | 0,0641 | +41 % |
-| 100 % | 20 000 | 0,1634 | 0,2295 | 0,0662 | +40 % |
+| 10 % | 2 000 | 0,0837 | 0,2861 | 0,2025 | +242 % |
+| 50 % | 10 000 | 0,1234 | 0,2896 | 0,1662 | +135 % |
+| 100 % | 20 000 | 0,1492 | 0,2914 | 0,1422 | +95 % |
 <!-- syntra:end families -->
 
-Trois lectures, appuyées sur des intervalles disjoints à chaque point.
+**Les deux familles ne réagissent pas aux données de la même façon.** Multiplier le corpus par dix fait passer le from scratch de 0,0837 à 0,1492, soit +78 %. Le même facteur fait passer le fine-tuné de 0,2861 à 0,2914, soit +2 %. Si l'écart relatif se resserre (242 %, puis 135 %, puis 95 %), c'est parce que le premier progresse, pas parce que le second faiblit.
 
-D'abord, l'écart ne se referme pas. L'écart relatif se resserre légèrement, de 47 % à 40 %, mais l'écart absolu grandit, de 0,0593 à 0,0662. Les deux courbes montent en parallèle, et donner plus de données au modèle from scratch ne le rapproche pas du pré-entraîné, qui en profite autant.
+**Le from scratch ne sature pas encore.** Sur les trois points mesurés, son score est linéaire dans le logarithme du nombre d'exemples, et chaque doublement du corpus rapporte autant que le précédent : +18 % de 2 000 à 10 000 exemples, +21 % de 10 000 à 20 000.
 
-Ensuite, le pré-entraînement vaut plus que dix fois les données annotées. `pretrained_ft_10` atteint 0,1843 sur 2 000 exemples en 84 secondes d'entraînement, quand `scratch_100` atteint 0,1634 sur 20 000 exemples en 1 347 secondes : dix fois moins de données, seize fois moins de calcul, et un meilleur score.
+### À partir de quelle taille le from scratch devient-il compétitif ?
 
-Enfin, le rendement décroît des deux côtés. Pour le modèle from scratch, passer de 10 % à 50 % gagne 24 % en relatif, passer de 50 % à 100 % n'en gagne plus que 5 %.
+En prolongeant cette droite, il atteindrait 0,2751 (le zero-shot, celui qui ne s'entraîne pas) vers **2 millions d'exemples**. En n'ajustant que sur les deux derniers points, les plus proches du régime visé, vers **600 000**. Soit 30 à 100 fois le corpus de travail, et 2 à 7 fois les 287 113 exemples d'entraînement de CNN/DailyMail au complet.
 
-### À partir de quelle taille le from-scratch devient-il compétitif ?
+**La réponse est donc : pas avec ce corpus, ni avec celui dont il est tiré.** Il n'y a pas assez de texte dans CNN/DailyMail pour qu'un Transformer entraîné de zéro rattrape un modèle pré-entraîné sur un corpus sans commune mesure.
 
-La réponse dépend de ce à quoi on le compare, et elle est différente dans les deux cas.
-
-**Contre le pré-entraîné fine-tuné : jamais sur la plage mesurée.** Aux trois proportions, les intervalles de confiance des deux familles sont disjoints, et l'écart absolu grandit au lieu de se réduire. Il n'existe aucun point de croisement dans les données mesurées.
-
-On peut chiffrer ce qu'il faudrait, à condition d'assumer les hypothèses. Le modèle from scratch gagne 0,0129 point de ROUGE-L par doublement du corpus entre 2 000 et 10 000 exemples, et seulement 0,0084 entre 10 000 et 20 000. Combler les 0,0662 qui le séparent de `pretrained_ft_100` demanderait :
-
-| Hypothèse de pente | Doublements | Corpus nécessaire | Rapport à XSum complet |
-| --- | --- | --- | --- |
-| Optimiste, celle de 2 000 vers 10 000 | 5,1 | ~694 000 exemples | 3,4x |
-| Récente, celle de 10 000 vers 20 000 | 7,9 | ~4 800 000 exemples | 23,5x |
-
-Même l'hypothèse la plus favorable réclame plus de trois fois la totalité de XSum, qui compte 204 045 exemples. Et cette extrapolation est doublement optimiste : elle suppose une progression log-linéaire alors que le rendement observé décroît déjà, et elle suppose que le modèle pré-entraîné resterait immobile pendant que le from-scratch le rattrape, ce que les mesures démentent.
-
-La raison de fond tient en un rapport. À 10 % du corpus, le modèle from scratch dispose de 743 100 tokens source. `t5-small` a été pré-entraîné sur de l'ordre de 34 milliards de tokens, environ 45 000 fois plus. La comparaison n'oppose pas deux modèles à données égales : elle oppose un modèle qui part de zéro à un modèle qui a déjà lu quatre ordres de grandeur de texte en plus.
-
-**Contre le pré-entraîné zero-shot : entre 2 000 et 10 000 exemples.** C'est le seul seuil de compétitivité réellement observé, et il est net. À 2 000 exemples, le modèle from scratch obtient 0,1250 contre 0,1366 pour le zero-shot : il est derrière, et les intervalles [0,1207, 0,1293] et [0,1328, 0,1406] sont disjoints. À 10 000 exemples il obtient 0,1550, devant, et là encore les intervalles ne se recouvrent pas.
-
-C'est une façon concrète de chiffrer ce que vaut le pré-entraînement sur cette tâche : environ le prix de quelques milliers d'exemples annotés, dès lors qu'on renonce à fine-tuner. Si on ne renonce pas, l'entraînement from scratch coûte plus cher et rend moins, à toutes les tailles mesurées.
+L'extrapolation porte deux ordres de grandeur au-delà du dernier point mesuré : elle donne un ordre de grandeur, pas une valeur. Et elle suppose l'architecture inchangée, alors qu'un corpus cent fois plus grand en justifierait une autre ; l'ablation suivante montre que la profondeur seule n'y suffirait pas.
 
 ### Ablation d'architecture
 
@@ -213,92 +237,104 @@ Une seconde ablation fait varier la profondeur, tout le reste étant identique, 
 
 | Expérience | Couches | Paramètres | ROUGE-L | IC 95 % | Entraînement |
 | --- | --- | --- | --- | --- | --- |
-| `scratch_100_layers2` | 2 + 2 | 11 905 024 | 0,1657 | [0,1605, 0,1710] | 838 s |
-| `scratch_100` | 4 + 4 | 15 591 424 | 0,1634 | [0,1581, 0,1686] | 1 347 s |
-| `scratch_100_layers6` | 6 + 6 | 19 277 824 | 0,1573 | [0,1525, 0,1627] | 1 882 s |
+| `scratch_100_layers2` | 2 + 2 | 11 905 024 | 0,1320 | [0,1287, 0,1351] | 1 052 s |
+| `scratch_100` | 4 + 4 | 15 591 424 | 0,1492 | [0,1462, 0,1523] | 2 106 s |
+| `scratch_100_layers6` | 6 + 6 | 19 277 824 | 0,1413 | [0,1382, 0,1443] | 2 100 s |
 <!-- syntra:end architecture -->
 
-Le résultat est négatif et il est publié tel quel. Le ROUGE-L décroît quand la profondeur augmente. Aucune paire n'est séparée au seuil de 95 %, tous les intervalles se recouvrent, donc aucune différence individuelle n'est établie. Ce qui reste, c'est que trois runs indépendants classent dans le même sens, et qu'aucun gain n'apparaît là où la profondeur coûte 2,2 fois plus de calcul.
-
-La perte de validation classe d'ailleurs différemment : elle place la profondeur 4 en tête et sature ensuite, quand le ROUGE place la profondeur 2 en tête. Ce n'est pas contradictoire. La perte mesure la prédiction du token suivant sous forçage par la référence, le ROUGE mesure un texte produit en génération autorégressive avec faisceau ; un modèle peut gagner sur la première sans gagner sur le second. C'est la justification concrète du choix de reporter le ROUGE.
-
-Le compte de paramètres explique le non-résultat. La table d'embedding représente 69 % du modèle à 2 couches et 53 % du modèle à 4 couches, et 14 % du modèle entier n'est jamais mis à jour faute d'occurrences. Faire varier la profondeur ne fait donc varier qu'une minorité des paramètres, pendant que la majorité reste sous-entraînée. À `d_model` 256 et avec le vocabulaire T5, le levier n'est pas la profondeur.
+**La profondeur ne remplace pas les données.** Quatre couches battent deux, 0,1492 contre 0,1320, et battent aussi six, 0,1413 : les trois intervalles sont disjoints. Six couches coûtent 3,7 M de paramètres de plus que quatre et le même temps d'entraînement, pour un score inférieur. Sur 20 000 exemples, il n'y a pas de quoi entraîner la profondeur supplémentaire.
 
 ## 6. Analyse qualitative
 
-Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs. Un même document de test, résumé par les trois modèles :
+Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs.
 
-> **Référence.** Three men have been arrested on suspicion of murder over the shooting of a man at a meat market.
->
-> **`pretrained_ft_100`**, ROUGE-L 0,714. Three men have been arrested on suspicion of murder after a man was shot in the head and chest at a meat market.
->
-> **`scratch_100`**, ROUGE-L 0,541. people have been arrested on suspicion of murder after a man was stabbed to death in a crash.
->
-> **`pretrained_zero_shot`**, ROUGE-L 0,123. the 44-year-old was found badly injured at the Stanley Meat Market in the old Swan area of Liverpool on 27 January. he was shot in the head and chest and died later in hospital. the three men arrested remain in police custody for questioning.
+Le même article résumé par les trois modèles (un mur de traces de dinosaures en Bolivie, document `dec77c4f`) :
 
-Le zero-shot ne résume pas, il recopie : trois phrases extraites du document, là où la référence en demande une. Ses sorties font en moyenne 36,4 mots contre 21,3 pour la référence, quand tous les modèles entraînés se calent entre 17,0 et 19,4 mots. C'est la mesure de ce que le fine-tuning apprend ici : le format XSum plutôt que la langue, que `t5-small` connaît déjà.
+> **Référence.** There are 462 trails of 5,055 prints on a vertical limestone slab in Bolivia . Rock was pushed upwards by tectonic movement, standing 390 feet tall . Site's thought to be the largest dinosaur trackway in the world […]
 
-Le modèle from scratch, lui, a appris la forme et invente le fond. La structure de phrase est correcte et idiomatique, mais l'homme a été poignardé au lieu d'être abattu, et le lieu est devenu un accident de la route. C'est le comportement attendu d'un modèle qui a vu 20 000 exemples : il apprend à quoi ressemble un résumé XSum bien avant d'apprendre à lire le document. Un défaut mesurable accompagne cela, visible ci-dessus avec « people » pour « Three people » : le modèle from scratch commence fréquemment son résumé par un fragment de sous-mot au lieu d'un mot capitalisé.
+> **From scratch, 100 % du corpus, ROUGE-L 0,151.** Hundreds of a satatats of the tatat. It is one of the first time of the world's. This is the first of the most most most popular. The images were found in the world, which can be used to.
+
+> **`t5-small` zero-shot, 0,208.** the attraction, at Fancesa limestone quarry in Sucre, is the result of tectonic activity forcing earth upwards. it comprises some 462 trails made up of 5,055 prints - and frequent landslides reveal new ones […]
+
+> **`t5-small` fine-tuné, 100 %, 0,254.** The attraction, at Fancesa limestone quarry in Sucre, Bolivia, comprises some 462 trails made up of 5,055 prints. The wall, which is the largest dinosaur trackway in the world, is approximately 390 feet (120 metres) tall […]
+
+Le from scratch a appris la forme d'une phrase anglaise et rien d'autre : la syntaxe tient, les mots sont parfois inventés (« satatats »), la répétition passe sous le `no_repeat_ngram_size` parce qu'elle ne répète pas exactement un trigramme, et aucun fait de l'article n'apparaît. Le zero-shot reprend de vraies phrases de l'article, en minuscules et sans les resserrer. Le fine-tuné dit la même chose, capitalisée et raccourcie.
+
+**Le fine-tuning apprend le format, pas le contenu.** Le tableau ci-dessous compte les prédictions commençant par une minuscule : 71 % en zero-shot, moins de 1 % dès le premier fine-tunage. Le contenu, lui, ne bouge pas, et c'est ce qui explique que ROUGE ne gagne que 0,016 entre les deux.
 
 <!-- syntra:begin capitalisation -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
 | Modèle | Prédictions commençant par une minuscule |
 | --- | --- |
-| `pretrained_ft_10` | 2,0 % |
-| `pretrained_ft_50` | 0,0 % |
-| `pretrained_ft_100` | 0,1 % |
-| `scratch_10` | 100,0 % |
-| `scratch_50` | 99,6 % |
-| `scratch_100` | 62,9 % |
-| `scratch_100_layers2` | 73,7 % |
-| `scratch_100_layers6` | 84,7 % |
-| `pretrained_zero_shot` | 87,7 % |
+| `pretrained_ft_10` | 0,8 % |
+| `pretrained_ft_50` | 0,5 % |
+| `pretrained_ft_100` | 0,3 % |
+| `scratch_10` | 16,6 % |
+| `scratch_50` | 63,4 % |
+| `scratch_100` | 30,0 % |
+| `scratch_100_layers2` | 50,9 % |
+| `scratch_100_layers6` | 13,1 % |
+| `pretrained_zero_shot` | 71,0 % |
 | Références | 0,0 % |
 <!-- syntra:end capitalisation -->
 
-La décroissance est régulière avec la taille du corpus, ce qui montre un apprentissage incomplet et non un défaut de code : la génération partage le même découpage de séquence pour les deux familles. Le zero-shot est haut pour une autre raison, visible dans l'exemple ci-dessus : il recopie des phrases prises au milieu du document, donc au milieu d'une phrase. La majuscule initiale est la convention typographique la plus élémentaire du corpus, et le modèle from scratch ne l'apprend qu'entre 10 000 et 20 000 exemples, encore imparfaitement.
+Les chiffres du from scratch ne se lisent pas de la même façon : ses 30 % de minuscules ne sont pas un progrès sur le zero-shot, mais le hasard d'un modèle qui commence ses phrases n'importe où.
 
-## 7. Limites
+## 7. Traçage et magasin de modèles
 
-Le corpus est un tirage de 20 000 exemples, pas XSum complet. Toutes les conclusions valent sur cette plage, et l'extrapolation de la section 5 est présentée comme une extrapolation, avec ses hypothèses.
+Le magasin MLflow est une base **PostgreSQL 18** dédiée, `syntra_mlflow`, sur un serveur du réseau local. Elle porte un rôle propre, propriétaire de la base et sans droit ailleurs : le serveur héberge d'autres applications, et un magasin d'expériences n'a pas à s'y connecter en superutilisateur.
 
-La troncature à 512 tokens écarte 29 % du texte source. Elle s'applique aux deux familles également, donc elle ne biaise pas la comparaison, mais elle abaisse le plafond atteignable par les deux.
+L'URI de connexion porte un mot de passe et ne vit donc pas dans le dépôt. `.env.example` en donne la forme, `.env` la valeur, et `.gitignore` garde le second dehors. `src/tracking/store.py` résout l'URI depuis l'environnement puis depuis ce fichier, dans cet ordre, et le lanceur affiche le magasin qu'il a obtenu, mot de passe masqué, avant la première expérience : une campagne qui aurait tracé dans un fichier local au lieu de la base partagée le dit à la première seconde.
 
-Les deux familles ne diffèrent pas seulement par le pré-entraînement. `t5-small` compte 60,5 M paramètres contre 15,6 M pour le modèle from scratch, soit un facteur 3,9. La comparaison oppose donc un modèle pré-entraîné et large à un modèle initialisé au hasard et plus petit, et ce rapport ne sépare pas les deux causes : tout ce qu'il mesure, c'est l'écart entre les deux dispositifs tels qu'ils sont, pas la part qui revient au pré-entraînement seul. Un modèle from scratch porté à 60 M paramètres trancherait, et la section 5 donne la raison de ne pas l'avoir tenté : la profondeur n'achète rien ici, et le levier serait `d_model` et le vocabulaire, hors du budget disponible.
+**La base ne porte aucun poids.** Elle porte les métadonnées des runs : paramètres, métriques, tags, et un pointeur vers les artefacts. Ceux-ci sont des fichiers, écrits sous `MLFLOW_ARTIFACT_ROOT`.
 
-Chaque configuration n'a été entraînée que sous une graine, 42. Les intervalles publiés sont des intervalles bootstrap sur les 1 000 documents de test : ils mesurent l'échantillonnage du jeu d'évaluation, pas la variance d'entraînement. Les conclusions qui reposent sur des écarts larges, la supériorité du pré-entraîné à chaque proportion et le seuil de compétitivité contre le zero-shot, ne dépendent pas de ce point. Deux lectures plus fines en dépendent : la croissance de l'écart absolu, qui gagne 0,0069 entre 10 % et 100 % sans qu'aucun test ne porte sur cette différence, et le classement de l'ablation d'architecture, dont les trois intervalles se recouvrent. Les rejouer sous trois graines et publier moyenne et écart-type est ce qu'il faudrait faire avant de leur donner plus de poids.
+**Les modèles mesurés sont déposés dans le magasin.** Un modèle par run complet, dans la saveur qui lui correspond : `mlflow.transformers` pour `t5-small`, qui fait le tour du tokenizer et de la configuration de génération avec les poids, et `mlflow.pytorch` pour le Transformer écrit à la main, qui n'a pas de saveur dédiée. Chacun est enregistré au registre sous `syntra-<expérience>` et se recharge par ce nom.
 
-La profondeur est la seule grandeur d'architecture explorée. La largeur `d_model` et la taille du vocabulaire, que la section 2 désigne comme le levier plus probable, n'ont pas été balayées faute de budget de calcul. C'est ce que je reprendrais en premier avec une machine plus grosse.
+- Les poids déposés sont ceux qui ont été **évalués**, relus depuis le meilleur checkpoint, et non l'objet en fin d'entraînement. Quand l'arrêt anticipé a retenu une époque antérieure, les deux diffèrent, et déposer le second stockerait des poids que personne n'a mesurés.
+- Seul un run `OK` entre au registre. Un run `PARTIAL` a vu deux pas d'optimisation et huit documents de test : ses poids existent et ne veulent rien dire.
+- Le modèle from scratch est sérialisé au format pickle et non au format graphe `pt2`, qui est le défaut de MLflow 3. Son `forward` prend une source, un masque et une cible décalée, et sa génération est une boucle Python : un graphe tracé refuserait l'appel ou en figerait une seule forme. `code_paths` copie `src` à côté des poids pour que l'objet se recharge sans que le dépôt soit installé.
 
-**Aucun des neuf runs n'est rattachable à un commit.** Les cinq runs `scratch_*` portent `git_commit: unknown`. Les quatre runs `pretrained_*` portent `5a9c95df844f`, et ce commit n'existe nulle part : ni dans ce dépôt, ni sur `origin`, qui ne porte que `main` et `develop`. La campagne a tourné dans un répertoire de travail distinct, `Scolaire/Syntra`, qui n'a pas de `.git` ; le dépôt courant est un clone du 10 août 2026 et les commits locaux de cet arbre n'ont jamais été poussés. Ils sont perdus définitivement. Les neuf runs portent par ailleurs `git_dirty: true`, donc même retrouvé, ce commit aurait situé la campagne sans la reconstituer.
+Un échec de traçage n'interrompt jamais un run. Le résultat d'une expérience est l'enregistrement sur disque ; le magasin en est le miroir, et `python -m src.tracking.log --all` le reconstruit après coup.
 
-Le code, lui, n'était pas perdu : il était encore sur le disque, sans rien pour le protéger. Il est désormais figé, avec les mesures, sur la branche orpheline `archive/campagne-2026-08` — `reports/results` est gitignoré et n'existait donc qu'en deux copies non sauvegardées. Ce qui remplace le commit manquant est une comparaison rejouable.
+## 8. Limites
 
-```bash
-python -m scripts.compare_archive     # src d'aujourd'hui contre l'arbre de campagne
-```
+Le corpus est un tirage de 20 000 exemples, pas CNN/DailyMail complet, qui en compte 287 113. Toutes les conclusions valent sur cette plage.
 
-Les deux arbres `src` sont comparés après suppression des commentaires et des docstrings, sur les arbres syntaxiques. Au 13 août 2026 : **65 fichiers sur 71 sont logiquement identiques**, dont l'attention, le Transformer, la baseline pré-entraînée, l'entraîneur, la sélection du matériel et le tracking. Cinq fichiers ont changé et un seul existait dans la campagne. Quatre des cinq — `data/fragments.py`, `experiments/fragments.py`, `experiments/reproduce.py`, `utils/markdown.py` — sont en aval de la mesure : ils génèrent les tableaux de ce rapport et le rendent en Markdown. Le cinquième, `experiments/run.py`, a reçu depuis un avertissement qui s'imprime sur la sortie d'erreur avant la première expérience quand le commit est inconnu ou l'arbre sale : ce que la campagne aurait dû lire avant de commencer plutôt que de le découvrir dans ses propres enregistrements. `experiments/publish.py`, présent seulement dans l'archive, publiait le site MkDocs supprimé depuis. Aucun des six n'entre dans le calcul d'un chiffre de la section 5.
+**La troncature à 512 tokens écarte la moitié du texte source et touche 85 % des articles.** C'est la limite dominante du projet sur ce corpus. Elle s'applique aux deux familles également, donc elle ne biaise pas la comparaison, mais elle abaisse le plafond atteignable par les deux.
 
-La comparaison établit que le chemin de calcul n'a pas bougé, pas que le dépôt reproduit ces chiffres : le vérifier demande de relancer la campagne.
+Les deux familles ne diffèrent pas seulement par le pré-entraînement. `t5-small` compte 60,5 M paramètres contre 15,6 M pour le modèle from scratch, soit un facteur 3,9. Ce rapport ne sépare pas les deux causes : il mesure l'écart entre les deux dispositifs tels qu'ils sont, pas la part qui revient au pré-entraînement seul.
 
-Enfin, les tableaux sont générés depuis les enregistrements de runs et injectés entre marqueurs par `make report-sync` et `make corpus-sync` ; une nouvelle campagne les réécrit. Les quantités citées à l'intérieur des phrases restent écrites à la main et relues contre `reports/results/experiments.csv`, la dernière fois le 10 août 2026. C'est le seul point où une divergence peut subsister.
+Chaque configuration n'est entraînée que sous une graine, 42. Les intervalles publiés sont des intervalles bootstrap sur les 1 000 documents de test : ils mesurent l'échantillonnage du jeu d'évaluation, pas la variance d'entraînement.
+
+La profondeur est la seule grandeur d'architecture explorée. La largeur `d_model` et la taille du vocabulaire, que la section 2 désigne comme le levier plus probable, n'ont pas été balayées faute de budget de calcul.
+
+**Le from scratch produit un texte vide de contenu, et ROUGE le note quand même.** Ses 0,1492 viennent de mots fréquents tombés au bon endroit, pas de faits repris de l'article : la section 6 le montre sur un exemple, et le taux de prédictions commençant par une minuscule le confirme sur les mille. L'écart réel entre les deux familles est donc plus grand que celui des scores.
+
+**La taille de corpus qui rendrait le from scratch compétitif est extrapolée, pas mesurée.** Elle prolonge trois points sur deux ordres de grandeur : elle situe, elle ne prédit pas.
 
 ## Pour reproduire
 
 ```bash
 make data                                     # corpus figé, sous graine 42
-python -m src.experiments.run --all           # les neuf expériences
-make ablation                                 # les tableaux
-make figures                                  # les quatre figures
+make reproduce MODE=full                      # les neuf expériences, les tableaux, les figures
 ```
 
-Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`. `make report-sync` et `make corpus-sync` les régénèrent depuis les enregistrements, dans `reports/_generated/` et directement entre les marqueurs de ce fichier.
-
-La campagne d'origine ne se rejoue pas : ses enregistrements et le code qui les a produits sont figés sur `archive/campagne-2026-08`, pour la raison exposée en section 7. `git show archive/campagne-2026-08:ARCHIVE.md` en donne le détail, et `python -m scripts.compare_archive` mesure ce qui a bougé depuis. Le magasin MLflow, lui, se reconstruit depuis les enregistrements, puisqu'il n'en est que le miroir :
+Étape par étape :
 
 ```bash
-python -m src.tracking.log --all --tracking-uri sqlite:///mlflow.db
-make mlflow-ui                                # les neuf runs, port 5000
+python -m src.experiments.run --all           # les neuf expériences
+make ablation                                 # les deux ablations
+make figures                                  # les quatre figures
+make report-sync                              # les tableaux de ce rapport
+make corpus-sync                              # les tableaux du corpus
+```
+
+Les tableaux de ce rapport se relisent dans `reports/results/experiments.csv`.
+
+Le magasin demande un `.env` rempli sur le modèle de `.env.example` :
+
+```bash
+make mlflow-ui                                # les runs et les modèles, port 5000
+python -m src.tracking.log --all              # rejoue les enregistrements vers le magasin
 ```

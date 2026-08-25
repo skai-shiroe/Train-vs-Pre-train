@@ -88,8 +88,6 @@ from src.metrics.rouge import REPORTED_VARIANT, ROUGE_VARIANTS
 from src.utils.markdown import (
     FRAGMENTS_DIR,
     MISSING,
-    REGION_BEGIN,
-    REGION_END,
     banner,
     decimal,
     fragment,
@@ -150,6 +148,7 @@ HEADLINE_REGION = "headline"
 DEFAULT_REPORT = Path("RAPPORT.md")
 
 #: The regions of the report, and the table each one carries.
+DATASET_SIZE_REGION = "dataset_size"
 FAMILIES_REGION = "families"
 ARCHITECTURE_REGION = "architecture"
 CAPITALISATION_REGION = "capitalisation"
@@ -921,6 +920,7 @@ def build(
     # but two call sites could drift in what they are given, which is the same
     # defect one step up.
     headline = headline_table(by_score(dataset_size))
+    sizes = dataset_size_table(sort_dataset_size(dataset_size))
     families = families_table(dataset_size)
     depth = architecture_table(sort_architecture(architecture))
     capitals = capitalisation_table(rows, results)
@@ -928,10 +928,7 @@ def build(
     return {
         output / CAMPAIGN_FRAGMENT: fragment(campaign_table(rows), COMMAND),
         output / PLAN_FRAGMENT: fragment(plan_table(sort_dataset_size(rows)), COMMAND),
-        output
-        / DATASET_SIZE_FRAGMENT: fragment(
-            dataset_size_table(sort_dataset_size(dataset_size)), COMMAND
-        ),
+        output / DATASET_SIZE_FRAGMENT: fragment(sizes, COMMAND),
         output / ARCHITECTURE_FRAGMENT: fragment(depth, COMMAND),
         output / CAPITALISATION_FRAGMENT: fragment(capitals, COMMAND),
         output / METRICS_FRAGMENT: fragment(metrics_table(by_score(rows)), COMMAND),
@@ -942,6 +939,7 @@ def build(
         Path(report): inject_regions(
             Path(report),
             {
+                DATASET_SIZE_REGION: sizes,
                 FAMILIES_REGION: families,
                 ARCHITECTURE_REGION: depth,
                 CAPITALISATION_REGION: capitals,

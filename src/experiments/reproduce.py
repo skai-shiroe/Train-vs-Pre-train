@@ -58,6 +58,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     STUDIES,
     ExperimentConfig,
+    campaign_order,
     discover_experiments,
 )
 from src.experiments.record import STATUS_FAILED, RunRecord
@@ -69,6 +70,8 @@ from src.experiments.run import (
     run_one,
 )
 from src.tracking.client import DEFAULT_EXPERIMENT, build_tracker
+from src.tracking.store import describe_store
+from src.utils.device import release_accelerator
 from src.utils.markdown import write as write_fragments
 
 #: The two modes of section 41. ``quick`` exercises the mechanism, ``full``
@@ -118,7 +121,8 @@ QUICK_MAX_NEW_TOKENS = 16
 QUICK_BOOTSTRAP_SAMPLES = 50
 
 #: Where the published figures are copied for the documentation, alongside
-#: ``reports/figures``. The Makefile draws them twice for the same reason.
+#: ``reports/figures``. A full run is what draws both: ``make figures`` writes
+#: the copy the report reads, the only one the repository tracks.
 DOCS_FIGURES_DIR = Path("docs") / "assets" / "figures"
 
 #: Root of everything a quick run writes. One directory, outside every path the
@@ -358,7 +362,11 @@ def prepare_corpus(data_config: Path, *, rebuild: bool) -> Outcome:
 
 
 def run_experiments(settings: Settings) -> Outcome:
-    """Run every declared experiment, in name order.
+    """Run every declared experiment, from scratch family first.
+
+    The order is :func:`src.experiments.config.campaign_order`, not the name
+    order of the files: a sweep that stops on a crash or a keyboard interrupt
+    has then measured the from scratch family before touching ``t5-small``.
 
     Args:
         settings: The invocation.
@@ -368,7 +376,7 @@ def run_experiments(settings: Settings) -> Outcome:
         :data:`FAILED` and names it: the sweep itself does not stop, because
         section 44 asks for the failure to be recorded, but the chain does.
     """
-    configs = discover_experiments(settings.experiments_dir)
+    configs = campaign_order(discover_experiments(settings.experiments_dir))
     if not configs:
         return FAILED, f"no experiment file under {settings.experiments_dir}"
 
@@ -377,6 +385,8 @@ def run_experiments(settings: Settings) -> Outcome:
         tracking_uri=None,
         experiment=DEFAULT_EXPERIMENT,
     )
+    if settings.traces:
+        print(f"store            {describe_store()}")
 
     records: list[RunRecord] = []
     for config in configs:
@@ -393,6 +403,12 @@ def run_experiments(settings: Settings) -> Outcome:
                 corpus=quick_corpus(load_corpus(prepared)) if settings.quick else None,
             )
         )
+        # Le run precedent a rendu ses tenseurs, pas la memoire que l'allocateur
+        # en cache. Sans cette ligne, une campagne de neuf experiences accumule
+        # ce que les huit premieres ont reserve, et la carte du poste de
+        # reference tombe sur un OOM pilote a la sixieme alors que chacune tient
+        # largement seule.
+        release_accelerator()
 
     failures = [record.experiment for record in records if record.status == STATUS_FAILED]
     if failures:
@@ -550,7 +566,7 @@ def run_step(name: str, action: Action) -> StepResult:
     started = perf_counter()
     try:
         status, detail = action()
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - the chain reports the step that broke
         return StepResult(
             name, FAILED, f"{type(error).__name__}: {error}", perf_counter() - started
         )

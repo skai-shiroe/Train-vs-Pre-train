@@ -47,14 +47,14 @@ def record(name: str = "scratch_100", status: str = STATUS_OK) -> RunRecord:
         status=status,
         config={
             "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
-            "dataset": {"config": "configs/data/xsum.yaml", "percentage": 100},
+            "dataset": {"config": "configs/data/cnn_dailymail.yaml", "percentage": 100},
             "model": {"type": "scratch", "d_model": 256, "encoder_layers": 4},
             "training": {"epochs": 3, "learning_rate": 0.0003, "max_steps": None},
             "evaluation": {"split": "test", "num_beams": 4},
         },
         dataset={
-            "config": "configs/data/xsum.yaml",
-            "name": "xsum",
+            "config": "configs/data/cnn_dailymail.yaml",
+            "name": "cnn_dailymail",
             "version": "259d8397ce78",  # pragma: allowlist secret
             "percentage": 100,
             "train_examples": 20000,

@@ -15,6 +15,16 @@ model construction and buys two things: the reported score belongs to the
 weights the run selected, and a checkpoint that cannot be reloaded fails here,
 during the run that wrote it, rather than the day someone tries to reuse it.
 
+**The training memory is given back before the evaluation asks for its own.**
+Rebuilding from the checkpoint means a second model reaches the card while the
+trained one, its optimiser and the blocks the caching allocator holds are still
+resident. On a card of eight gigabytes the two do not fit, and the Windows
+driver answers by spilling the difference into system memory instead of raising
+an out of memory error: the run survives and decodes across the PCIe bus, which
+turned a two minute evaluation into hours during the campaign of August 2026.
+:func:`src.utils.device.release_accelerator` runs between the two, for the
+reason it already runs between two experiments.
+
 **Both sides go through the same three steps.** The from scratch Transformer and
 ``t5-small`` differ in how they are built and in their loss adapter, and in
 nothing else: same corpus, same loader, same trainer, same decoding, same
@@ -81,6 +91,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     ExperimentConfig,
     ScratchModelConfig,
+    campaign_order,
     discover_experiments,
     load_experiment_config,
 )
@@ -100,14 +111,16 @@ from src.models.scratch.summarizer import ScratchSummarizer
 from src.models.scratch.transformer import ScratchTransformer
 from src.tracking.client import DEFAULT_EXPERIMENT, Tracker, build_tracker, log_safely
 from src.tracking.live import LiveMetricsCallback, LiveRun, finish_safely, open_live_run
+from src.tracking.model import log_model_safely, should_log
 from src.tracking.payload import build_payload
 from src.tracking.provenance import UNKNOWN, describe_provenance
+from src.tracking.store import describe_store
 from src.training.callbacks import default_callbacks
 from src.training.checkpoint import CheckpointManager, load_checkpoint
 from src.training.sampler import build_training_dataloader
 from src.training.state import TrainingResult
 from src.training.trainer import make_scratch_batch_loss, train_model
-from src.utils.device import describe_hardware, resolve_device
+from src.utils.device import describe_hardware, release_accelerator, resolve_device
 from src.utils.seed import set_seed
 
 #: Where the run directories are created, per section 17.
@@ -391,6 +404,30 @@ def best_weights(name: str, result: TrainingResult, checkpoints: Path) -> Path:
     )
 
 
+def trace_model(record: RunRecord, summarizer: AnySummarizer, live: LiveRun | None) -> None:
+    """Put the measured weights into the run that is still open.
+
+    Called between the record being written and the run being closed, for the
+    ordering :mod:`src.tracking.client` states: nothing reaches the store that
+    was not written first, and the checkpoint these weights come from is on
+    disk before this runs.
+
+    **Only into an open run.** MLflow logs a model into whatever run is active,
+    and starting one here would file the weights under a second run with no
+    score in it. Without a live run there is nothing to log into, and the
+    weights stay where they already are, under ``runs/``.
+
+    Args:
+        record: The record that was just written, read for its status.
+        summarizer: The evaluated summariser, holding the weights the reported
+            score was measured on.
+        live: The run opened before the training, or ``None``.
+    """
+    if live is None or not should_log(record.status):
+        return
+    log_model_safely(summarizer, experiment=record.experiment)
+
+
 def trace(
     record: RunRecord,
     directory: Path,
@@ -479,6 +516,12 @@ def execute(
             best_weights(config.name, training_result, checkpoints), map_location="cpu"
         )
         state_dict = payload["model"]
+        # The weights just read sit in host memory, so nothing of the training
+        # is needed any more. Releasing here rather than after the evaluation
+        # is what keeps a single model on the card at a time: the summariser
+        # built below is a second one, and both resident at once is what the
+        # driver answers with system memory rather than with an error.
+        release_accelerator()
 
     device = resolve_device(config.training.device if config.training else "auto")
     summarizer = build_experiment_summarizer(config, corpus, state_dict=state_dict).to(device)
@@ -506,6 +549,7 @@ def execute(
 
     write_evaluation(evaluation, directory)
     write_record(record, directory)
+    trace_model(record, summarizer, live)
     trace(record, directory, tracker, live)
     return record
 
@@ -577,7 +621,7 @@ def run_one(
             live=live,
             corpus=corpus,
         )
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # Every exception is caught on purpose: recording the failure is the
         # contract of section 44, and a sweep must not stop at its first crash.
         record = failure_record(config, error, perf_counter() - started)
@@ -649,7 +693,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
     selection.add_argument(
         "--all",
         action="store_true",
-        help="Run every experiment declared under the experiments directory, in name order.",
+        help=(
+            "Run every experiment declared under the experiments directory, from scratch "
+            "family first, then the zero shot baseline, then the fine tunes."
+        ),
     )
 
     parser.add_argument(
@@ -712,7 +759,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(warning, file=sys.stderr)
 
     configs = (
-        discover_experiments(args.experiments_dir)
+        campaign_order(discover_experiments(args.experiments_dir))
         if args.all
         else [load_experiment_config(args.config)]
     )
@@ -725,6 +772,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         tracking_uri=args.tracking_uri,
         experiment=args.tracking_experiment,
     )
+    # Printed before the first run rather than after the last: a campaign that
+    # traced into a local SQLite file when it meant to reach the shared
+    # database is a thing to discover in the first second, not in six hours.
+    if not args.no_tracking:
+        print(f"store            {describe_store(args.tracking_uri)}")
 
     failures = 0
     for config in configs:
