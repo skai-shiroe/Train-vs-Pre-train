@@ -258,7 +258,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         marked, held = purge_experiment(client, experiment)
         marked_total += marked
         held_total += held
-        kept = " (kept, MLflow recreates it)" if experiment.name == DEFAULT_MLFLOW_EXPERIMENT else ""
+        kept = (
+            " (kept, MLflow recreates it)"
+            if experiment.name == DEFAULT_MLFLOW_EXPERIMENT
+            else ""
+        )
         already = f", {held - marked} already were" if held > marked else ""
         print(f"{experiment.name:<26}{marked} run(s) marked deleted{already}{kept}")
 

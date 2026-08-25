@@ -342,14 +342,15 @@ def test_main_writes_the_fragments(tmp_path: Path) -> None:
     """The command puts on disk exactly what build renders."""
     processed = prepare(tmp_path / "corpus")
     output = tmp_path / "out"
+    report = report_at(tmp_path)
 
     exit_code = main(
-        ["--processed", str(processed), "--output", str(output), "--report", str(report_at(tmp_path))]
+        ["--processed", str(processed), "--output", str(output), "--report", str(report)]
     )
 
     assert exit_code == 0
     assert (output / STATISTICS_FRAGMENT).is_file()
-    assert stale(build(processed_dir=processed, output_dir=output, report=report_at(tmp_path))) == []
+    assert stale(build(processed_dir=processed, output_dir=output, report=report)) == []
 
 
 def test_main_reports_up_to_date_fragments(tmp_path: Path) -> None:

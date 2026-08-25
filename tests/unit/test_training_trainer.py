@@ -282,7 +282,7 @@ def test_evaluation_leaves_the_weights_alone(make_loader: LoaderFactory, tmp_pat
     trainer = build_trainer(make_loader, tmp_path)
     before = [parameter.detach().clone() for parameter in trainer.model.parameters()]
 
-    trainer.evaluate(trainer._validation_loader)  # noqa: SLF001
+    trainer.evaluate(trainer._validation_loader)
 
     assert all(
         torch.equal(before_value, after)
@@ -310,7 +310,7 @@ def test_a_run_that_stops_improving_ends_early(make_loader: LoaderFactory, tmp_p
         epochs=10,
         early_stopping_patience=1,
     )
-    trainer._batch_loss = constant_loss([1.0])  # noqa: SLF001
+    trainer._batch_loss = constant_loss([1.0])
 
     result = trainer.train()
 

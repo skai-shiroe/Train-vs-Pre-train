@@ -112,9 +112,9 @@ from src.models.scratch.transformer import ScratchTransformer
 from src.tracking.client import DEFAULT_EXPERIMENT, Tracker, build_tracker, log_safely
 from src.tracking.live import LiveMetricsCallback, LiveRun, finish_safely, open_live_run
 from src.tracking.model import log_model_safely, should_log
-from src.tracking.store import describe_store
 from src.tracking.payload import build_payload
 from src.tracking.provenance import UNKNOWN, describe_provenance
+from src.tracking.store import describe_store
 from src.training.callbacks import default_callbacks
 from src.training.checkpoint import CheckpointManager, load_checkpoint
 from src.training.sampler import build_training_dataloader
@@ -621,7 +621,7 @@ def run_one(
             live=live,
             corpus=corpus,
         )
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # Every exception is caught on purpose: recording the failure is the
         # contract of section 44, and a sweep must not stop at its first crash.
         record = failure_record(config, error, perf_counter() - started)

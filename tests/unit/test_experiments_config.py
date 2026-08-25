@@ -101,7 +101,9 @@ def test_the_seed_is_refused_even_when_it_agrees() -> None:
 
 
 def test_a_zero_shot_run_cannot_declare_a_proportion() -> None:
-    payload = zero_shot_payload(dataset={"config": "configs/data/cnn_dailymail.yaml", "percentage": 10})
+    payload = zero_shot_payload(
+        dataset={"config": "configs/data/cnn_dailymail.yaml", "percentage": 10}
+    )
 
     with pytest.raises(ValueError, match="does not depend on the training corpus size"):
         ExperimentConfig.model_validate(payload)

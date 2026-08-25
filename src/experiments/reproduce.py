@@ -566,7 +566,7 @@ def run_step(name: str, action: Action) -> StepResult:
     started = perf_counter()
     try:
         status, detail = action()
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - the chain reports the step that broke
         return StepResult(
             name, FAILED, f"{type(error).__name__}: {error}", perf_counter() - started
         )

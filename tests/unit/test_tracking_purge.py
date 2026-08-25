@@ -33,7 +33,7 @@ class FakeClient:
     def __init__(self, runs: dict[str, list[str]]) -> None:
         # Une entree par experience, et par run son stade de vie : "active"
         # tant que rien ne l'a marque, "deleted" ensuite.
-        self.runs = {name: {run_id: ACTIVE for run_id in ids} for name, ids in runs.items()}
+        self.runs = {name: dict.fromkeys(ids, ACTIVE) for name, ids in runs.items()}
         self.stages = dict.fromkeys(runs, ACTIVE)
         self.deleted_runs: list[str] = []
         self.deleted_experiments: list[str] = []

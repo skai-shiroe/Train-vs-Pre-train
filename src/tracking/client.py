@@ -324,7 +324,7 @@ def log_safely(tracker: Tracker, payload: TrackedRun) -> str | None:
     """
     try:
         return tracker.log(payload)
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001
         # Every exception is caught on purpose. The measurement is already on
         # disk; losing its mirror is a degraded run, not a failed one.
         print(
