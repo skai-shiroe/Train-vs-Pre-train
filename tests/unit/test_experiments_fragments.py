@@ -32,6 +32,8 @@ from src.experiments.fragments import (
     FAMILIES_REGION,
     HEADLINE_FRAGMENT,
     HEADLINE_REGION,
+    INITIALISATION_FRAGMENT,
+    INITIALISATION_REGION,
     METRICS_FRAGMENT,
     PLAN_FRAGMENT,
     PRETRAINED_FRAGMENT,
@@ -66,6 +68,7 @@ pytestmark = pytest.mark.unit
 REPORT_REGIONS = (
     DATASET_SIZE_REGION,
     FAMILIES_REGION,
+    INITIALISATION_REGION,
     ARCHITECTURE_REGION,
     CAPITALISATION_REGION,
 )
@@ -95,6 +98,25 @@ def declare_zero_shot(directory: Path, name: str) -> Path:
             {
                 "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
                 "model": {"type": "pretrained", "mode": "zero_shot"},
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def declare_random_init(directory: Path, name: str, percentage: int) -> Path:
+    """Write one randomly initialised baseline experiment and return its path."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{name}.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
+                "dataset": {"percentage": percentage},
+                "model": {"type": "random_init", "baseline": "t5"},
+                "training": {"epochs": 1},
             },
             sort_keys=False,
         ),
@@ -316,7 +338,13 @@ def test_the_architecture_table_reports_the_cost_beside_the_score(tmp_path: Path
         configs,
         "deep_run",
         experiment={"name": "deep_run", "seed": 42, "studies": ["architecture"]},
-        model={"type": "scratch", "d_model": 32, "num_heads": 2, "encoder_layers": 6},
+        model={
+            "type": "scratch",
+            "d_model": 32,
+            "num_heads": 2,
+            "encoder_layers": 6,
+            "decoder_layers": 4,
+        },
     )
     write_record(record("deep_run"), run_directory(results, "deep_run"))
 
@@ -334,7 +362,13 @@ def test_an_unrun_depth_keeps_its_row_in_the_architecture_table(tmp_path: Path) 
         configs,
         "deeper_run",
         experiment={**architecture, "name": "deeper_run"},
-        model={"type": "scratch", "d_model": 32, "num_heads": 2, "encoder_layers": 6},
+        model={
+            "type": "scratch",
+            "d_model": 32,
+            "num_heads": 2,
+            "encoder_layers": 6,
+            "decoder_layers": 4,
+        },
     )
     write_record(record("deep_run"), run_directory(results, "deep_run"))
 
@@ -379,8 +413,8 @@ def test_every_fragment_says_it_is_generated(tmp_path: Path) -> None:
     rendered = render(tmp_path, configs, results)
     fragments = {path: text for path, text in rendered.items() if path not in (readme, report)}
 
-    assert len(rendered) == 11
-    assert len(fragments) == 9
+    assert len(rendered) == 12
+    assert len(fragments) == 10
     assert all(text.startswith(BANNER) and text.endswith("\n") for text in fragments.values())
     # The two pages are the targets that are not fragments. Their banner sits
     # inside each region, under the opening marker, so a page keeps its title
@@ -503,6 +537,30 @@ def test_the_families_table_distinguishes_an_unrun_run_from_an_undeclared_one(
     assert "| 50 % | 2 000 | 0,1550 |  |  |  | `t5-small` fine-tuné : non déclarée |" in families
 
 
+def test_the_two_comparison_tables_read_different_families(tmp_path: Path) -> None:
+    # The two tables answer two questions and would be redundant if they held
+    # the same rows: the initialisation table compares the same architecture to
+    # itself, the families table compares two architectures of one budget.
+    configs, results = tmp_path / "configs", tmp_path / "results"
+    declare(configs, "scratch_10", dataset={"percentage": 10})
+    declare_random_init(configs, "random_t5_10", 10)
+    declare_fine_tuned(configs, "pretrained_ft_10", 10)
+    write_record(record("scratch_10", value=0.1250), run_directory(results, "scratch_10"))
+    write_record(record("random_t5_10", value=0.1500), run_directory(results, "random_t5_10"))
+    write_record(
+        record("pretrained_ft_10", value=0.1791), run_directory(results, "pretrained_ft_10")
+    )
+
+    rendered = render(tmp_path, configs, results)
+    families = rendered[tmp_path / "out" / FAMILIES_FRAGMENT]
+    initialisation = rendered[tmp_path / "out" / INITIALISATION_FRAGMENT]
+
+    assert "| Proportion | Exemples | Transformer from scratch |" in families
+    assert "| 10 % | 2 000 | 0,1250 | 0,1791 | 0,0541 | +43 % |" in families
+    assert "| Proportion | Exemples | `t5-small` aléatoire |" in initialisation
+    assert "| 10 % | 2 000 | 0,1500 | 0,1791 | 0,0291 | +19 % |" in initialisation
+
+
 def test_a_relative_gap_needs_both_sides(tmp_path: Path) -> None:
     assert relative(0.1250, 0.1791) == "+43 %"
     assert relative(None, 0.1791) == ""
@@ -529,7 +587,7 @@ def test_the_headline_table_names_the_model_rather_than_the_experiment(tmp_path:
 
     assert "pretrained_ft_100" not in headline
     assert "| `t5-small` fine-tuné | 100 % | **0,2300** | [0,2200, 0,2400] |" in headline
-    assert "| from scratch | 100 % | 0,1600 | [0,1500, 0,1700] |" in headline
+    assert "| Transformer from scratch | 100 % | 0,1600 | [0,1500, 0,1700] |" in headline
     assert "| `t5-small` zero-shot | sans objet | 0,1300 | [0,1200, 0,1400] |" in headline
 
 
@@ -728,7 +786,7 @@ def test_a_freshly_written_set_is_not_stale(tmp_path: Path) -> None:
 
     written = write(rendered)
 
-    assert len(written) == 11
+    assert len(written) == 12
     assert stale(rendered) == []
 
 
@@ -746,7 +804,7 @@ def test_a_missing_fragment_is_stale_rather_than_absent(tmp_path: Path) -> None:
     configs, results = campaign(tmp_path)
     rendered = render(tmp_path, configs, results)
 
-    assert len(stale(rendered)) == 11
+    assert len(stale(rendered)) == 12
 
 
 # ---------------------------------------------------------------------------

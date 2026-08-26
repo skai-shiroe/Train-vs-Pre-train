@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "syntra"
 version = "0.1.0"
-description = "Chaine ML experimentale de resume automatique, Transformer from scratch face a T5"
+description = "Chaine ML experimentale de resume automatique, t5-small aleatoire face a t5-small pre-entraine"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 license = { text = "MIT" }

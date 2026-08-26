@@ -26,7 +26,7 @@ TORCH_INDEX ?= https://download.pytorch.org/whl/cu130
 
 .DEFAULT_GOAL := help
 .PHONY: help install kernel test test-unit test-integration coverage \
-        data train-scratch train-pretrained evaluate ablation figures mlflow-ui \
+        data train-scratch train-random train-pretrained evaluate ablation figures mlflow-ui \
         report-sync corpus-sync reproduce clean
 
 help: ## Affiche les cibles disponibles
@@ -91,8 +91,11 @@ coverage: ## Lance les tests avec le seuil de couverture de 80 pour cent
 data: ## Telecharge, valide et prepare le corpus de travail
 	$(PY) -m src.data.build --config configs/data/cnn_dailymail.yaml
 
-train-scratch: ## Entraine le Transformer from scratch sur 100 pour cent du corpus
+train-scratch: ## Entraine le Transformer ecrit a la main sur 100 pour cent du corpus
 	$(PY) -m src.experiments.run --config configs/experiments/scratch_100.yaml
+
+train-random: ## Entraine t5-small initialise aleatoirement sur 100 pour cent du corpus
+	$(PY) -m src.experiments.run --config configs/experiments/random_t5_100.yaml
 
 train-pretrained: ## Fine-tune T5 sur 100 pour cent du corpus
 	$(PY) -m src.experiments.run --config configs/experiments/pretrained_ft_100.yaml

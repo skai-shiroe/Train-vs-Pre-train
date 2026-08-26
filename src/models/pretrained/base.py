@@ -20,7 +20,7 @@ baseline and the data pipeline hold the very same object. Section 2.1 requires
 the two models to share the vocabulary; sharing the instance is stronger than
 repeating an identifier in two configuration files.
 
-**The decoding configuration is the from scratch one.** Both models read
+**One decoding configuration for both sides.** Every summariser reads
 :class:`src.models.generation.GenerationConfig`, so a beam width cannot
 silently differ between the two sides of the comparison.
 
@@ -179,14 +179,14 @@ def build_batch_loss(
     """Build the loss function of a Hugging Face sequence to sequence model.
 
     The signature is the one :data:`src.training.trainer.BatchLossFn` declares,
-    so fine tuning the baseline runs through the same loop, the same token
-    weighted averaging and the same checkpoints as the from scratch model. That
-    is what makes the two training curves comparable.
+    so both sides of the comparison run through the same loop, the same token
+    weighted averaging and the same checkpoints. That is what makes the two
+    training curves comparable.
 
     Teacher forcing is left to the model: given ``labels``, a Hugging Face
-    sequence to sequence model shifts them right and starts the decoder with the
-    same token the from scratch model uses, so both are fed the same decoder
-    input.
+    sequence to sequence model shifts them right and starts the decoder on its
+    own start token, so the randomly initialised run and the fine tuned one are
+    fed the same decoder input.
 
     Args:
         label_smoothing: Mass taken from the gold token and spread over the
@@ -240,6 +240,7 @@ class PretrainedSummarizer(ABC):
         tokenizer: PreTrainedTokenizerBase,
         *,
         fine_tuned: bool = False,
+        pretrained: bool = True,
     ) -> None:
         """Wrap an already loaded model and tokeniser.
 
@@ -249,11 +250,13 @@ class PretrainedSummarizer(ABC):
             tokenizer: The shared tokeniser.
             fine_tuned: Whether the weights were updated on the working corpus.
                 Reported by :meth:`describe`, never inferred.
+            pretrained: Whether the initial weights came from pretraining.
         """
         self.config = config
         self._model = model
         self._tokenizer = tokenizer
         self._fine_tuned = fine_tuned
+        self._pretrained = pretrained
 
     # ------------------------------------------------------------------
     # Construction
@@ -270,6 +273,11 @@ class PretrainedSummarizer(ABC):
         Returns:
             The loaded model, on the CPU.
         """
+
+    @classmethod
+    @abstractmethod
+    def load_random_model(cls, config: BaselineConfig) -> PreTrainedModel:
+        """Build the exact same architecture with random initial weights."""
 
     @classmethod
     @abstractmethod
@@ -309,6 +317,22 @@ class PretrainedSummarizer(ABC):
             cls.load_model(settings),
             build_tokenizer(settings.hf_id),
             fine_tuned=fine_tuned,
+            pretrained=True,
+        )
+
+    @classmethod
+    def from_random_init(
+        cls, config: BaselineConfig | None = None, *, trained: bool = False
+    ) -> Self:
+        """Build the pinned architecture without loading pretrained weights."""
+        settings = config or BaselineConfig(hf_id=cls.default_hf_id)
+        cls.check_config(settings)
+        return cls(
+            settings,
+            cls.load_random_model(settings),
+            build_tokenizer(settings.hf_id),
+            fine_tuned=trained,
+            pretrained=False,
         )
 
     @classmethod
@@ -332,6 +356,15 @@ class PretrainedSummarizer(ABC):
             The baseline, marked as fine tuned.
         """
         summarizer = cls.from_pretrained(config, fine_tuned=True)
+        summarizer.model.load_state_dict(state_dict)
+        return summarizer
+
+    @classmethod
+    def from_random_checkpoint(
+        cls, config: BaselineConfig, state_dict: Mapping[str, torch.Tensor]
+    ) -> Self:
+        """Rebuild a randomly initialised run from its trained checkpoint."""
+        summarizer = cls.from_random_init(config, trained=True)
         summarizer.model.load_state_dict(state_dict)
         return summarizer
 
@@ -367,6 +400,11 @@ class PretrainedSummarizer(ABC):
             ``True`` for a fine tuned baseline, ``False`` for a zero shot one.
         """
         return self._fine_tuned
+
+    @property
+    def pretrained(self) -> bool:
+        """Return whether the model started from pretrained weights."""
+        return self._pretrained
 
     @property
     def device(self) -> torch.device:
@@ -413,11 +451,18 @@ class PretrainedSummarizer(ABC):
         Returns:
             A flat mapping of strings, always JSON serialisable.
         """
+        if self._pretrained:
+            mode = "fine_tuned" if self._fine_tuned else "zero_shot"
+            initialization = "pretrained"
+        else:
+            mode = "trained" if self._fine_tuned else "untrained"
+            initialization = "random"
         return {
             "baseline": self.name,
             "hf_id": self.config.hf_id,
             "revision": self.config.revision or "default",
-            "mode": "fine_tuned" if self._fine_tuned else "zero_shot",
+            "mode": mode,
+            "initialization": initialization,
             "parameters": str(self.num_parameters),
         }
 
@@ -494,8 +539,8 @@ class PretrainedSummarizer(ABC):
         module.eval()
 
         # Seeded here rather than inside generate(): transformers draws from the
-        # ambient torch generator, the same one the from scratch decoder samples
-        # from, so one seed covers both sides of the comparison.
+        # ambient torch generator, so one seed covers every sampled run of the
+        # comparison.
         apply_seed(settings)
 
         # generate() reaches mypy as an attribute rather than as a method: the
@@ -509,9 +554,9 @@ class PretrainedSummarizer(ABC):
             attention_mask=attention_mask,
             **generation_kwargs(settings),
         )
-        # An encoder decoder returns the decoder start token at position zero.
-        # The from scratch generator does not, so it is dropped here and the two
-        # outputs stay directly comparable.
+        # An encoder decoder returns the decoder start token at position zero. It
+        # was not generated, and max_new_tokens does not count it, so it is
+        # dropped here and the tensor holds exactly what the model produced.
         return sequences[:, 1:]
 
     def summarize(

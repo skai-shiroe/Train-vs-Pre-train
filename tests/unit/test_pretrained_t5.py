@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import torch
 from torch.utils.data import DataLoader
-from transformers import T5ForConditionalGeneration
+from transformers import T5Config, T5ForConditionalGeneration
 
 from src.data.example import Example
 from src.models.generation import GenerationConfig
@@ -108,6 +108,44 @@ def test_a_pinned_revision_is_reported(tiny_t5: T5Factory, fake_tokenizer: FakeT
 
 def test_the_parameters_are_counted(summarizer: T5Summarizer) -> None:
     assert summarizer.num_parameters > 0
+
+
+def test_random_initialisation_keeps_the_exact_t5_architecture(
+    monkeypatch: pytest.MonkeyPatch,
+    config: BaselineConfig,
+    tiny_t5: T5Factory,
+) -> None:
+    reference = tiny_t5()
+    architecture = T5Config.from_dict(reference.config.to_dict())
+    monkeypatch.setattr(
+        T5Config,
+        "from_pretrained",
+        classmethod(lambda cls, hf_id, revision=None: architecture),
+    )
+
+    random_model = T5Summarizer.load_random_model(config)
+
+    assert type(random_model) is type(reference)
+    assert random_model.config.to_dict() == reference.config.to_dict()
+    assert random_model.num_parameters() == reference.num_parameters()
+    assert {
+        name: tuple(parameter.shape) for name, parameter in random_model.state_dict().items()
+    } == {name: tuple(parameter.shape) for name, parameter in reference.state_dict().items()}
+
+
+def test_random_initialisation_is_reported_as_from_scratch(
+    config: BaselineConfig, tiny_t5: T5Factory, fake_tokenizer: FakeTokenizer
+) -> None:
+    summarizer = T5Summarizer(
+        config,
+        tiny_t5(),
+        fake_tokenizer,  # type: ignore[arg-type]
+        pretrained=False,
+    )
+
+    assert summarizer.pretrained is False
+    assert summarizer.describe()["initialization"] == "random"
+    assert summarizer.describe()["mode"] == "untrained"
 
 
 def test_the_model_and_the_tokeniser_are_reachable(

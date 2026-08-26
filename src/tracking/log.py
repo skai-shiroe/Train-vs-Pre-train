@@ -29,7 +29,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from src.experiments.config import DEFAULT_EXPERIMENTS_DIR
-from src.experiments.record import STATUS_NOT_RUN, STATUS_PARTIAL, run_directory
+from src.experiments.record import (
+    STATUS_NOT_RUN,
+    STATUS_PARTIAL,
+    STATUS_STALE_CONFIG,
+    run_directory,
+)
 from src.experiments.registry import DEFAULT_RESULTS_DIR, ExperimentRow, collect
 from src.tracking.client import DEFAULT_EXPERIMENT, Tracker, build_tracker, log_safely
 from src.tracking.payload import build_payload
@@ -49,6 +54,8 @@ def push(row: ExperimentRow, tracker: Tracker, results_dir: Path) -> str | None:
         never ran or the push failed.
     """
     if row.record is None:
+        return None
+    if row.status == STATUS_STALE_CONFIG:
         return None
 
     directory = run_directory(results_dir, row.name, partial=row.status == STATUS_PARTIAL)
@@ -124,6 +131,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     for row in rows:
         if row.record is None:
             print(f"{row.name:<24} {STATUS_NOT_RUN:<8} nothing to send")
+            continue
+        if row.status == STATUS_STALE_CONFIG:
+            print(f"{row.name:<24} {STATUS_STALE_CONFIG:<8} obsolete record skipped")
             continue
 
         run_id = push(row, tracker, args.results)

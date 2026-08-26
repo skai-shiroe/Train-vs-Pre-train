@@ -83,18 +83,17 @@ def test_a_complete_run_is_registered() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_a_plain_module_is_not_the_pretrained_flavour() -> None:
+def test_a_plain_module_is_not_the_transformers_flavour() -> None:
     assert tracking_model._is_transformers_model(Toy()) is False
 
 
-def test_a_pretrained_model_is_the_pretrained_flavour() -> None:
-    from transformers import AutoConfig, AutoModelForSeq2SeqLM
+def test_a_randomly_initialised_t5_is_the_transformers_flavour() -> None:
+    from transformers import T5Config, T5ForConditionalGeneration
 
     # Built from a configuration rather than downloaded: the test pins the
     # dispatch, and pulling t5-small over the network to do it would make a
     # unit test depend on the hub.
-    config = AutoConfig.from_pretrained(
-        "t5-small",
+    config = T5Config(
         d_model=8,
         d_ff=16,
         d_kv=4,
@@ -103,7 +102,7 @@ def test_a_pretrained_model_is_the_pretrained_flavour() -> None:
         num_heads=2,
         vocab_size=32,
     )
-    assert tracking_model._is_transformers_model(AutoModelForSeq2SeqLM.from_config(config)) is True
+    assert tracking_model._is_transformers_model(T5ForConditionalGeneration(config)) is True
 
 
 # ---------------------------------------------------------------------------

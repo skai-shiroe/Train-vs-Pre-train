@@ -43,8 +43,15 @@ from src.experiments.reproduce import (
     Settings,
     reproduce,
 )
+from src.models.pretrained.t5 import T5Summarizer
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _offline_random_t5(monkeypatch: pytest.MonkeyPatch, tiny_t5: Any) -> None:
+    """Keep quick-mode verification offline and small."""
+    monkeypatch.setattr(T5Summarizer, "load_random_model", lambda config: tiny_t5(32100))
 
 #: Splits the corpus record describes, in the order ``make data`` writes them.
 SPLITS = ("train", "validation", "test")
@@ -106,14 +113,9 @@ def declare(directory: Path, data_config: Path, name: str) -> Path:
                 "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
                 "dataset": {"config": str(data_config), "percentage": 100},
                 "model": {
-                    "type": "scratch",
-                    "d_model": 32,
-                    "num_heads": 2,
-                    "encoder_layers": 1,
-                    "decoder_layers": 1,
-                    "d_ff": 64,
-                    "dropout": 0.0,
-                    "max_position": 512,
+                    "type": "random_init",
+                    "baseline": "t5",
+                    "revision": "pinned",
                 },
                 "training": {
                     "epochs": 5,

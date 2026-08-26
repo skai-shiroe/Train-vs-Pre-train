@@ -52,8 +52,8 @@ from src.training.state import EpochMetrics, TrainingResult, TrainingState
 from src.utils.device import resolve_device, supports_mixed_precision
 
 #: Signature of a function turning one batch into a scalar loss. Making it a
-#: parameter is what lets the same trainer drive the from scratch model and the
-#: pretrained baseline, whose forward signatures differ.
+#: parameter is what lets the same trainer drive the hand written Transformer
+#: and the two T5 runs, whose forward signatures differ.
 BatchLossFn = Callable[[nn.Module, EncodedBatch], torch.Tensor]
 
 
@@ -74,6 +74,39 @@ def make_scratch_batch_loss(label_smoothing: float = 0.0) -> BatchLossFn:
 
     def batch_loss(model: nn.Module, batch: EncodedBatch) -> torch.Tensor:
         output = model(batch.input_ids, target_ids=batch.target_ids)
+        logits = cast(torch.Tensor, output.logits)
+        return F.cross_entropy(
+            logits.reshape(-1, logits.size(-1)),
+            batch.labels.reshape(-1),
+            ignore_index=IGNORE_INDEX,
+            label_smoothing=label_smoothing,
+        )
+
+    return batch_loss
+
+
+def make_seq2seq_batch_loss(label_smoothing: float = 0.0) -> BatchLossFn:
+    """Build the loss function of a sequence-to-sequence Transformers model.
+
+    The loss is computed here so label smoothing remains a training
+    hyperparameter shared by both T5 initialisations.
+
+    Args:
+        label_smoothing: Mass taken from the gold token and spread over the
+            vocabulary.
+
+    Returns:
+        A function mapping a model and a batch to a scalar loss.
+    """
+
+    def batch_loss(model: nn.Module, batch: EncodedBatch) -> torch.Tensor:
+        output = model(
+            input_ids=batch.input_ids,
+            attention_mask=batch.attention_mask,
+            labels=batch.labels,
+        )
+        if label_smoothing == 0.0:
+            return cast(torch.Tensor, output.loss)
         logits = cast(torch.Tensor, output.logits)
         return F.cross_entropy(
             logits.reshape(-1, logits.size(-1)),
@@ -121,7 +154,7 @@ class Trainer:
             validation_loader: Loader over the validation split.
             output_dir: Directory receiving the checkpoints.
             batch_loss: Function computing the loss of one batch. Defaults to
-                the from scratch Transformer loss.
+                the shared sequence-to-sequence loss.
             callbacks: Observers of the run. Defaults to a logging callback and
                 a history callback.
             metadata: Free form mapping stored in every checkpoint, typically
@@ -141,7 +174,7 @@ class Trainer:
 
         self._train_loader = train_loader
         self._validation_loader = validation_loader
-        self._batch_loss = batch_loss or make_scratch_batch_loss(config.label_smoothing)
+        self._batch_loss = batch_loss or make_seq2seq_batch_loss(config.label_smoothing)
         self._callbacks = CallbackList(
             callbacks
             if callbacks is not None

@@ -52,11 +52,17 @@ STUDIES: tuple[str, ...] = ("dataset_size", "architecture")
 
 #: Variant reported in the ablation tables, derived from the model block.
 SCRATCH = "scratch"
+RANDOM_INIT = "random_t5"
 PRETRAINED_FINE_TUNED = "pretrained_ft"
 PRETRAINED_ZERO_SHOT = "pretrained_zero_shot"
 
 #: Order the families are trained in, used by :func:`campaign_order`.
-CAMPAIGN_FAMILIES: tuple[str, ...] = (SCRATCH, PRETRAINED_ZERO_SHOT, PRETRAINED_FINE_TUNED)
+CAMPAIGN_FAMILIES: tuple[str, ...] = (
+    SCRATCH,
+    RANDOM_INIT,
+    PRETRAINED_ZERO_SHOT,
+    PRETRAINED_FINE_TUNED,
+)
 
 #: Default data pipeline an experiment reads its corpus from.
 DEFAULT_DATA_CONFIG = Path("configs") / "data" / "cnn_dailymail.yaml"
@@ -133,6 +139,13 @@ class ScratchModelConfig(BaseModel):
     tokeniser, and an experiment file that could state a different one would
     let a run build a model whose embedding table does not cover the corpus.
 
+    The defaults are the shape of ``t5-small``: 512 wide, 8 heads, 6 encoder
+    and 6 decoder layers, 2 048 inner width. Built on the shared vocabulary
+    that comes to 60 575 744 parameters against 60 506 624, a gap of 0,11 %.
+    Matching the budget is what lets a score gap be read as something other
+    than a size gap; it does not make the two the same model, and
+    :class:`RandomInitModelConfig` says why.
+
     Attributes:
         type: Discriminator selecting this branch.
         d_model: Width of the residual stream.
@@ -151,11 +164,11 @@ class ScratchModelConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     type: Literal["scratch"]
-    d_model: int = Field(default=256, gt=0, description="Width of the residual stream.")
+    d_model: int = Field(default=512, gt=0, description="Width of the residual stream.")
     num_heads: int = Field(default=8, gt=0, description="Number of attention heads.")
-    encoder_layers: int = Field(default=4, gt=0, description="Depth of the encoder.")
-    decoder_layers: int = Field(default=4, gt=0, description="Depth of the decoder.")
-    d_ff: int = Field(default=1024, gt=0, description="Inner width of the feed forward network.")
+    encoder_layers: int = Field(default=6, gt=0, description="Depth of the encoder.")
+    decoder_layers: int = Field(default=6, gt=0, description="Depth of the decoder.")
+    d_ff: int = Field(default=2048, gt=0, description="Inner width of the feed forward network.")
     dropout: float = Field(default=0.1, ge=0.0, lt=1.0, description="Dropout probability.")
     max_position: int = Field(default=512, gt=0, description="Positional encoding budget.")
     tie_embeddings: bool = Field(default=True, description="Reuse the embedding as output head.")
@@ -195,6 +208,38 @@ class ScratchModelConfig(BaseModel):
             tie_embeddings=self.tie_embeddings,
             norm_first=self.norm_first,
         )
+
+
+class RandomInitModelConfig(BaseModel):
+    """A registered architecture built without loading its pretrained weights.
+
+    The architecture configuration is read from the same pinned Hugging Face
+    revision as the pretrained side, so this model and the pretrained one are
+    the same tensors in the same graph and differ only in the values they
+    start from. That is what makes their score gap attributable to the
+    pretraining alone, which the hand written Transformer of
+    :class:`ScratchModelConfig` cannot claim: it matches the parameter budget
+    of ``t5-small`` but not its architecture.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    type: Literal["random_init"]
+    baseline: str = Field(default="t5", description="Registered architecture name.")
+    hf_id: str | None = Field(default=None, description="Identifier, defaults to the tokeniser.")
+    revision: str | None = Field(
+        default=None, description="Commit or tag pinning the architecture."
+    )
+
+    @model_validator(mode="after")
+    def _check_baseline(self) -> RandomInitModelConfig:
+        """Reject an architecture the factory cannot build."""
+        if self.baseline not in available_baselines():
+            raise ValueError(
+                f"Unknown baseline {self.baseline!r}. "
+                f"Available: {', '.join(available_baselines())}."
+            )
+        return self
 
 
 class PretrainedModelConfig(BaseModel):
@@ -242,7 +287,10 @@ class PretrainedModelConfig(BaseModel):
 
 
 #: The ``model`` block, discriminated on its ``type`` field.
-ModelSelection = Annotated[ScratchModelConfig | PretrainedModelConfig, Field(discriminator="type")]
+ModelSelection = Annotated[
+    ScratchModelConfig | RandomInitModelConfig | PretrainedModelConfig,
+    Field(discriminator="type"),
+]
 
 
 class EvaluationSettings(BaseModel):
@@ -434,11 +482,13 @@ class ExperimentConfig(BaseModel):
         """Return the row key used by the ablation tables.
 
         Returns:
-            One of :data:`SCRATCH`, :data:`PRETRAINED_FINE_TUNED` or
-            :data:`PRETRAINED_ZERO_SHOT`.
+            One of :data:`SCRATCH`, :data:`RANDOM_INIT`,
+            :data:`PRETRAINED_FINE_TUNED` or :data:`PRETRAINED_ZERO_SHOT`.
         """
         if isinstance(self.model, ScratchModelConfig):
             return SCRATCH
+        if isinstance(self.model, RandomInitModelConfig):
+            return RANDOM_INIT
         return PRETRAINED_FINE_TUNED if self.model.mode == "fine_tuned" else PRETRAINED_ZERO_SHOT
 
     @property
@@ -552,19 +602,20 @@ def campaign_order(configs: Iterable[ExperimentConfig]) -> list[ExperimentConfig
 
     Name order is a property of the file names, not of the study: it opens on
     the three ``pretrained_ft_*`` runs and leaves the from scratch family for
-    the end. The study runs the other way round. The from scratch Transformer
-    is what section 2.1 compares everything else against, and the zero shot
-    baseline is the point the fine tuning moves away from, so a campaign cut
-    short by a crash or a keyboard interrupt leaves whole families measured
-    rather than three fine tunes with nothing to compare them to.
+    the end. The study runs the other way round. The two families that start
+    from nothing are what section 2.1 compares everything else against, and the
+    zero shot baseline is the point the fine tuning moves away from, so a
+    campaign cut short by a crash or a keyboard interrupt leaves whole families
+    measured rather than three fine tunes with nothing to compare them to.
 
     Args:
         configs: The experiments to order.
 
     Returns:
-        The from scratch runs first, then the zero shot baseline, then the fine
-        tunes, each family by growing corpus proportion. Ties fall back on the
-        name so the order does not depend on the order the files were read in.
+        The hand written Transformer first, then the randomly initialised T5,
+        then the zero shot baseline, then the fine tunes, each family by
+        growing corpus proportion. Ties fall back on the name so the order does
+        not depend on the order the files were read in.
     """
 
     def key(config: ExperimentConfig) -> tuple[int, int, str]:

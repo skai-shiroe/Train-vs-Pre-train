@@ -1,6 +1,6 @@
 """Unit tests for the training loop.
 
-The loop is exercised on a tiny Transformer and a fake tokenisation, so the
+The loop is exercised on a tiny T5 and a fake tokenisation, so the
 tests stay fast and offline. What is checked here is the mechanics: step
 accounting, clipping, checkpointing, early stopping and resume. Whether the
 architecture can actually learn is checked by the overfitting test of the
@@ -16,18 +16,17 @@ import pytest
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from transformers import T5Config, T5ForConditionalGeneration
 
 from src.data.example import Example
 from src.data.tokenize import IGNORE_INDEX, EncodedBatch
-from src.models.scratch.config import ScratchTransformerConfig
-from src.models.scratch.transformer import ScratchTransformer
 from src.training import trainer as trainer_module
 from src.training.callbacks import Callback, HistoryCallback
 from src.training.checkpoint import load_checkpoint
 from src.training.config import TrainingConfig
 from src.training.sampler import LengthGroupedSampler
 from src.training.state import EpochMetrics, TrainingState
-from src.training.trainer import Trainer, count_target_tokens, make_scratch_batch_loss, train_model
+from src.training.trainer import Trainer, count_target_tokens, make_seq2seq_batch_loss, train_model
 from src.utils.seed import set_seed
 
 VOCAB_SIZE = 32
@@ -40,18 +39,21 @@ def _deterministic() -> None:
     set_seed(1234)
 
 
-def build_model() -> ScratchTransformer:
-    """Return a Transformer small enough for a unit test."""
-    return ScratchTransformer(
-        ScratchTransformerConfig(
+def build_model() -> T5ForConditionalGeneration:
+    """Return a T5 small enough for a unit test."""
+    return T5ForConditionalGeneration(
+        T5Config(
             vocab_size=VOCAB_SIZE,
             d_model=16,
-            num_heads=2,
-            num_encoder_layers=1,
+            d_kv=8,
+            num_layers=1,
             num_decoder_layers=1,
             d_ff=32,
-            dropout=0.0,
-            max_position=32,
+            num_heads=2,
+            dropout_rate=0.0,
+            pad_token_id=0,
+            eos_token_id=1,
+            decoder_start_token_id=0,
         )
     )
 
@@ -484,8 +486,8 @@ def test_label_smoothing_raises_the_loss_of_a_confident_model() -> None:
         target_ids=torch.randint(2, VOCAB_SIZE, (2, 4)),
     )
 
-    plain = make_scratch_batch_loss(0.0)(model, batch).detach()
-    smoothed = make_scratch_batch_loss(0.2)(model, batch).detach()
+    plain = make_seq2seq_batch_loss(0.0)(model, batch).detach()
+    smoothed = make_seq2seq_batch_loss(0.2)(model, batch).detach()
 
     assert float(smoothed) != pytest.approx(float(plain))
 

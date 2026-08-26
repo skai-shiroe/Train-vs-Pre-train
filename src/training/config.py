@@ -41,7 +41,7 @@ class TrainingConfig(BaseModel):
             the same configuration behaves consistently across the 10, 50 and
             100 percent ablation points, which have different step counts.
         max_grad_norm: Global norm the gradients are clipped to. Clipping is
-            what keeps a from scratch Transformer from diverging on its first
+            what keeps a randomly initialised T5 from diverging on its first
             few hundred steps.
         label_smoothing: Mass taken from the gold token and spread over the
             vocabulary. Zero disables it.

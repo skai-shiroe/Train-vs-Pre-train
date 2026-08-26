@@ -1,7 +1,7 @@
 """Decoding hyperparameters and batching, shared by both sides of the comparison.
 
 The from scratch Transformer decodes with the loops of
-:mod:`src.models.scratch.generation`; the pretrained baseline decodes with the
+:mod:`src.models.scratch.generation`; the two T5 runs decode with the
 ``generate`` method of the Hugging Face model. Two implementations, one
 configuration object.
 
@@ -134,9 +134,9 @@ def apply_seed(config: GenerationConfig) -> None:
     """Seed the ambient generator when the configuration names a seed.
 
     Both decoders draw from the global torch generator: the from scratch one
-    through :func:`torch.multinomial`, the pretrained one inside ``generate``.
-    Seeding here rather than in either of them is what makes the same seed mean
-    the same thing on both sides of the comparison.
+    through :func:`torch.multinomial`, the T5 runs inside ``generate``. Seeding
+    here rather than in either of them is what makes the same seed mean the
+    same thing on every side of the comparison.
 
     A configuration without a seed is left alone rather than seeded with a
     default. Reseeding on every call would make a sampled endpoint return the

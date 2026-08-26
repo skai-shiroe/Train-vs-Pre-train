@@ -1,1 +1,1 @@
-"""Model implementations, from scratch and pretrained."""
+"""Model implementations: the hand written Transformer and the T5 baselines."""

@@ -25,11 +25,13 @@ turned a two minute evaluation into hours during the campaign of August 2026.
 :func:`src.utils.device.release_accelerator` runs between the two, for the
 reason it already runs between two experiments.
 
-**Both sides go through the same three steps.** The from scratch Transformer and
-``t5-small`` differ in how they are built and in their loss adapter, and in
-nothing else: same corpus, same loader, same trainer, same decoding, same
-metric. The zero shot baseline skips the training step because its weights never
-move, not because it takes another path.
+**Every family goes through the same three steps.** The hand written
+Transformer, the randomly initialised ``t5-small`` and the fine tuned one differ
+in how they are built and in their loss adapter, and in nothing else: same
+corpus, same loader, same trainer, same decoding, same metric. The two T5 runs
+go further and share the pinned architecture itself, so their score gap has
+nowhere to come from but the initial weights. The zero shot baseline skips the
+training step because its weights never move, not because it takes another path.
 
 **A failure is a result.** Section 44 asks for ``FAILED`` on an experiment that
 crashed. In ``--all`` mode an experiment that raises does not stop the sweep: it
@@ -90,6 +92,7 @@ from src.evaluation.evaluator import write_results as write_evaluation
 from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     ExperimentConfig,
+    RandomInitModelConfig,
     ScratchModelConfig,
     campaign_order,
     discover_experiments,
@@ -246,6 +249,11 @@ def build_experiment_summarizer(
         hf_id=config.model.hf_id,
         revision=config.model.revision,
     )
+    if isinstance(config.model, RandomInitModelConfig):
+        baseline = get_baseline_class(config.model.baseline)
+        if state_dict is None:
+            return baseline.from_random_init(baseline_config)
+        return baseline.from_random_checkpoint(baseline_config, state_dict)
     if state_dict is None:
         return build_summarizer(config.model.baseline, baseline_config, fine_tuned=False)
     return get_baseline_class(config.model.baseline).from_checkpoint(baseline_config, state_dict)

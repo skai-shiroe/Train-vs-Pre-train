@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.experiments.config import DEFAULT_EXPERIMENTS_DIR, ExperimentConfig, discover_experiments
-from src.experiments.record import STATUS_NOT_RUN, RunRecord, find_record
+from src.experiments.record import STATUS_NOT_RUN, STATUS_STALE_CONFIG, RunRecord, find_record
 
 #: Where the run directories live, per section 17.
 DEFAULT_RESULTS_DIR = Path("reports") / "results"
@@ -36,6 +36,28 @@ class ExperimentRow:
     record: RunRecord | None
 
     @property
+    def architecture_matches(self) -> bool:
+        """Return whether the record came from the architecture now declared.
+
+        Only the ``model`` block is compared. A quick run caps its training and
+        its evaluation on purpose, so a record produced by
+        :mod:`src.experiments.reproduce` legitimately disagrees with the file
+        on those two blocks; the model block is the one a run directory kept
+        from an earlier version of the project disagrees on, and the one that
+        would turn an obsolete score into a row nobody can tell apart from a
+        current one.
+
+        Returns:
+            ``True`` when there is nothing to contradict: no record, a record
+            without a stored configuration, or a stored model block equal to
+            the declared one.
+        """
+        if self.record is None or not self.record.config:
+            return True
+        stored = self.record.config.get("model")
+        return stored is None or stored == self.config.model.model_dump(mode="json")
+
+    @property
     def name(self) -> str:
         """Return the experiment name.
 
@@ -49,20 +71,25 @@ class ExperimentRow:
         """Return the status carried into every table.
 
         Returns:
-            The status of the record, or :data:`STATUS_NOT_RUN` when the
-            experiment was declared and never executed.
+            The status of the record, :data:`STATUS_NOT_RUN` when the
+            experiment was declared and never executed, or
+            :data:`STATUS_STALE_CONFIG` when the run directory was left behind
+            by a different architecture.
         """
-        return self.record.status if self.record is not None else STATUS_NOT_RUN
+        if self.record is None:
+            return STATUS_NOT_RUN
+        return self.record.status if self.architecture_matches else STATUS_STALE_CONFIG
 
     @property
     def measured(self) -> bool:
         """Return whether this row holds a reportable score.
 
         Returns:
-            ``True`` only for a complete run. Partial, failed and unrun rows
-            appear in the tables with their status and no number.
+            ``True`` only for a complete run of the declared architecture.
+            Partial, failed, unrun and obsolete rows appear in the tables with
+            their status and no number.
         """
-        return self.record is not None and self.record.measured
+        return self.record is not None and self.architecture_matches and self.record.measured
 
     def rouge(self, variant: str) -> float | None:
         """Return the corpus F-measure of one ROUGE variant.
@@ -73,7 +100,7 @@ class ExperimentRow:
         Returns:
             The mean F-measure, or ``None`` when there is nothing to report.
         """
-        return self.record.rouge(variant) if self.record is not None else None
+        return self.record.rouge(variant) if self.measured and self.record is not None else None
 
     def interval(self, variant: str) -> tuple[float, float] | None:
         """Return the bootstrap interval of one ROUGE variant.
@@ -85,7 +112,7 @@ class ExperimentRow:
             The ``(low, high)`` bounds, or ``None`` when there is nothing to
             report.
         """
-        return self.record.interval(variant) if self.record is not None else None
+        return self.record.interval(variant) if self.measured and self.record is not None else None
 
     def in_study(self, study: str) -> bool:
         """Return whether the experiment belongs to a study.

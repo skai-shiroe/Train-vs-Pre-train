@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 import yaml
 
+from src.experiments.config import load_experiment_config
 from src.experiments.record import STATUS_OK, RunRecord, run_directory, write_record
 from src.experiments.registry import ExperimentRow, collect
 from src.tracking import log as log_module
@@ -45,7 +46,7 @@ def declare(configs: Path, name: str, percentage: int) -> Path:
     payload: dict[str, Any] = {
         "experiment": {"name": name, "seed": 42},
         "dataset": {"percentage": percentage},
-        "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+        "model": {"type": "random_init", "baseline": "t5"},
         "training": {"epochs": 1},
     }
     configs.mkdir(parents=True, exist_ok=True)
@@ -54,14 +55,20 @@ def declare(configs: Path, name: str, percentage: int) -> Path:
     return path
 
 
-def record(name: str) -> RunRecord:
-    """Return a measured record."""
+def record(name: str, declaration: Path) -> RunRecord:
+    """Return a measured record, carrying the declaration that produced it.
+
+    The configuration is read back from the file rather than repeated here:
+    :class:`src.experiments.registry.ExperimentRow` refuses to report a record
+    whose model block disagrees with the declaration, and a hand written copy
+    would drift out of that agreement at the first default that changes.
+    """
     return RunRecord(
         experiment=name,
         status=STATUS_OK,
-        config={"experiment": {"name": name, "seed": 42}, "model": {"type": "scratch"}},
+        config=load_experiment_config(declaration).to_dict(),
         dataset={"config": "configs/data/cnn_dailymail.yaml", "version": "abc"},
-        model={"model": "scratch"},
+        model={"baseline": "t5", "initialization": "random", "mode": "trained"},
         hardware={},
         provenance={"git_commit": "deadbeef"},
         evaluation={
@@ -83,9 +90,9 @@ def record(name: str) -> RunRecord:
 def repository(tmp_path: Path) -> dict[str, Path]:
     """Lay out two declared experiments, one of which ran."""
     configs, results = tmp_path / "configs", tmp_path / "results"
-    declare(configs, "scratch_100", 100)
+    declaration = declare(configs, "scratch_100", 100)
     declare(configs, "scratch_10", 10)
-    write_record(record("scratch_100"), run_directory(results, "scratch_100"))
+    write_record(record("scratch_100", declaration), run_directory(results, "scratch_100"))
     return {"configs": configs, "results": results}
 
 

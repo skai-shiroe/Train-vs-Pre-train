@@ -73,7 +73,7 @@ class PreprocessConfig(BaseModel):
 
 
 class TokenizerConfig(BaseModel):
-    """Tokeniser shared by the from scratch model and the pretrained baseline.
+    """Tokeniser shared by the from scratch model and the T5 runs.
 
     Sharing the tokeniser keeps the comparison clean: same vocabulary, same
     segmentation, same test set.

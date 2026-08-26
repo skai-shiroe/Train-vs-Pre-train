@@ -1,8 +1,8 @@
-"""Tokenisation shared by the from scratch model and the pretrained baseline.
+"""Tokenisation shared by the from scratch model and the T5 runs.
 
-Both models use the T5 tokeniser. The comparison then rests on the same
-vocabulary, the same segmentation and the same truncation, so a score gap can
-only come from the models themselves.
+Every model of the comparison uses the T5 tokeniser. The comparison then rests
+on the same vocabulary, the same segmentation and the same truncation, so a
+score gap can only come from the models themselves.
 """
 
 from __future__ import annotations

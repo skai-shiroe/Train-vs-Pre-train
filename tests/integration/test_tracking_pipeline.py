@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from src.experiments.config import RandomInitModelConfig
 from src.experiments.record import STATUS_OK, STATUS_PARTIAL, RunRecord, run_directory, write_record
 from src.tracking.client import MlflowTracker
 from src.tracking.log import main as log_main
@@ -48,7 +49,11 @@ def record(name: str = "scratch_100", status: str = STATUS_OK) -> RunRecord:
         config={
             "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
             "dataset": {"config": "configs/data/cnn_dailymail.yaml", "percentage": 100},
-            "model": {"type": "scratch", "d_model": 256, "encoder_layers": 4},
+            # Dumped from the model rather than spelled out: the row that
+            # joins this record to its declaration compares the two blocks.
+            "model": RandomInitModelConfig(type="random_init", baseline="t5").model_dump(
+                mode="json"
+            ),
             "training": {"epochs": 3, "learning_rate": 0.0003, "max_steps": None},
             "evaluation": {"split": "test", "num_beams": 4},
         },
@@ -59,7 +64,12 @@ def record(name: str = "scratch_100", status: str = STATUS_OK) -> RunRecord:
             "percentage": 100,
             "train_examples": 20000,
         },
-        model={"model": "scratch", "mode": "trained", "parameters": "44000000"},
+        model={
+            "baseline": "t5",
+            "initialization": "random",
+            "mode": "trained",
+            "parameters": "44000000",
+        },
         hardware={"torch_version": "2.7.0", "cuda_available": "True", "gpu_name": "RTX 5070"},
         provenance={"git_commit": "deadbeef", "git_branch": "master", "git_dirty": "false"},
         training={
@@ -201,7 +211,7 @@ def test_the_command_sends_the_records_of_the_declared_experiments(
                 {
                     "experiment": {"name": name, "seed": 42},
                     "dataset": {"percentage": 100 if name == "scratch_100" else 10},
-                    "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+                    "model": {"type": "random_init", "baseline": "t5"},
                     "training": {"epochs": 1},
                 },
                 sort_keys=False,

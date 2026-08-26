@@ -111,7 +111,8 @@ $Targets = [ordered]@{
     'test-integration' = "Lance les tests d'integration"
     'coverage'         = 'Lance les tests avec le seuil de couverture de 80 pour cent'
     'data'             = 'Telecharge, valide et prepare le corpus de travail'
-    'train-scratch'    = 'Entraine le Transformer from scratch sur 100 pour cent du corpus'
+    'train-scratch'    = 'Entraine le Transformer ecrit a la main sur 100 pour cent du corpus'
+    'train-random'     = 'Entraine t5-small initialise aleatoirement sur 100 pour cent du corpus'
     'train-pretrained' = 'Fine-tune T5 sur 100 pour cent du corpus'
     'evaluate'         = 'Evalue la baseline zero-shot sur le jeu de test commun'
     'ablation'         = 'Rejoue les ablations taille de corpus et architecture'
@@ -171,6 +172,10 @@ switch ($Target) {
 
     'train-scratch' {
         Invoke-Python @('-m', 'src.experiments.run', '--config', 'configs/experiments/scratch_100.yaml')
+    }
+
+    'train-random' {
+        Invoke-Python @('-m', 'src.experiments.run', '--config', 'configs/experiments/random_t5_100.yaml')
     }
 
     'train-pretrained' {

@@ -14,13 +14,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from transformers import T5Config, T5ForConditionalGeneration
 
 from src.data.config import TokenizerConfig
 from src.data.dataset import build_dataloader
 from src.data.example import Example
 from src.data.tokenize import build_tokenizer, source_token_lengths
-from src.models.scratch.config import ScratchTransformerConfig
-from src.models.scratch.transformer import ScratchTransformer
 from src.training.config import TrainingConfig
 from src.training.sampler import LengthGroupedSampler, build_training_dataloader, padding_waste
 from src.training.trainer import Trainer
@@ -196,16 +195,19 @@ def test_a_run_goes_from_the_corpus_to_a_checkpoint(
 ) -> None:
     set_seed(SEED)
     vocab_size = int(tokenizer.vocab_size)  # type: ignore[attr-defined]
-    model = ScratchTransformer(
-        ScratchTransformerConfig(
+    model = T5ForConditionalGeneration(
+        T5Config(
             vocab_size=vocab_size,
             d_model=32,
-            num_heads=2,
-            num_encoder_layers=1,
+            d_kv=16,
+            num_layers=1,
             num_decoder_layers=1,
             d_ff=64,
-            dropout=0.0,
-            max_position=tokenizer_config.max_source_tokens,
+            num_heads=2,
+            dropout_rate=0.0,
+            pad_token_id=0,
+            eos_token_id=1,
+            decoder_start_token_id=0,
         )
     )
 

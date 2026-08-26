@@ -18,11 +18,13 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     PRETRAINED_FINE_TUNED,
     PRETRAINED_ZERO_SHOT,
+    RANDOM_INIT,
     SCRATCH,
     STUDIES,
     EvaluationSettings,
     ExperimentConfig,
     PretrainedModelConfig,
+    RandomInitModelConfig,
     ScratchModelConfig,
     campaign_order,
     discover_experiments,
@@ -212,7 +214,12 @@ def test_the_variant_follows_the_model_block() -> None:
         scratch_payload(model={"type": "pretrained", "mode": "fine_tuned"})
     )
 
+    random_init = ExperimentConfig.model_validate(
+        scratch_payload(model={"type": "random_init", "baseline": "t5", "revision": "pinned"})
+    )
+
     assert scratch.variant == SCRATCH
+    assert random_init.variant == RANDOM_INIT
     assert fine_tuned.variant == PRETRAINED_FINE_TUNED
 
 
@@ -379,7 +386,10 @@ def test_every_declared_experiment_validates() -> None:
         "scratch_50",
         "scratch_100",
         "scratch_100_layers2",
-        "scratch_100_layers6",
+        "scratch_100_layers4",
+        "random_t5_10",
+        "random_t5_50",
+        "random_t5_100",
         "pretrained_zero_shot",
         "pretrained_ft_10",
         "pretrained_ft_50",
@@ -395,7 +405,10 @@ def test_the_declared_campaign_opens_on_the_from_scratch_family() -> None:
         "scratch_50",
         "scratch_100",
         "scratch_100_layers2",
-        "scratch_100_layers6",
+        "scratch_100_layers4",
+        "random_t5_10",
+        "random_t5_50",
+        "random_t5_100",
         "pretrained_zero_shot",
         "pretrained_ft_10",
         "pretrained_ft_50",
@@ -415,7 +428,7 @@ def test_the_corpus_size_ablation_has_one_zero_shot_point() -> None:
 def test_the_corpus_size_ablation_covers_the_three_proportions() -> None:
     configs = discover_experiments(DEFAULT_EXPERIMENTS_DIR)
 
-    for variant in (SCRATCH, PRETRAINED_FINE_TUNED):
+    for variant in (SCRATCH, RANDOM_INIT, PRETRAINED_FINE_TUNED):
         proportions = sorted(
             config.dataset.percentage
             for config in configs
@@ -438,9 +451,42 @@ def test_the_architecture_ablation_varies_one_quantity() -> None:
     assert all(isinstance(model, ScratchModelConfig) for model in models)
     scratch_models = [model for model in models if isinstance(model, ScratchModelConfig)]
     assert {model.encoder_layers for model in scratch_models} == {2, 4, 6}
-    assert {model.d_model for model in scratch_models} == {256}
+    assert {model.d_model for model in scratch_models} == {512}
     assert {model.num_heads for model in scratch_models} == {8}
-    assert {model.d_ff for model in scratch_models} == {1024}
+    assert {model.d_ff for model in scratch_models} == {2048}
+
+
+def test_compared_models_only_differ_by_initialisation() -> None:
+    # The random_t5_* family is the one couple of the campaign whose gap to the
+    # fine tuned side is attributable to the pretraining and to nothing else.
+    # That claim only holds if the two files agree everywhere but the weights.
+    configs = {config.name: config for config in discover_experiments(DEFAULT_EXPERIMENTS_DIR)}
+
+    for percentage in (10, 50, 100):
+        random_init = configs[f"random_t5_{percentage}"]
+        pretrained = configs[f"pretrained_ft_{percentage}"]
+
+        assert isinstance(random_init.model, RandomInitModelConfig)
+        assert isinstance(pretrained.model, PretrainedModelConfig)
+        assert random_init.model.baseline == pretrained.model.baseline == "t5"
+        assert random_init.model.hf_id == pretrained.model.hf_id
+        assert random_init.model.revision == pretrained.model.revision
+        assert random_init.dataset == pretrained.dataset
+        assert random_init.training == pretrained.training
+        assert random_init.evaluation == pretrained.evaluation
+
+
+def test_the_three_families_train_on_one_budget() -> None:
+    # The hand written Transformer used to get ten epochs at 3e-4 while the two
+    # T5 runs got three at 1e-4. A family with a budget of its own turns every
+    # cross-family gap into a gap between two budgets.
+    budgets = {
+        (config.training.epochs, config.training.learning_rate)
+        for config in discover_experiments(DEFAULT_EXPERIMENTS_DIR)
+        if config.training is not None
+    }
+
+    assert budgets == {(3, 0.0001)}
 
 
 def test_every_declared_experiment_is_measured_the_same_way() -> None:

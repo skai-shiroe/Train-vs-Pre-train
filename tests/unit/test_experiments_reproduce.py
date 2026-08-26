@@ -61,7 +61,7 @@ def scratch_payload(**overrides: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "experiment": {"name": "scratch_10", "seed": 7, "studies": ["dataset_size"]},
         "dataset": {"percentage": 10},
-        "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+        "model": {"type": "random_init", "baseline": "t5"},
         "training": {"epochs": 10, "batch_size": 16, "gradient_accumulation_steps": 4},
         "evaluation": {"split": "test", "num_beams": 4, "max_new_tokens": 64},
     }

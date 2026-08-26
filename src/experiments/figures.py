@@ -9,8 +9,9 @@ section 18 asks for::
     reports/figures/model_comparison.png
 
 The main one answers the question the project exists to answer: how the from
-scratch Transformer and the fine tuned baseline move as the training corpus
-grows, with the zero shot measurement underneath as a reference.
+scratch Transformer, the randomly initialised ``t5-small`` and the fine tuned
+one move as the training corpus grows, with the zero shot measurement
+underneath as a reference.
 
 **Nothing is computed here.** Every point is copied from a run record, like the
 tables of :mod:`src.experiments.ablation`. A figure is the most quoted output of
@@ -56,6 +57,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     PRETRAINED_FINE_TUNED,
     PRETRAINED_ZERO_SHOT,
+    RANDOM_INIT,
     SCRATCH,
 )
 from src.experiments.registry import DEFAULT_RESULTS_DIR, ExperimentRow, collect, rows_for_study
@@ -80,9 +82,10 @@ MODEL_COMPARISON_FIGURE = "model_comparison.png"
 #: low enough that the four files stay under a megabyte together.
 DPI = 150
 
-#: How the two trained families are named on a figure.
+#: How the trained families are named on a figure.
 VARIANT_LABELS: dict[str, str] = {
     SCRATCH: "Transformer from scratch",
+    RANDOM_INIT: "T5-small aleatoire",
     PRETRAINED_FINE_TUNED: "T5-small fine-tune",
     PRETRAINED_ZERO_SHOT: "T5-small zero-shot",
 }
@@ -99,6 +102,7 @@ ROUGE_LABELS: dict[str, str] = {
 #: family shades this colour per run, see :func:`run_styles`.
 VARIANT_COLOURS: dict[str, str] = {
     SCRATCH: "#c1440e",
+    RANDOM_INIT: "#7b3f9e",
     PRETRAINED_FINE_TUNED: "#1f4e79",
     PRETRAINED_ZERO_SHOT: "#6b6b6b",
 }
@@ -244,7 +248,7 @@ def curve(
 
     Args:
         rows: Every row of the corpus size study.
-        variant: Family to extract, :data:`SCRATCH` or
+        variant: Family to extract, :data:`SCRATCH`, :data:`RANDOM_INIT` or
             :data:`PRETRAINED_FINE_TUNED`.
 
     Returns:
@@ -302,7 +306,11 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
     """Draw performance against the training corpus size.
 
     This is the figure section 18 calls the main one, and the deliverable the
-    project is judged on: two curves, three proportions, one reference line.
+    project is judged on: three curves, three proportions, one reference line.
+    The randomly initialised T5 sits between the other two on purpose: it is the
+    only curve whose distance to the fine tuned one is attributable to the
+    pretraining alone, the hand written Transformer differing from both by its
+    architecture as well.
 
     Args:
         rows: Every row of the corpus size study.
@@ -315,7 +323,7 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
     figure, axes = plt.subplots(figsize=(9.0, 5.5))
 
     drawn = 0
-    for variant in (PRETRAINED_FINE_TUNED, SCRATCH):
+    for variant in (PRETRAINED_FINE_TUNED, RANDOM_INIT, SCRATCH):
         percentages, scores, errors = curve(rows, variant)
         if not percentages:
             continue

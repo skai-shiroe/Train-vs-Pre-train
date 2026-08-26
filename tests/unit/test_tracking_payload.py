@@ -105,7 +105,7 @@ def record(
     model_block: dict[str, Any] = (
         {"type": "pretrained", "baseline": "t5", "mode": "zero_shot", "revision": "abc123"}
         if zero_shot
-        else {"type": "scratch", "d_model": 256, "encoder_layers": 4}
+        else {"type": "random_init", "baseline": "t5", "revision": "pinned"}
     )
     return RunRecord(
         experiment="scratch_100",
@@ -127,7 +127,12 @@ def record(
             "percentage": None if zero_shot else 100,
             "train_examples": 0 if zero_shot else 20000,
         },
-        model={"model": "scratch", "mode": "trained", "parameters": "44000000"},
+        model={
+            "baseline": "t5",
+            "initialization": "random",
+            "mode": "trained",
+            "parameters": "44000000",
+        },
         hardware={"torch_version": "2.7.0", "cuda_available": "True", "gpu_name": "RTX"},
         provenance={"git_commit": "deadbeef", "git_branch": "master", "git_dirty": "true"},
         training=training_block() if trains else None,
@@ -166,7 +171,7 @@ def test_every_field_of_section_19_reaches_the_payload() -> None:
     assert payload.params["experiment.seed"] == "42"
     assert payload.params["dataset.version"] == "259d8397ce78"  # pragma: allowlist secret
     assert payload.params["dataset.percentage"] == "100"
-    assert payload.params["model.type"] == "scratch"
+    assert payload.params["model.type"] == "random_init"
     assert payload.params["training.epochs"] == "3"
     assert payload.params["checkpoint"] == "runs/scratch_100/best.pt"
     assert payload.metrics["training_duration_seconds"] == pytest.approx(600.0)
@@ -219,7 +224,7 @@ def test_a_failed_run_logs_its_error_and_no_metric_of_quality() -> None:
     failed = RunRecord(
         experiment="scratch_100",
         status=STATUS_FAILED,
-        config={"model": {"type": "scratch"}},
+        config={"model": {"type": "random_init", "baseline": "t5"}},
         dataset={"config": "configs/data/cnn_dailymail.yaml"},
         model={},
         hardware={},
