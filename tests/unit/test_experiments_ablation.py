@@ -18,12 +18,10 @@ import yaml
 
 from src.evaluation.evaluator import QUALITATIVE_FILE
 from src.experiments.ablation import (
-    ARCHITECTURE_CSV,
     DATASET_SIZE_CSV,
     EXPERIMENTS_CSV,
     QUALITATIVE_JSON,
     aggregate,
-    architecture_row,
     cell,
     check_comparable,
     collect_qualitative,
@@ -59,7 +57,7 @@ def declare(directory: Path, name: str, **overrides: Any) -> Path:
     payload: dict[str, Any] = {
         "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
         "dataset": {"percentage": 10},
-        "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+        "model": {"type": "random_init", "baseline": "t5"},
         "training": {"epochs": 1},
     }
     payload.update(overrides)
@@ -317,7 +315,7 @@ def test_the_zero_shot_row_sorts_last_whatever_its_name() -> None:
         {
             "experiment": {"name": "zzz_scratch", "studies": ["dataset_size"]},
             "dataset": {"percentage": 10},
-            "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+            "model": {"type": "random_init", "baseline": "t5"},
             "training": {"epochs": 1},
         },
     )
@@ -327,85 +325,6 @@ def test_the_zero_shot_row_sorts_last_whatever_its_name() -> None:
     ]
 
     assert [row.name for row in sort_dataset_size(rows)] == ["zzz_scratch", "aaa_zero"]
-
-
-# ---------------------------------------------------------------------------
-# The architecture ablation
-# ---------------------------------------------------------------------------
-
-
-def test_the_architecture_table_is_ordered_by_depth(tmp_path: Path) -> None:
-    configs, results = tmp_path / "configs", tmp_path / "results"
-    for name, layers in (("deep", 6), ("shallow", 2), ("middle", 4)):
-        declare(
-            configs,
-            name,
-            experiment={"name": name, "seed": 42, "studies": ["architecture"]},
-            model={
-                "type": "scratch",
-                "d_model": 32,
-                "num_heads": 2,
-                "encoder_layers": layers,
-                "decoder_layers": layers,
-            },
-        )
-
-    aggregate(
-        experiments_dir=configs, results_dir=results, output_dir=results, studies=["architecture"]
-    )
-    rows = read_csv(results / ARCHITECTURE_CSV)
-
-    assert [row["encoder_layers"] for row in rows] == ["2", "4", "6"]
-    assert [row["experiment"] for row in rows] == ["shallow", "middle", "deep"]
-
-
-def test_a_baseline_cannot_join_the_architecture_study(tmp_path: Path) -> None:
-    # A checkpoint fixes its own architecture: there is nothing to vary.
-    configs, results = tmp_path / "configs", tmp_path / "results"
-    write_payload(
-        configs,
-        "ft_run",
-        {
-            "experiment": {"name": "ft_run", "studies": ["architecture"]},
-            "dataset": {"percentage": 10},
-            "model": {"type": "pretrained", "mode": "fine_tuned"},
-            "training": {"epochs": 1},
-        },
-    )
-
-    with pytest.raises(TypeError, match="not a from"):
-        aggregate(
-            experiments_dir=configs,
-            results_dir=results,
-            output_dir=results,
-            studies=["architecture"],
-        )
-
-
-def test_the_row_of_a_scratch_experiment_carries_its_shape(tmp_path: Path) -> None:
-    configs, results = tmp_path / "configs", tmp_path / "results"
-    declare(
-        configs,
-        "deep",
-        experiment={"name": "deep", "studies": ["architecture"]},
-        model={
-            "type": "scratch",
-            "d_model": 64,
-            "num_heads": 4,
-            "encoder_layers": 6,
-            "decoder_layers": 6,
-            "d_ff": 128,
-        },
-    )
-    write_record(record("deep"), run_directory(results, "deep"))
-
-    row = architecture_row(collect(configs, results)[0])
-
-    assert row["d_model"] == 64
-    assert row["num_heads"] == 4
-    assert row["d_ff"] == 128
-    assert row["parameters"] == "1234"
-    assert row["rougeL_f"] == pytest.approx(0.3)
 
 
 # ---------------------------------------------------------------------------
@@ -439,15 +358,14 @@ def test_an_unmeasured_run_contributes_no_example(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_command_writes_the_four_files_of_section_17(tmp_path: Path) -> None:
+def test_the_command_writes_the_three_result_files(tmp_path: Path) -> None:
     configs, results = tmp_path / "configs", tmp_path / "results"
     declare(configs, "scratch_10")
-    declare(configs, "deep", experiment={"name": "deep", "studies": ["architecture"]})
 
     code = main(["--experiments", str(configs), "--results", str(results), "--study", "all"])
 
     assert code == 0
-    for name in (EXPERIMENTS_CSV, DATASET_SIZE_CSV, ARCHITECTURE_CSV, QUALITATIVE_JSON):
+    for name in (EXPERIMENTS_CSV, DATASET_SIZE_CSV, QUALITATIVE_JSON):
         assert (results / name).is_file()
 
 
@@ -459,7 +377,6 @@ def test_one_study_still_refreshes_the_registry(tmp_path: Path) -> None:
 
     assert (results / EXPERIMENTS_CSV).is_file()
     assert (results / DATASET_SIZE_CSV).is_file()
-    assert not (results / ARCHITECTURE_CSV).exists()
 
 
 def test_the_output_directory_can_be_separated(tmp_path: Path) -> None:

@@ -14,7 +14,7 @@ forbids editing these files to improve a result; a generator that could invent
 one would make that rule unenforceable.
 
 **Every declared experiment gets a row.** Including the ones that never ran.
-A six row table where nine experiments were declared reads as a finished study.
+A nine row table where twelve experiments were declared reads as a finished study.
 
 **Only a complete run fills a score column.** A partial run and a failed one
 keep their row and their status, and their score cells stay empty. A score over

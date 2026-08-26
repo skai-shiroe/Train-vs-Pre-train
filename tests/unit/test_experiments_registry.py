@@ -16,6 +16,7 @@ from src.experiments.record import (
     STATUS_NOT_RUN,
     STATUS_OK,
     STATUS_PARTIAL,
+    STATUS_STALE_CONFIG,
     RunRecord,
     run_directory,
     write_record,
@@ -29,7 +30,7 @@ def declare(directory: Path, name: str, *, studies: list[str], percentage: int |
     """Write one experiment file and return its path."""
     payload: dict[str, Any] = {
         "experiment": {"name": name, "seed": 42, "studies": studies},
-        "model": {"type": "scratch", "d_model": 32, "num_heads": 2},
+        "model": {"type": "random_init", "baseline": "t5"},
     }
     if percentage is None:
         payload["model"] = {"type": "pretrained", "mode": "zero_shot"}
@@ -43,12 +44,18 @@ def declare(directory: Path, name: str, *, studies: list[str], percentage: int |
     return path
 
 
-def record(name: str, status: str = STATUS_OK, score: float = 0.3) -> RunRecord:
+def record(
+    name: str,
+    status: str = STATUS_OK,
+    score: float = 0.3,
+    *,
+    config: dict[str, Any] | None = None,
+) -> RunRecord:
     """Return a record carrying one ROUGE-L score."""
     return RunRecord(
         experiment=name,
         status=status,
-        config={},
+        config=config or {},
         dataset={"train_examples": 2000},
         model={"model": "scratch", "mode": "trained"},
         hardware={},
@@ -105,6 +112,22 @@ def test_a_measured_run_is_joined_to_its_declaration(tmp_path: Path) -> None:
     assert row.config.dataset.percentage == 10
 
 
+def test_a_record_from_an_obsolete_configuration_cannot_supply_a_score(tmp_path: Path) -> None:
+    configs, results = tmp_path / "configs", tmp_path / "results"
+    declare(configs, "scratch_10", studies=["dataset_size"])
+    write_record(
+        record("scratch_10", config={"model": {"type": "obsolete"}}),
+        run_directory(results, "scratch_10"),
+    )
+
+    row = collect(configs, results)[0]
+
+    assert row.status == STATUS_STALE_CONFIG
+    assert row.measured is False
+    assert row.rouge("rougeL") is None
+    assert row.interval("rougeL") is None
+
+
 def test_a_partial_run_is_visible_and_unusable(tmp_path: Path) -> None:
     configs, results = tmp_path / "configs", tmp_path / "results"
     declare(configs, "scratch_10", studies=["dataset_size"])
@@ -132,9 +155,8 @@ def test_a_run_without_a_declaration_is_ignored(tmp_path: Path) -> None:
 
 def test_a_study_selects_the_experiments_that_declare_it(tmp_path: Path) -> None:
     configs, results = tmp_path / "configs", tmp_path / "results"
-    declare(configs, "scratch_100", studies=["dataset_size", "architecture"])
+    declare(configs, "scratch_100", studies=["dataset_size"])
     declare(configs, "scratch_10", studies=["dataset_size"])
-    declare(configs, "scratch_deep", studies=["architecture"])
 
     rows = collect(configs, results)
 
@@ -142,19 +164,3 @@ def test_a_study_selects_the_experiments_that_declare_it(tmp_path: Path) -> None
         "scratch_10",
         "scratch_100",
     ]
-    assert [row.name for row in rows_for_study(rows, "architecture")] == [
-        "scratch_100",
-        "scratch_deep",
-    ]
-
-
-def test_a_run_can_feed_two_studies(tmp_path: Path) -> None:
-    # Sharing the reference point is what keeps the second ablation to two
-    # extra trainings instead of three.
-    configs, results = tmp_path / "configs", tmp_path / "results"
-    declare(configs, "scratch_100", studies=["dataset_size", "architecture"])
-
-    row = collect(configs, results)[0]
-
-    assert row.in_study("dataset_size") is True
-    assert row.in_study("architecture") is True

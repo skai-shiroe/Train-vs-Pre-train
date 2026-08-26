@@ -44,6 +44,10 @@ def offline_baseline(
         def load_model(cls, config: BaselineConfig) -> PreTrainedModel:
             return tiny_t5()
 
+        @classmethod
+        def load_random_model(cls, config: BaselineConfig) -> PreTrainedModel:
+            return tiny_t5()
+
     monkeypatch.setattr("src.models.pretrained.base.build_tokenizer", lambda hf_id: fake_tokenizer)
     monkeypatch.setitem(BASELINES, StubSummarizer.name, StubSummarizer)
     return StubSummarizer

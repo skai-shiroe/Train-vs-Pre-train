@@ -1,10 +1,10 @@
 """The single interface the evaluator knows about.
 
-Section 2.1 compares a hand written Transformer with ``t5-small`` on the same
-test set. If the evaluator held a branch on which model it was given, the two
-sides would drift: a truncation applied on one path and not the other, a
-decoding budget read from a different place. There is one path, and both models
-reach it through this protocol.
+Section 2.1 compares a hand written Transformer and two instances of
+``t5-small`` on the same test set. If the evaluator held a branch on which model
+it was given, the sides would drift: a truncation applied on one path and not
+the other, a decoding budget read from a different place. There is one path, and
+every model reaches it through this protocol.
 
 It is structural on purpose. :class:`src.models.pretrained.base.PretrainedSummarizer`
 and :class:`src.models.scratch.summarizer.ScratchSummarizer` satisfy it without

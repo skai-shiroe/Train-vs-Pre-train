@@ -7,11 +7,11 @@ reversal is worth stating rather than hiding, because the old rationale was
 sound and what changed is the requirement, not the argument.
 
 **What the store now holds.** One logged model per measured run, in the flavour
-that matches it: ``mlflow.transformers`` for ``t5-small``, which round trips the
-tokeniser and the generation configuration with the weights, and
-``mlflow.pytorch`` for the hand written Transformer, which has no flavour of its
-own. Each is registered under ``syntra-<experiment>`` so it can be fetched by
-name instead of by run identifier.
+that matches it: ``mlflow.transformers`` for the two ``t5-small`` branches,
+which round trips the tokeniser and the generation configuration with the
+weights, and ``mlflow.pytorch`` for the hand written Transformer, which has no
+flavour of its own. Each is registered under ``syntra-<experiment>`` so it can
+be fetched by name instead of by run identifier.
 
 **PostgreSQL never holds a weight.** The database stores the metadata of a run
 and a pointer; the artefacts, model directories included, are written under
@@ -155,8 +155,11 @@ def _is_transformers_model(model: Any) -> bool:
 
     Returns:
         ``True`` when ``transformers`` is importable and the model is one of
-        its pretrained models. A missing ``transformers`` is not an error here:
-        it only means the from scratch flavour is the right one.
+        its model classes. This includes a T5 instantiated from configuration
+        with random weights: ``PreTrainedModel`` describes the class family,
+        not the provenance of the current weights. A missing ``transformers``
+        is not an error here: it only means the from scratch flavour is the
+        right one.
     """
     try:
         from transformers import PreTrainedModel

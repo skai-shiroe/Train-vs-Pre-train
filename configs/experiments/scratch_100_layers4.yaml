@@ -1,16 +1,16 @@
 ---
-# Deuxieme ablation, section 12. Point profond du balayage : 6 couches contre
-# les 4 de scratch_100 et les 2 de scratch_100_layers2.
+# Deuxieme ablation, section 12. Point intermediaire du balayage : 4 couches
+# contre les 6 de scratch_100 et les 2 de scratch_100_layers2.
 #
 # Trois points suffisent a distinguer une profondeur qui aide d'une profondeur
 # qui sature. Aller au-dela couterait un entrainement complet par point pour un
 # budget materiel de 8 Go.
 
 experiment:
-  name: scratch_100_layers6
+  name: scratch_100_layers4
   seed: 42
   studies: [architecture]
-  description: Transformer from scratch a 6 couches, corpus complet.
+  description: Transformer from scratch a 4 couches, corpus complet.
 
 dataset:
   config: configs/data/cnn_dailymail.yaml
@@ -18,26 +18,26 @@ dataset:
 
 model:
   type: scratch
-  d_model: 256
+  d_model: 512
   num_heads: 8
-  encoder_layers: 6
-  decoder_layers: 6
-  d_ff: 1024
+  encoder_layers: 4
+  decoder_layers: 4
+  d_ff: 2048
   dropout: 0.1
   max_position: 512
 
 training:
-  epochs: 10
+  epochs: 3
   batch_size: 8
   gradient_accumulation_steps: 4
-  learning_rate: 0.0003
+  learning_rate: 0.0001
   weight_decay: 0.01
   scheduler: linear
   warmup_ratio: 0.06
   max_grad_norm: 1.0
   label_smoothing: 0.1
   mixed_precision: true
-  early_stopping_patience: 3
+  early_stopping_patience: 2
   group_by_length: true
   mega_batch_factor: 50
   log_every_steps: 50

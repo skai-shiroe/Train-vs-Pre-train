@@ -1,0 +1,54 @@
+---
+# Ablation principale, section 11. Architecture epinglee de t5-small, poids
+# tires au hasard, entrainee sur 10 % du corpus de travail, soit les memes
+# 2 000 exemples que pretrained_ft_10.
+#
+# C'est le seul couple de la campagne ou les deux modeles partagent les memes
+# tenseurs, aux memes formes, dans le meme graphe de calcul. Un ecart de score
+# entre random_t5_10 et pretrained_ft_10 ne peut donc venir que de la valeur
+# initiale des poids.
+
+experiment:
+  name: random_t5_10
+  seed: 42
+  studies: [dataset_size]
+  description: t5-small initialise aleatoirement sur 10 pour cent du corpus.
+
+dataset:
+  config: configs/data/cnn_dailymail.yaml
+  percentage: 10
+
+model:
+  type: random_init
+  baseline: t5
+  # Meme architecture epinglee que le modele pre-entraine, sans ses poids.
+  revision: df1b051c49625cf57a3d0d8d3863ed4d13564fe4  # pragma: allowlist secret
+
+training:
+  # La graine du run vient du bloc experiment. La declarer ici est refuse.
+  epochs: 3
+  batch_size: 8
+  # Taille de lot effective de 32, tenue par une carte de 8 Go.
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  scheduler: linear
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  label_smoothing: 0.1
+  mixed_precision: true
+  early_stopping_patience: 2
+  group_by_length: true
+  mega_batch_factor: 50
+  log_every_steps: 50
+  device: auto
+
+evaluation:
+  split: test
+  batch_size: 8
+  max_new_tokens: 128
+  min_new_tokens: 0
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  bootstrap_samples: 1000
+  confidence: 0.95

@@ -17,8 +17,9 @@ writes the Markdown tables a reader can put beside the records::
     reports/_generated/architecture.md     the depth ablation
     reports/_generated/capitalisation.md   the lowercase rates
     reports/_generated/metrics.md          the three ROUGE variants, per run
-    reports/_generated/pretrained.md       the four ``t5-small`` runs
-    reports/_generated/families.md         the two families at each proportion
+    reports/_generated/pretrained.md       the four pretrained ``t5-small`` runs
+    reports/_generated/families.md         hand written against fine tuned
+    reports/_generated/initialisation.md   random ``t5-small`` against fine tuned
     reports/_generated/headline.md         the headline result table
 
 and refreshes the regions ``README.md`` and ``RAPPORT.md`` carry between their
@@ -78,11 +79,12 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     PRETRAINED_FINE_TUNED,
     PRETRAINED_ZERO_SHOT,
+    RANDOM_INIT,
     SCRATCH,
     PretrainedModelConfig,
     ScratchModelConfig,
 )
-from src.experiments.record import run_directory
+from src.experiments.record import RunRecord, run_directory
 from src.experiments.registry import DEFAULT_RESULTS_DIR, ExperimentRow, collect, rows_for_study
 from src.metrics.rouge import REPORTED_VARIANT, ROUGE_VARIANTS
 from src.utils.markdown import (
@@ -125,11 +127,16 @@ PLAN_FRAGMENT = "plan.md"
 #: rather than the language is read on ROUGE-2.
 METRICS_FRAGMENT = "metrics.md"
 
-#: The four ``t5-small`` runs, zero-shot and fine tuned.
+#: The four pre-trained ``t5-small`` runs, zero-shot and fine tuned.
 PRETRAINED_FRAGMENT = "pretrained.md"
 
-#: The two families side by side at each proportion.
+#: The hand written Transformer against the fine tuned baseline, at each
+#: proportion. Same parameter budget, different architecture.
 FAMILIES_FRAGMENT = "families.md"
+
+#: The randomly initialised ``t5-small`` against the fine tuned one, at each
+#: proportion. Same architecture, so the gap is the pretraining alone.
+INITIALISATION_FRAGMENT = "initialisation.md"
 
 #: The headline result table, injected into the README.
 HEADLINE_FRAGMENT = "headline.md"
@@ -150,6 +157,7 @@ DEFAULT_REPORT = Path("RAPPORT.md")
 #: The regions of the report, and the table each one carries.
 DATASET_SIZE_REGION = "dataset_size"
 FAMILIES_REGION = "families"
+INITIALISATION_REGION = "initialisation"
 ARCHITECTURE_REGION = "architecture"
 CAPITALISATION_REGION = "capitalisation"
 
@@ -165,7 +173,8 @@ STUDY_LABELS: dict[str, str] = {
 #: a figure label is drawn by Matplotlib into an image and stays ASCII, these
 #: land in accented prose.
 VARIANT_LABELS: dict[str, str] = {
-    SCRATCH: "from scratch",
+    SCRATCH: "Transformer from scratch",
+    RANDOM_INIT: "`t5-small` aléatoire",
     PRETRAINED_FINE_TUNED: "`t5-small` fine-tuné",
     PRETRAINED_ZERO_SHOT: "`t5-small` zero-shot",
 }
@@ -575,15 +584,27 @@ def absolute(base: float | None, other: float | None) -> str:
     return decimal(abs(other - base), SCORE_DECIMALS)
 
 
-def families_table(rows: Sequence[ExperimentRow]) -> str:
-    """Render the two families side by side at each proportion.
+def families_table(rows: Sequence[ExperimentRow], variant: str = SCRATCH) -> str:
+    """Render one family that starts from nothing against the fine tuned one.
 
     This is the table requirement 3 is answered with, and the two gap columns
     are the answer: the relative gap narrows slightly while the absolute one
-    widens, so giving the from scratch model more data does not bring it closer.
+    widens, so giving the model that starts from nothing more data does not
+    bring it closer.
+
+    It is rendered twice, on two families, and the two readings are not the
+    same. With :data:`RANDOM_INIT` the two columns hold the same tensors in the
+    same graph, so their gap is the pretraining and nothing else. With
+    :data:`SCRATCH` the left column matches the parameter budget of ``t5-small``
+    but not its architecture, so its gap mixes the pretraining with the choices
+    T5 makes that this Transformer does not: no biases, RMS normalisation,
+    relative positions. Both belong in the report, and neither says what the
+    other says.
 
     Args:
         rows: The rows of the corpus size study.
+        variant: The family put on the left, :data:`SCRATCH` or
+            :data:`RANDOM_INIT`.
 
     Returns:
         The Markdown table, or a sentence saying no proportion is declared. The
@@ -593,14 +614,14 @@ def families_table(rows: Sequence[ExperimentRow]) -> str:
         three.
     """
     scratch_label, pretrained_label = (
-        VARIANT_LABELS[SCRATCH],
+        VARIANT_LABELS[variant],
         VARIANT_LABELS[PRETRAINED_FINE_TUNED],
     )
     declared = {
         (row.config.variant, row.config.dataset.percentage): row
         for row in rows
         if row.config.dataset.percentage is not None
-        and row.config.variant in (SCRATCH, PRETRAINED_FINE_TUNED)
+        and row.config.variant in (variant, PRETRAINED_FINE_TUNED)
     }
     proportions = sorted({percentage for _, percentage in declared})
     if not proportions:
@@ -617,7 +638,7 @@ def families_table(rows: Sequence[ExperimentRow]) -> str:
     pairs = [
         (
             percentage,
-            declared.get((SCRATCH, percentage)),
+            declared.get((variant, percentage)),
             declared.get((PRETRAINED_FINE_TUNED, percentage)),
         )
         for percentage in proportions
@@ -829,12 +850,41 @@ def statuses(rows: Sequence[ExperimentRow]) -> str:
     return ", ".join(f"`{name}` {count}" for name, count in ordered)
 
 
+def provenance_stamp(record: RunRecord) -> str:
+    """Return the commit of one run, marked when its tree did not match it.
+
+    A record whose ``git_dirty`` is true was produced by a working tree no
+    commit describes. Publishing the hash on its own invites a reader to check
+    that commit out and expect these scores back, which is the single thing
+    the stamp exists to prevent, so the mark travels with the hash rather than
+    sitting in a row of its own that the eye can skip.
+
+    Args:
+        record: The record to read the provenance of.
+
+    Returns:
+        The commit between backticks, followed by the mark when the tree was
+        modified, or the empty string when the run recorded no commit.
+    """
+    commit = record.provenance.get("git_commit", "")
+    if not commit:
+        return ""
+    dirty = record.provenance.get("git_dirty", "").strip().lower() == "true"
+    return f"`{commit}` (arbre de travail modifié)" if dirty else f"`{commit}`"
+
+
 def campaign_table(rows: Sequence[ExperimentRow]) -> str:
     """Render what the campaign as a whole is made of, for section 1.
 
     This is the provenance stamp. The scores of the report are only worth what
     the reader knows about where they come from, and the commit is part of that
     answer even when, especially when, it is ``unknown``.
+
+    **The commit alone is not the answer.** A run started from a modified
+    working tree records the commit it sat on top of, and that hash describes
+    code nobody ran. The records already carry ``git_dirty``;
+    :func:`provenance_stamp` is what stops the table from publishing the hash
+    as though the tree had been clean.
 
     Nothing here describes where the records were read from. A fragment that
     named its own input directory would render differently depending on whether
@@ -852,7 +902,7 @@ def campaign_table(rows: Sequence[ExperimentRow]) -> str:
 
     total_seconds = sum(record.duration_seconds for record in records)
     corpora = distinct(str(record.dataset.get("version", "")) for record in records)
-    commits = distinct(record.provenance.get("git_commit", "") for record in records)
+    commits = distinct(provenance_stamp(record) for record in records)
     hardware = distinct(record.hardware.get("gpu_name", "") for record in records)
     frameworks = distinct(record.hardware.get("torch_version", "") for record in records)
 
@@ -862,7 +912,7 @@ def campaign_table(rows: Sequence[ExperimentRow]) -> str:
         ["Statuts", statuses(rows)],
         ["Calcul cumulé", f"{number(round(total_seconds / 60))} minutes"],
         ["Empreinte du corpus", ", ".join(f"`{value}`" for value in corpora) or MISSING],
-        ["Commit des runs", ", ".join(f"`{value}`" for value in commits) or MISSING],
+        ["Commit des runs", ", ".join(commits) or MISSING],
         ["Matériel", ", ".join(hardware) or MISSING],
         ["Torch", ", ".join(f"`{value}`" for value in frameworks) or MISSING],
     ]
@@ -891,7 +941,7 @@ def build(
             forgot it would rewrite the README of the repository with whatever
             campaign it was pointed at. The command line supplies
             :data:`DEFAULT_README`, a test supplies its own.
-        report: The report, which carries three of them, and required for the
+        report: The report, which carries four of them, and required for the
             same reason.
 
     Returns:
@@ -921,7 +971,8 @@ def build(
     # defect one step up.
     headline = headline_table(by_score(dataset_size))
     sizes = dataset_size_table(sort_dataset_size(dataset_size))
-    families = families_table(dataset_size)
+    families = families_table(dataset_size, SCRATCH)
+    initialisation = families_table(dataset_size, RANDOM_INIT)
     depth = architecture_table(sort_architecture(architecture))
     capitals = capitalisation_table(rows, results)
 
@@ -934,6 +985,7 @@ def build(
         output / METRICS_FRAGMENT: fragment(metrics_table(by_score(rows)), COMMAND),
         output / PRETRAINED_FRAGMENT: fragment(pretrained_table(pretrained_rows(rows)), COMMAND),
         output / FAMILIES_FRAGMENT: fragment(families, COMMAND),
+        output / INITIALISATION_FRAGMENT: fragment(initialisation, COMMAND),
         output / HEADLINE_FRAGMENT: fragment(headline, COMMAND),
         Path(readme): injected(Path(readme), HEADLINE_REGION, headline),
         Path(report): inject_regions(
@@ -941,6 +993,7 @@ def build(
             {
                 DATASET_SIZE_REGION: sizes,
                 FAMILIES_REGION: families,
+                INITIALISATION_REGION: initialisation,
                 ARCHITECTURE_REGION: depth,
                 CAPITALISATION_REGION: capitals,
             },

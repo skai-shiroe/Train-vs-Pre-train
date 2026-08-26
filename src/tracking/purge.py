@@ -23,6 +23,15 @@ first did not happen.
 **The Default experiment is emptied, not deleted.** MLflow refuses to delete
 it and recreates it at the next start, so deleting it is a failure this command
 would report on every run.
+
+**A run is not the only thing a campaign leaves.** MLflow 3 records a logged
+model as an entity of its own, and a registered model version as another.
+Neither belongs to the run in the database, so ``delete_run`` leaves both, and
+``mlflow gc`` collects neither. A store emptied of its runs alone still lists
+every model of every campaign in the interface, pointing at runs that no longer
+exist. Both are removed here, and in that order: ``mlflow gc`` refuses to remove
+a run that a live model version still points at, so the registry has to go
+first.
 """
 
 from __future__ import annotations
@@ -31,6 +40,8 @@ import argparse
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any
 
 from mlflow.entities import Experiment, LifecycleStage, Run, ViewType
 from mlflow.tracking import MlflowClient
@@ -41,7 +52,7 @@ from src.tracking.store import describe_store, resolve_tracking_uri
 #: Experiment MLflow creates on its own and refuses to delete.
 DEFAULT_MLFLOW_EXPERIMENT = "Default"
 
-#: Runs read at once. A campaign writes nine, and the store of this repository
+#: Runs read at once. A campaign writes ten, and the store of this repository
 #: holds a few dozen; one page is the whole store rather than the first of many.
 PAGE_SIZE = 1000
 
@@ -110,8 +121,71 @@ def active(entity: Experiment | Run) -> bool:
     return getattr(entity, "info", entity).lifecycle_stage == LifecycleStage.ACTIVE
 
 
-def purge_experiment(client: MlflowClient, experiment: Experiment) -> tuple[int, int]:
-    """Mark every run of an experiment deleted, then the experiment itself.
+@dataclass(frozen=True, slots=True)
+class Removed:
+    """What one pass over an experiment took out of the store.
+
+    Attributes:
+        marked: Runs this pass moved to the deleted stage.
+        held: Runs the experiment holds, whatever their stage.
+        models: Logged model entities removed.
+        versions: Registry versions removed.
+    """
+
+    marked: int
+    held: int
+    models: int
+    versions: int
+
+
+def logged_models_of(client: MlflowClient, experiment: Experiment) -> list[Any]:
+    """Return the models MLflow records beside the runs of an experiment.
+
+    Args:
+        client: Client on the store.
+        experiment: The experiment to read.
+
+    Returns:
+        The logged models, or an empty list on a client that predates the
+        entity. The version range this project supports opens at MLflow 2,
+        which has no such thing, and a store written by it simply has none.
+    """
+    search = getattr(client, "search_logged_models", None)
+    if search is None:
+        return []
+    return list(search(experiment_ids=[experiment.experiment_id]))
+
+
+def registry_versions_of(client: MlflowClient, run_ids: set[str]) -> list[tuple[str, str]]:
+    """Return the registry versions produced by a set of runs.
+
+    Args:
+        client: Client on the store.
+        run_ids: Runs about to be deleted.
+
+    Returns:
+        One ``(name, version)`` pair per version whose source run is in the
+        set. A version left behind would block the collection of its run, and
+        would offer the interface a model to load whose run is gone.
+    """
+    search = getattr(client, "search_registered_models", None)
+    if search is None:
+        return []
+
+    versions: list[tuple[str, str]] = []
+    for model in search():
+        for version in client.search_model_versions(f"name='{model.name}'"):
+            if version.run_id in run_ids:
+                versions.append((model.name, version.version))
+    return versions
+
+
+def purge_experiment(client: MlflowClient, experiment: Experiment) -> Removed:
+    """Empty an experiment of its models and its runs, then delete it.
+
+    The order is imposed by the collection: a registry version pointing at a
+    run makes ``mlflow gc`` refuse to remove that run, so the registry goes
+    first, then the logged models, then the runs.
 
     What is already marked is left alone. MLflow looks an experiment up among
     the active ones before deleting it and raises when it is not there, so a
@@ -124,11 +198,27 @@ def purge_experiment(client: MlflowClient, experiment: Experiment) -> tuple[int,
         experiment: The experiment to empty.
 
     Returns:
-        How many runs this pass marked, and how many the experiment holds. The
-        experiment is marked too, unless it is the one MLflow recreates on its
-        own, or it was already marked.
+        What the pass took out. The experiment is marked too, unless it is the
+        one MLflow recreates on its own, or it was already marked.
     """
     runs = runs_of(client, experiment)
+    run_ids = {run.info.run_id for run in runs}
+
+    versions = registry_versions_of(client, run_ids)
+    for name, version in versions:
+        client.delete_model_version(name, version)
+    # A registered model whose every version has gone is an empty shelf the
+    # interface still lists. It is removed once nothing points at it any more.
+    # The names are walked in the order the versions gave them rather than
+    # through a set, so two passes over one store print the same lines.
+    for name in dict.fromkeys(name for name, _ in versions):
+        if not client.search_model_versions(f"name='{name}'"):
+            client.delete_registered_model(name)
+
+    models = logged_models_of(client, experiment)
+    for model in models:
+        client.delete_logged_model(model.model_id)
+
     marked = 0
     for run in runs:
         if not active(run):
@@ -138,7 +228,7 @@ def purge_experiment(client: MlflowClient, experiment: Experiment) -> tuple[int,
 
     if experiment.name != DEFAULT_MLFLOW_EXPERIMENT and active(experiment):
         client.delete_experiment(experiment.experiment_id)
-    return marked, len(runs)
+    return Removed(marked=marked, held=len(runs), models=len(models), versions=len(versions))
 
 
 def collect_garbage(tracking_uri: str | None) -> tuple[bool, str]:
@@ -245,26 +335,40 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.yes:
         total = 0
+        models_total = 0
         for experiment in experiments:
             count = len(runs_of(client, experiment))
+            models = len(logged_models_of(client, experiment))
             total += count
-            print(f"{experiment.name:<26}{count} run(s)")
-        print(f"\n{total} run(s) in {len(experiments)} experiment(s). Nothing deleted: add --yes.")
+            models_total += models
+            print(f"{experiment.name:<26}{count} run(s), {models} logged model(s)")
+        print(
+            f"\n{total} run(s) and {models_total} model(s) in {len(experiments)} "
+            "experiment(s). Nothing deleted: add --yes."
+        )
         return 0
 
     marked_total = 0
     held_total = 0
+    models_total = 0
+    versions_total = 0
     for experiment in experiments:
-        marked, held = purge_experiment(client, experiment)
-        marked_total += marked
-        held_total += held
+        removed = purge_experiment(client, experiment)
+        marked_total += removed.marked
+        held_total += removed.held
+        models_total += removed.models
+        versions_total += removed.versions
         kept = (
             " (kept, MLflow recreates it)"
             if experiment.name == DEFAULT_MLFLOW_EXPERIMENT
             else ""
         )
-        already = f", {held - marked} already were" if held > marked else ""
-        print(f"{experiment.name:<26}{marked} run(s) marked deleted{already}{kept}")
+        stale = removed.held - removed.marked
+        already = f", {stale} already were" if stale else ""
+        print(
+            f"{experiment.name:<26}{removed.marked} run(s) marked deleted{already}, "
+            f"{removed.models} model(s) and {removed.versions} registry version(s) removed{kept}"
+        )
 
     collected, said = collect_garbage(tracking_uri)
     print(f"\n{held_total} run(s) in the deleted stage. mlflow gc: {said or 'nothing to say'}")

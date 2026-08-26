@@ -27,8 +27,15 @@ from src.experiments.config import ExperimentConfig, load_experiment_config
 from src.experiments.record import STATUS_NOT_RUN, STATUS_OK, run_directory
 from src.experiments.run import execute
 from src.metrics.rouge import REPORTED_VARIANT
+from src.models.pretrained.t5 import T5Summarizer
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _offline_random_t5(monkeypatch: pytest.MonkeyPatch, tiny_t5: Any) -> None:
+    """Keep the random-initialisation branch offline and small."""
+    monkeypatch.setattr(T5Summarizer, "load_random_model", lambda config: tiny_t5(32100))
 
 
 def experiment_payload(data_config: Path, name: str, **overrides: Any) -> dict[str, Any]:
@@ -37,14 +44,9 @@ def experiment_payload(data_config: Path, name: str, **overrides: Any) -> dict[s
         "experiment": {"name": name, "seed": 42, "studies": ["dataset_size"]},
         "dataset": {"config": str(data_config), "percentage": 100},
         "model": {
-            "type": "scratch",
-            "d_model": 32,
-            "num_heads": 2,
-            "encoder_layers": 1,
-            "decoder_layers": 1,
-            "d_ff": 64,
-            "dropout": 0.0,
-            "max_position": 512,
+            "type": "random_init",
+            "baseline": "t5",
+            "revision": "pinned",
         },
         "training": {
             "epochs": 1,
@@ -103,7 +105,10 @@ def test_a_configuration_file_produces_a_measured_run(
 
     assert record.status == STATUS_OK
     assert record.rouge(REPORTED_VARIANT) is not None
-    assert record.model["tokenizer"] == "t5-small"
+    # The architecture is read from the same identifier the corpus was
+    # encoded with, and the weights of that identifier are not loaded.
+    assert record.model["hf_id"] == "t5-small"
+    assert record.model["initialization"] == "random"
 
 
 def test_the_real_tokeniser_drives_the_embedding_table(

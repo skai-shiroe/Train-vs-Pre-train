@@ -80,7 +80,7 @@ def test_releasing_the_accelerator_is_safe_without_cuda() -> None:
 def test_releasing_the_accelerator_returns_reserved_memory() -> None:
     """What the caching allocator holds must go back before the next run.
 
-    Nine experiments share one process. Without this, what the earlier ones
+    Ten experiments share one process. Without this, what the earlier ones
     reserved is still held when a later one builds its model, and the card of
     the reference machine fails on a driver level out of memory although each
     experiment fits by itself.

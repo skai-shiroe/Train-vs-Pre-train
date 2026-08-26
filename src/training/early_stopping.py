@@ -1,6 +1,6 @@
 """Early stopping on the validation metric.
 
-A from scratch Transformer trained on 20 000 examples overfits well before the
+A randomly initialised T5 trained on 20 000 examples can overfit before the
 last planned epoch. Running to the end would report the score of an overfitted
 model, and would make the ablation on corpus size measure patience rather than
 data. Early stopping cuts the run at the best validation loss instead.

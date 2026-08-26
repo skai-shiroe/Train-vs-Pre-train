@@ -35,10 +35,7 @@ from src.metrics.rouge import RougeConfig
 from src.models.generation import GenerationConfig
 from src.models.pretrained.base import BaselineConfig
 from src.models.pretrained.t5 import T5Summarizer
-from src.models.scratch.config import ScratchTransformerConfig
-from src.models.scratch.summarizer import ScratchSummarizer
-from src.models.scratch.transformer import ScratchTransformer
-from tests.conftest import FAKE_VOCAB_SIZE, FakeTokenizer
+from tests.conftest import FakeTokenizer
 
 NO_BOOTSTRAP = RougeConfig(bootstrap_samples=0)
 
@@ -103,20 +100,11 @@ def test_both_sides_of_the_comparison_satisfy_the_shared_interface(
     tokenizer_config = TokenizerConfig(
         hf_id="t5-small", source_prefix="summarize: ", max_source_tokens=32, max_target_tokens=8
     )
-    scratch = ScratchSummarizer(
-        ScratchTransformer(
-            ScratchTransformerConfig(
-                vocab_size=FAKE_VOCAB_SIZE,
-                d_model=16,
-                num_heads=2,
-                num_encoder_layers=1,
-                num_decoder_layers=1,
-                d_ff=32,
-                max_position=64,
-            )
-        ),
+    random_init = T5Summarizer(
+        BaselineConfig.from_tokenizer_config(tokenizer_config),
+        tiny_t5(),
         fake_tokenizer,  # type: ignore[arg-type]
-        tokenizer_config,
+        pretrained=False,
     )
     pretrained = T5Summarizer(
         BaselineConfig(hf_id="t5-small", source_prefix="summarize: "),
@@ -124,7 +112,7 @@ def test_both_sides_of_the_comparison_satisfy_the_shared_interface(
         fake_tokenizer,  # type: ignore[arg-type]
     )
 
-    assert isinstance(scratch, Summarizer)
+    assert isinstance(random_init, Summarizer)
     assert isinstance(pretrained, Summarizer)
 
 

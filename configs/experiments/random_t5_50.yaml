@@ -1,28 +1,24 @@
 ---
-# Ablation principale, section 11. Fine-tuning de t5-small sur 10 % du corpus
-# de travail, soit les memes 2 000 exemples que scratch_10.
-#
-# Le budget est strictement identique a scratch_10 : seule l'initialisation
-# pre-entrainee ou aleatoire distingue les deux experiences.
+# Ablation principale, section 11. Architecture epinglee de t5-small, poids
+# tires au hasard, entrainee sur 50 % du corpus de travail, soit les memes
+# 10 000 exemples que pretrained_ft_50. Le sous-ensemble 10 % en est un
+# prefixe.
 
 experiment:
-  name: pretrained_ft_10
+  name: random_t5_50
   seed: 42
   studies: [dataset_size]
-  description: t5-small fine-tune sur 10 pour cent du corpus de travail.
+  description: t5-small initialise aleatoirement sur 50 pour cent du corpus.
 
 dataset:
   config: configs/data/cnn_dailymail.yaml
-  percentage: 10
+  percentage: 50
 
 model:
-  type: pretrained
+  type: random_init
   baseline: t5
-  # Revision epinglee. Les poids sont les notres, mais l'architecture dans
-  # laquelle ils sont charges vient du hub : sans revision fixee, elle change
-  # sans que la version du registre change. Section 14.
+  # Meme architecture epinglee que le modele pre-entraine, sans ses poids.
   revision: df1b051c49625cf57a3d0d8d3863ed4d13564fe4  # pragma: allowlist secret
-  mode: fine_tuned
 
 training:
   epochs: 3

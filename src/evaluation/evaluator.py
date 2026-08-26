@@ -2,7 +2,7 @@
 
 This is the single path both sides of the comparison take. It receives a
 :class:`src.evaluation.protocol.Summarizer`, never a model class, so the from
-scratch Transformer and ``t5-small`` are measured by the same code, with the
+randomly initialised and pretrained ``t5-small`` models are measured by the same code, with the
 same decoding budget, on the same examples.
 
 Four things are enforced here rather than left to the caller.

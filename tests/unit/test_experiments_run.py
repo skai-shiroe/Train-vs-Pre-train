@@ -48,7 +48,6 @@ from src.experiments.run import (
 )
 from src.models.pretrained.base import BaselineConfig
 from src.models.pretrained.t5 import T5Summarizer
-from src.models.scratch.summarizer import ScratchSummarizer
 from src.tracking.payload import TrackedRun
 from src.tracking.provenance import UNKNOWN, Provenance
 from src.training.state import TrainingResult
@@ -75,9 +74,32 @@ class BrokenTracker:
 
 
 @pytest.fixture(autouse=True)
-def offline_tokenizer(monkeypatch: pytest.MonkeyPatch, fake_tokenizer: Any) -> Any:
-    """Replace the shared tokeniser with one that needs no network."""
+def offline_tokenizer(
+    monkeypatch: pytest.MonkeyPatch, fake_tokenizer: Any, tiny_t5: Any
+) -> Any:
+    """Replace the shared tokeniser and T5 constructors with offline versions."""
     monkeypatch.setattr(run_module, "build_tokenizer", lambda hf_id: fake_tokenizer)
+
+    def random_init(
+        cls: type[T5Summarizer], config: BaselineConfig, *, trained: bool = False
+    ) -> T5Summarizer:
+        return cls(
+            config,
+            tiny_t5(),
+            fake_tokenizer,
+            fine_tuned=trained,
+            pretrained=False,
+        )
+
+    def random_checkpoint(
+        cls: type[T5Summarizer], config: BaselineConfig, state_dict: dict[str, torch.Tensor]
+    ) -> T5Summarizer:
+        summarizer = random_init(cls, config, trained=True)
+        summarizer.model.load_state_dict(state_dict)
+        return summarizer
+
+    monkeypatch.setattr(T5Summarizer, "from_random_init", classmethod(random_init))
+    monkeypatch.setattr(T5Summarizer, "from_random_checkpoint", classmethod(random_checkpoint))
     return fake_tokenizer
 
 
@@ -86,16 +108,7 @@ def scratch_payload(data_config: Path, **overrides: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "experiment": {"name": "scratch_test", "seed": 42, "studies": ["dataset_size"]},
         "dataset": {"config": str(data_config), "percentage": 100},
-        "model": {
-            "type": "scratch",
-            "d_model": 32,
-            "num_heads": 2,
-            "encoder_layers": 1,
-            "decoder_layers": 1,
-            "d_ff": 64,
-            "dropout": 0.0,
-            "max_position": 512,
-        },
+        "model": {"type": "random_init", "baseline": "t5", "revision": "pinned"},
         "training": {
             "epochs": 1,
             "batch_size": 4,
@@ -209,12 +222,13 @@ def test_an_unknown_proportion_is_reported(data_config_file: Path) -> None:
 
 
 def test_an_untrained_model_says_so(scratch_experiment: ExperimentConfig) -> None:
-    # A randomly initialised Transformer produces summaries too. Filing its
+    # A randomly initialised T5 produces summaries too. Filing its
     # score under the trained model would be a fabricated result.
     summarizer = build_experiment_summarizer(scratch_experiment, load_corpus(scratch_experiment))
 
-    assert isinstance(summarizer, ScratchSummarizer)
-    assert summarizer.trained is False
+    assert isinstance(summarizer, T5Summarizer)
+    assert summarizer.pretrained is False
+    assert summarizer.fine_tuned is False
     assert summarizer.describe()["mode"] == "untrained"
 
 
@@ -227,7 +241,7 @@ def test_weights_from_a_checkpoint_mark_the_model_as_trained(
     summarizer = build_experiment_summarizer(scratch_experiment, corpus, state_dict=state)
 
     assert summarizer.describe()["mode"] == "trained"
-    assert summarizer.describe()["encoder_layers"] == "1"
+    assert summarizer.describe()["initialization"] == "random"
 
 
 def test_the_baseline_is_built_from_the_corpus_tokeniser_settings(
@@ -257,6 +271,44 @@ def test_the_baseline_is_built_from_the_corpus_tokeniser_settings(
     assert seen[0].source_prefix == "summarize: "
     assert seen[0].max_source_tokens == 512
     assert seen[0].hf_id == "t5-small"
+
+
+def test_the_from_scratch_comparison_builds_t5_with_random_weights(
+    monkeypatch: pytest.MonkeyPatch,
+    data_config_file: Path,
+    tiny_t5: Any,
+    fake_tokenizer: Any,
+) -> None:
+    seen: list[BaselineConfig] = []
+
+    def random_init(
+        cls: type[T5Summarizer], config: BaselineConfig, *, trained: bool = False
+    ) -> T5Summarizer:
+        seen.append(config)
+        return cls(
+            config,
+            tiny_t5(),
+            fake_tokenizer,
+            fine_tuned=trained,
+            pretrained=False,
+        )
+
+    monkeypatch.setattr(T5Summarizer, "from_random_init", classmethod(random_init))
+    config = ExperimentConfig.model_validate(
+        {
+            "experiment": {"name": "random_t5", "studies": ["dataset_size"]},
+            "dataset": {"config": str(data_config_file), "percentage": 100},
+            "model": {"type": "random_init", "baseline": "t5", "revision": "pinned"},
+            "training": {"epochs": 1, "batch_size": 4, "device": "cpu"},
+        }
+    )
+
+    summarizer = build_experiment_summarizer(config, load_corpus(config))
+
+    assert isinstance(summarizer, T5Summarizer)
+    assert summarizer.pretrained is False
+    assert summarizer.describe()["mode"] == "untrained"
+    assert seen[0].revision == "pinned"
 
 
 def test_a_fine_tuned_baseline_is_rebuilt_from_its_checkpoint(

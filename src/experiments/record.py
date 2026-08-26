@@ -51,6 +51,9 @@ STATUS_FAILED = "FAILED"
 #: An experiment that is declared but was never executed.
 STATUS_NOT_RUN = "NOT_RUN"
 
+#: A run whose stored configuration no longer matches its declaration.
+STATUS_STALE_CONFIG = "STALE_CONFIG"
+
 
 @dataclass(frozen=True, slots=True)
 class RunRecord:

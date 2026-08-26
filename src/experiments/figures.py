@@ -9,8 +9,9 @@ section 18 asks for::
     reports/figures/model_comparison.png
 
 The main one answers the question the project exists to answer: how the from
-scratch Transformer and the fine tuned baseline move as the training corpus
-grows, with the zero shot measurement underneath as a reference.
+scratch Transformer, the randomly initialised ``t5-small`` and the fine tuned
+one move as the training corpus grows, with the zero shot measurement
+underneath as a reference.
 
 **Nothing is computed here.** Every point is copied from a run record, like the
 tables of :mod:`src.experiments.ablation`. A figure is the most quoted output of
@@ -56,6 +57,7 @@ from src.experiments.config import (
     DEFAULT_EXPERIMENTS_DIR,
     PRETRAINED_FINE_TUNED,
     PRETRAINED_ZERO_SHOT,
+    RANDOM_INIT,
     SCRATCH,
 )
 from src.experiments.registry import DEFAULT_RESULTS_DIR, ExperimentRow, collect, rows_for_study
@@ -80,10 +82,11 @@ MODEL_COMPARISON_FIGURE = "model_comparison.png"
 #: low enough that the four files stay under a megabyte together.
 DPI = 150
 
-#: How the two trained families are named on a figure.
+#: How the trained families are named on a figure.
 VARIANT_LABELS: dict[str, str] = {
     SCRATCH: "Transformer from scratch",
-    PRETRAINED_FINE_TUNED: "T5-small fine-tune",
+    RANDOM_INIT: "T5-small aléatoire",
+    PRETRAINED_FINE_TUNED: "T5-small fine-tuné",
     PRETRAINED_ZERO_SHOT: "T5-small zero-shot",
 }
 
@@ -99,6 +102,7 @@ ROUGE_LABELS: dict[str, str] = {
 #: family shades this colour per run, see :func:`run_styles`.
 VARIANT_COLOURS: dict[str, str] = {
     SCRATCH: "#c1440e",
+    RANDOM_INIT: "#7b3f9e",
     PRETRAINED_FINE_TUNED: "#1f4e79",
     PRETRAINED_ZERO_SHOT: "#6b6b6b",
 }
@@ -244,7 +248,7 @@ def curve(
 
     Args:
         rows: Every row of the corpus size study.
-        variant: Family to extract, :data:`SCRATCH` or
+        variant: Family to extract, :data:`SCRATCH`, :data:`RANDOM_INIT` or
             :data:`PRETRAINED_FINE_TUNED`.
 
     Returns:
@@ -302,7 +306,11 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
     """Draw performance against the training corpus size.
 
     This is the figure section 18 calls the main one, and the deliverable the
-    project is judged on: two curves, three proportions, one reference line.
+    project is judged on: three curves, three proportions, one reference line.
+    The randomly initialised T5 sits between the other two on purpose: it is the
+    only curve whose distance to the fine tuned one is attributable to the
+    pretraining alone, the hand written Transformer differing from both by its
+    architecture as well.
 
     Args:
         rows: Every row of the corpus size study.
@@ -315,7 +323,7 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
     figure, axes = plt.subplots(figsize=(9.0, 5.5))
 
     drawn = 0
-    for variant in (PRETRAINED_FINE_TUNED, SCRATCH):
+    for variant in (PRETRAINED_FINE_TUNED, RANDOM_INIT, SCRATCH):
         percentages, scores, errors = curve(rows, variant)
         if not percentages:
             continue
@@ -332,12 +340,14 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
             label=VARIANT_LABELS[variant],
         )
         for percentage, score in zip(percentages, scores, strict=True):
+            label_offset = -14 if variant == SCRATCH else 9
             axes.annotate(
                 f"{score:.4f}",
                 (percentage, score),
                 textcoords="offset points",
-                xytext=(0, 9),
+                xytext=(0, label_offset),
                 ha="center",
+                va="top" if variant == SCRATCH else "bottom",
                 fontsize=8,
                 color=VARIANT_COLOURS[variant],
             )
@@ -358,17 +368,17 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
                 bounds[0], bounds[1], color=VARIANT_COLOURS[PRETRAINED_ZERO_SHOT], alpha=0.12
             )
 
-    axes.set_title("Performance selon la taille du corpus d'entrainement")
+    axes.set_title("Performance selon la taille du corpus d'entraînement")
     axes.set_ylabel(f"{ROUGE_LABELS[REPORTED_VARIANT]} (F), IC 95 %")
     axes.grid(True, linestyle=":", alpha=0.5)
 
     if drawn:
-        axes.set_xlabel(f"Part du corpus d'entrainement (%)\n{CORPUS_NOTE}")
+        axes.set_xlabel(f"Part du corpus d'entraînement (%)\n{CORPUS_NOTE}")
         axes.set_xticks([10, 50, 100])
         axes.set_xticklabels(["10 %", "50 %", "100 %"])
-        # Upper left is the only quadrant no curve crosses: the reference line
-        # and its band sit low, and both curves climb from the left.
-        axes.legend(loc="upper left", frameon=True)
+        # The middle of the plot is empty; placing the legend there keeps it
+        # clear of the fine-tuned curve and its score labels.
+        axes.legend(loc="center left", bbox_to_anchor=(0.01, 0.60), frameon=True)
     else:
         empty(axes, "Aucun run complet : rien a tracer.")
 

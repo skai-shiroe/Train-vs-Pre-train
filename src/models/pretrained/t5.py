@@ -15,7 +15,7 @@ prefix rather than letting the run produce a quietly meaningless score.
 
 **The decoder starts on the padding token.** The T5 tokeniser has no beginning
 of sequence token, so T5 uses the padding identifier to start its decoder. The
-from scratch Transformer copies that choice, which is why the same tokeniser
+randomly initialised T5 uses that same choice, which is why the same tokeniser
 serves both models without any adaptation.
 """
 
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from transformers import PreTrainedModel, T5ForConditionalGeneration
+from transformers import PreTrainedModel, T5Config, T5ForConditionalGeneration
 
 from src.models.pretrained.base import BaselineConfig, PretrainedSummarizer
 
@@ -67,3 +67,9 @@ class T5Summarizer(PretrainedSummarizer):
             PreTrainedModel,
             T5ForConditionalGeneration.from_pretrained(config.hf_id, revision=config.revision),
         )
+
+    @classmethod
+    def load_random_model(cls, config: BaselineConfig) -> PreTrainedModel:
+        """Build the pinned T5 architecture with random weights."""
+        architecture = T5Config.from_pretrained(config.hf_id, revision=config.revision)
+        return cast(PreTrainedModel, T5ForConditionalGeneration(architecture))

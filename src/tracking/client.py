@@ -51,7 +51,7 @@ from src.tracking.payload import TrackedRun
 from src.tracking.store import resolve_artifact_root, resolve_tracking_uri
 
 #: Experiment the runs are grouped under. Every run of the campaign lands here,
-#: which is what makes the nine of them comparable in one table of the MLflow
+#: which is what makes the ten of them comparable in one table of the MLflow
 #: interface.
 DEFAULT_EXPERIMENT = "syntra-summarization"
 

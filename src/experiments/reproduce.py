@@ -20,7 +20,7 @@ here is not to produce a smaller number, it is to produce one no table accepts.
 **Quick mode writes nowhere near the campaign.** Its records go under
 ``reports/quick/``, its checkpoints to ``runs/quick/``, its figures and its
 generated tables beside them, and the page it injects the headline table into
-is a copy of the README. A verification pass that overwrote the nine measured
+is a copy of the README. A verification pass that overwrote the twelve measured
 runs, or the tables of the report, would cost more than it proves. It traces
 nothing either: MLflow holds the campaign, and a run that is not a result has
 no business in it.
@@ -404,7 +404,7 @@ def run_experiments(settings: Settings) -> Outcome:
             )
         )
         # Le run precedent a rendu ses tenseurs, pas la memoire que l'allocateur
-        # en cache. Sans cette ligne, une campagne de neuf experiences accumule
+        # en cache. Sans cette ligne, une campagne de douze experiences accumule
         # ce que les huit premieres ont reserve, et la carte du poste de
         # reference tombe sur un OOM pilote a la sixieme alors que chacune tient
         # largement seule.
