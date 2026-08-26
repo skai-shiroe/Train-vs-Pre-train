@@ -1,6 +1,6 @@
 # Syntra
 
-Chaîne ML expérimentale de résumé automatique. Le projet compare un Transformer encodeur-décodeur implémenté à la main en PyTorch à un modèle pré-entraîné T5, en zero-shot puis fine-tuné, sur un jeu de test strictement identique.
+Chaîne ML expérimentale de résumé automatique. Le projet compare trois familles sur un jeu de test strictement identique : un Transformer encodeur-décodeur écrit bloc par bloc, l'architecture `t5-small` initialisée aléatoirement, et la même `t5-small` chargée avec ses poids pré-entraînés, en zero-shot puis fine-tunée.
 
 Le périmètre couvre la chaîne scientifique : corpus, modèles, entraînement, évaluation, ablations et traçage MLflow.
 
@@ -13,7 +13,7 @@ make install
 make reproduce MODE=quick
 ```
 
-La dernière commande enchaîne toute la chaîne scientifique : elle construit le corpus s'il manque, joue les neuf expériences plafonnées à deux pas d'optimisation, agrège les tableaux et trace les figures. Elle vérifie que la chaîne tourne sur ce poste ; elle ne produit aucun résultat, et le dit. Comptez une minute une fois le corpus construit, mesuré sur GPU RTX 5060 portable.
+La dernière commande enchaîne toute la chaîne scientifique : elle construit le corpus s'il manque, joue les douze expériences plafonnées à deux pas d'optimisation, agrège les tableaux et trace les figures. Elle vérifie que la chaîne tourne sur ce poste ; elle ne produit aucun résultat, et le dit. Comptez une minute une fois le corpus construit, mesuré sur GPU RTX 5060 portable.
 
 Le premier appel télécharge CNN/DailyMail et construit le corpus de travail, ce qui domine le temps total : l'archive fait 1,3 Go. Les appels suivants sautent cette étape : `make data` est idempotent, et la chaîne affiche le `dataset_version` du corpus qu'elle a lu.
 
@@ -36,9 +36,10 @@ Sous Windows, `make` s'appelle depuis Git Bash et non depuis PowerShell ; la rai
 | --- | --- |
 | Tâche | Résumé automatique |
 | Métriques | ROUGE-1, ROUGE-2, ROUGE-L |
-| Modèle from scratch | Transformer encodeur-décodeur PyTorch |
+| Modèle from scratch | Transformer encodeur-décodeur écrit bloc par bloc, à la forme de `t5-small` |
+| Témoin d'initialisation | Architecture `t5-small`, poids initialisés aléatoirement |
 | Modèle pré-entraîné | `t5-small` |
-| Tokenizer | Tokenizer T5, partagé par les deux modèles |
+| Tokenizer | Tokenizer T5, partagé par les trois familles |
 | Corpus | CNN/DailyMail 3.0.0, sous-ensemble figé de 20 000 exemples d'entraînement |
 | Matériel | GPU NVIDIA local |
 
@@ -143,17 +144,18 @@ make test
 ├── src/                         code de recherche
 │   ├── data/                    téléchargement, validation, tokenisation, corpus figé
 │   ├── models/
-│   │   ├── scratch/             le Transformer écrit à la main, 15 modules
-│   │   └── pretrained/          l'adaptateur t5-small
+│   │   ├── scratch/             le Transformer écrit bloc par bloc
+│   │   ├── pretrained/          t5-small, chargé avec ou sans ses poids
+│   │   └── generation.py        la configuration de décodage, commune aux trois familles
 │   ├── training/                boucle d'entraînement, optimiseur, arrêt anticipé
 │   ├── evaluation/              génération et évaluation sur le jeu de test commun
 │   ├── metrics/                 ROUGE et intervalles de confiance
-│   ├── experiments/             lanceur, registre des neuf expériences, ablations, figures
+│   ├── experiments/             lanceur, registre des douze expériences, ablations, figures
 │   ├── tracking/                enregistrement des runs et envoi vers MLflow
 │   └── utils/                   graine aléatoire, périphérique, markdown
 ├── configs/
 │   ├── data/                    cnn_dailymail.yaml : corpus et tokenizer
-│   ├── experiments/             les neuf expériences, une par fichier
+│   ├── experiments/             les douze expériences, une par fichier
 │   ├── model/                   vide, les hyperparamètres vivent dans les expériences
 │   └── training/                vide, pour la même raison
 ├── data/                        corpus de travail, reconstruit par make data
@@ -165,10 +167,10 @@ make test
 │   ├── results/                 un enregistrement par run
 │   ├── figures/                 les quatre figures du rapport
 │   └── _generated/              les fragments injectés dans ce README et le rapport
-├── notebooks/                   00 environnement, 01 corpus, 02 entraînement, 03 Transformer
+├── notebooks/                   00 environnement, 01 corpus, 02 entraînement, 03 le T5 forme par forme
 ├── scripts/                     measure_padding.py
 └── tests/
-    ├── unit/                    46 fichiers de test
+    ├── unit/                    44 fichiers de test
     └── integration/             8 fichiers de test
 
 Le contenu de data/, de reports/results/ et de reports/quick/ n'est pas versionné :
@@ -218,7 +220,8 @@ Les cibles ci-dessous sont écrites pour `make`, depuis Git Bash. Sous PowerShel
 | Cible | Effet |
 | --- | --- |
 | `make data` | Télécharge, valide et prépare le corpus de travail |
-| `make train-scratch` | Entraîne le Transformer from scratch sur 100 % du corpus |
+| `make train-scratch` | Entraîne le Transformer écrit à la main sur 100 % du corpus |
+| `make train-random` | Entraîne `t5-small` initialisé aléatoirement sur 100 % du corpus |
 | `make train-pretrained` | Fine-tune T5 sur 100 % du corpus |
 | `make evaluate` | Évalue la baseline zero-shot sur le jeu de test commun |
 | `make ablation` | Rejoue les ablations taille de corpus et architecture |
@@ -269,8 +272,12 @@ Chaque run complet dépose le modèle qu'il a mesuré dans le magasin, enregistr
 
 ```python
 import mlflow
-model = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
+
+t5 = mlflow.transformers.load_model("models:/syntra-pretrained_ft_100/1")
+maison = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
 ```
+
+Les deux saveurs ne sont pas interchangeables : `mlflow.transformers` porte les deux branches `t5-small` avec leur tokenizer, `mlflow.pytorch` porte le Transformer écrit à la main, qui n'a pas de saveur à lui.
 
 ### Artefacts dérivés
 
@@ -282,35 +289,38 @@ model = mlflow.pytorch.load_model("models:/syntra-scratch_100/1")
 
 ## Statuts et conventions
 
-Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Seuls les enregistrements `OK` entrent dans les tableaux, qui ne raccourcissent jamais : une ligne `NOT_RUN` dit ce qui manque.
+Une expérience non exécutée porte le statut `NOT_RUN`, une expérience en échec le statut `FAILED`, et `MOCK` est réservé aux tests techniques. Un répertoire de run laissé par une autre architecture que celle déclarée aujourd'hui porte `STALE_CONFIG` et ne fournit aucun score. Seuls les enregistrements `OK` entrent dans les tableaux, qui ne raccourcissent jamais : une ligne `NOT_RUN` dit ce qui manque.
 
 Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples, pas CNN/DailyMail complet. Cette convention est rappelée sur chaque tableau et chaque figure.
 
 ## Résultats
 
-Campagne de neuf expériences, toutes `OK`, 2 h 43 de GPU. Le tableau est régénéré depuis les enregistrements de runs, et la lecture des résultats est en section 5 du [rapport](RAPPORT.md).
+Trois familles sont comparées à budget de paramètres égal : le Transformer écrit à la main pèse 60 575 744 paramètres, les deux `t5-small` en pèsent 60 506 624, soit 0,11 % d'écart. Seul le couple `random_t5_*` contre `pretrained_ft_*` partage l'architecture elle-même, et c'est donc le seul dont l'écart s'attribue au pré-entraînement seul. Les quatre runs pré-entraînés sont mesurés ; les huit autres sont déclarés et pas encore exécutés, ce que le tableau dit ligne par ligne.
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
 
 | Modèle | Corpus | ROUGE-L | IC 95 % |
 | --- | --- | --- | --- |
-| `t5-small` fine-tuné | 100 % | **0,2914** | [0,2838, 0,2994] |
-| `t5-small` fine-tuné | 50 % | 0,2896 | [0,2818, 0,2975] |
-| `t5-small` fine-tuné | 10 % | 0,2861 | [0,2777, 0,2939] |
+| `t5-small` fine-tuné | 100 % | **0,2915** | [0,2836, 0,2997] |
+| `t5-small` fine-tuné | 50 % | 0,2894 | [0,2818, 0,2973] |
+| `t5-small` fine-tuné | 10 % | 0,2867 | [0,2784, 0,2945] |
 | `t5-small` zero-shot | sans objet | 0,2751 | [0,2672, 0,2829] |
-| from scratch | 100 % | 0,1492 | [0,1462, 0,1523] |
-| from scratch | 50 % | 0,1234 | [0,1206, 0,1263] |
-| from scratch | 10 % | 0,0837 | [0,0812, 0,0861] |
+| `t5-small` aléatoire | 100 % | 0,1172 | [0,1145, 0,1200] |
+| Transformer from scratch | 100 % | 0,1156 | [0,1129, 0,1184] |
+| Transformer from scratch | 50 % | 0,1014 | [0,0987, 0,1042] |
+| `t5-small` aléatoire | 50 % | 0,0985 | [0,0961, 0,1011] |
+| `t5-small` aléatoire | 10 % | 0,0771 | [0,0745, 0,0798] |
+| Transformer from scratch | 10 % | 0,0343 | [0,0327, 0,0357] |
 <!-- syntra:end headline -->
 
 Les quatre mesures `t5-small` sont prises sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`, et le corpus sous `dataset_version = 00c0ee4e` : les deux voyagent dans chaque enregistrement de run.
 
 ## Documentation
 
-Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, Transformer couche par couche, étape d'entraînement, métriques, MLflow.
+Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, T5 couche par couche, étape d'entraînement, métriques, MLflow.
 
-Le [rapport](RAPPORT.md) présente **ce que les expériences ont montré** : le corpus, l'architecture, le protocole d'évaluation, la courbe de performance contre la taille du corpus, et il répond à la question de savoir à partir de quelle taille le modèle from scratch devient compétitif.
+Le [rapport](RAPPORT.md) présente le corpus, les trois familles, le protocole d'évaluation et l'état des résultats. Les conclusions comparatives seront établies quand les runs `scratch_*` et `random_t5_*` auront tourné.
 
 Les quatre carnets demandent le groupe optionnel `eda`, et le kernel du dépôt :
 
@@ -326,7 +336,7 @@ Le notebook `notebooks/00_environment_check.ipynb` se lance avant tout le reste 
 
 Le notebook [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) fait traverser le Transformer à un vrai batch en affichant la forme des tenseurs à chaque étape. Il accompagne la section 3 du guide, tourne sur CPU en une minute et n'écrit rien.
 
-Le notebook `notebooks/02_training.ipynb` lance une campagne et la donne à suivre. `EXPERIMENTS` nomme celles à jouer, dans l'ordre voulu, ou `None` pour les neuf déclarées, dans l'ordre de la campagne : le Transformer from scratch d'abord, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes ; c'est le défaut, avec `MODE = "full"`, donc un Run All lance la campagne complète. Chaque expérience ouvre une bannière `i/N`, ses pas s'écrivent au fil de l'eau, et une ligne la referme ; un tableau final aligne les neuf sur leur statut, leur durée et leur ROUGE-L. Une expérience qui échoue est enregistrée `FAILED` sans interrompre les suivantes, et une interruption au clavier laisse le bilan s'imprimer sur ce qui a tourné. Les sections 5 à 8 détaillent ensuite une seule expérience, que `FOCUS` désigne.
+Le notebook `notebooks/02_training.ipynb` lance une campagne et la donne à suivre. `EXPERIMENTS` nomme celles à jouer, dans l'ordre voulu, ou `None` pour les douze déclarées, dans l'ordre de la campagne : le Transformer écrit à la main d'abord, puis `t5-small` initialisé aléatoirement, des plus petites proportions de corpus aux plus grandes, puis `t5-small` zero-shot, puis ses fine-tunes ; c'est le défaut, avec `MODE = "full"`, donc un Run All lance la campagne complète. Chaque expérience ouvre une bannière `i/N`, ses pas s'écrivent au fil de l'eau, et une ligne la referme ; un tableau final aligne les douze sur leur statut, leur durée et leur ROUGE-L. Une expérience qui échoue est enregistrée `FAILED` sans interrompre les suivantes, et une interruption au clavier laisse le bilan s'imprimer sur ce qui a tourné. Les sections 5 à 8 détaillent ensuite une seule expérience, que `FOCUS` désigne.
 
 Il appelle `run_one`, la fonction que `python -m src.experiments.run` et `make reproduce` appellent aussi, et son mode `quick` écrit sous `reports/quick/` avec les mêmes plafonds.
 
