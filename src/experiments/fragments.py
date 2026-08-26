@@ -84,7 +84,7 @@ from src.experiments.config import (
     PretrainedModelConfig,
     ScratchModelConfig,
 )
-from src.experiments.record import run_directory
+from src.experiments.record import RunRecord, run_directory
 from src.experiments.registry import DEFAULT_RESULTS_DIR, ExperimentRow, collect, rows_for_study
 from src.metrics.rouge import REPORTED_VARIANT, ROUGE_VARIANTS
 from src.utils.markdown import (
@@ -850,12 +850,41 @@ def statuses(rows: Sequence[ExperimentRow]) -> str:
     return ", ".join(f"`{name}` {count}" for name, count in ordered)
 
 
+def provenance_stamp(record: RunRecord) -> str:
+    """Return the commit of one run, marked when its tree did not match it.
+
+    A record whose ``git_dirty`` is true was produced by a working tree no
+    commit describes. Publishing the hash on its own invites a reader to check
+    that commit out and expect these scores back, which is the single thing
+    the stamp exists to prevent, so the mark travels with the hash rather than
+    sitting in a row of its own that the eye can skip.
+
+    Args:
+        record: The record to read the provenance of.
+
+    Returns:
+        The commit between backticks, followed by the mark when the tree was
+        modified, or the empty string when the run recorded no commit.
+    """
+    commit = record.provenance.get("git_commit", "")
+    if not commit:
+        return ""
+    dirty = record.provenance.get("git_dirty", "").strip().lower() == "true"
+    return f"`{commit}` (arbre de travail modifié)" if dirty else f"`{commit}`"
+
+
 def campaign_table(rows: Sequence[ExperimentRow]) -> str:
     """Render what the campaign as a whole is made of, for section 1.
 
     This is the provenance stamp. The scores of the report are only worth what
     the reader knows about where they come from, and the commit is part of that
     answer even when, especially when, it is ``unknown``.
+
+    **The commit alone is not the answer.** A run started from a modified
+    working tree records the commit it sat on top of, and that hash describes
+    code nobody ran. The records already carry ``git_dirty``;
+    :func:`provenance_stamp` is what stops the table from publishing the hash
+    as though the tree had been clean.
 
     Nothing here describes where the records were read from. A fragment that
     named its own input directory would render differently depending on whether
@@ -873,7 +902,7 @@ def campaign_table(rows: Sequence[ExperimentRow]) -> str:
 
     total_seconds = sum(record.duration_seconds for record in records)
     corpora = distinct(str(record.dataset.get("version", "")) for record in records)
-    commits = distinct(record.provenance.get("git_commit", "") for record in records)
+    commits = distinct(provenance_stamp(record) for record in records)
     hardware = distinct(record.hardware.get("gpu_name", "") for record in records)
     frameworks = distinct(record.hardware.get("torch_version", "") for record in records)
 
@@ -883,7 +912,7 @@ def campaign_table(rows: Sequence[ExperimentRow]) -> str:
         ["Statuts", statuses(rows)],
         ["Calcul cumulé", f"{number(round(total_seconds / 60))} minutes"],
         ["Empreinte du corpus", ", ".join(f"`{value}`" for value in corpora) or MISSING],
-        ["Commit des runs", ", ".join(f"`{value}`" for value in commits) or MISSING],
+        ["Commit des runs", ", ".join(commits) or MISSING],
         ["Matériel", ", ".join(hardware) or MISSING],
         ["Torch", ", ".join(f"`{value}`" for value in frameworks) or MISSING],
     ]

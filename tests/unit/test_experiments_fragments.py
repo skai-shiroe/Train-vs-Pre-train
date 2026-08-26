@@ -12,6 +12,7 @@ in place rather than included, because nothing builds it.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -390,6 +391,23 @@ def test_the_campaign_stamp_reports_the_commit_and_the_corpus(tmp_path: Path) ->
     assert "| Calcul cumulé | 4 minutes |" in stamp
     assert "`abc123`" in stamp
     assert "`deadbeef`" in stamp
+
+
+def test_the_campaign_stamp_marks_a_commit_whose_tree_was_modified(tmp_path: Path) -> None:
+    # Le hash seul invite le lecteur a faire un checkout et a attendre ces
+    # scores en retour. Un run parti d'un arbre modifie decrit du code que
+    # personne n'a execute, et le marqueur voyage avec le hash plutot que dans
+    # une ligne separee que l'oeil saute.
+    configs, results = tmp_path / "configs", tmp_path / "results"
+    declare(configs, "a_run")
+    write_record(
+        replace(record("a_run"), provenance={"git_commit": "deadbeef", "git_dirty": "true"}),
+        run_directory(results, "a_run"),
+    )
+
+    stamp = render(tmp_path, configs, results)[tmp_path / "out" / CAMPAIGN_FRAGMENT]
+
+    assert "| Commit des runs | `deadbeef` (arbre de travail modifié) |" in stamp
 
 
 def test_the_plan_always_carries_its_statuses(tmp_path: Path) -> None:

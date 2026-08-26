@@ -7,6 +7,6 @@
 | Statuts | `OK` 12 |
 | Calcul cumulé | 151 minutes |
 | Empreinte du corpus | `00c0ee4e6234209b2c75d8ca3266e4ee34c6e28e971df977bd33f08203c15dbd` |
-| Commit des runs | `f872aad9ba19fcc36cbfb6637e2eb5d11774f605` |
+| Commit des runs | `f872aad9ba19fcc36cbfb6637e2eb5d11774f605` (arbre de travail modifié) |
 | Matériel | NVIDIA GeForce RTX 5060 Laptop GPU |
 | Torch | `2.13.0+cu130` |
