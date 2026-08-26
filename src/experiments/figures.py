@@ -85,8 +85,8 @@ DPI = 150
 #: How the trained families are named on a figure.
 VARIANT_LABELS: dict[str, str] = {
     SCRATCH: "Transformer from scratch",
-    RANDOM_INIT: "T5-small aleatoire",
-    PRETRAINED_FINE_TUNED: "T5-small fine-tune",
+    RANDOM_INIT: "T5-small aléatoire",
+    PRETRAINED_FINE_TUNED: "T5-small fine-tuné",
     PRETRAINED_ZERO_SHOT: "T5-small zero-shot",
 }
 
@@ -340,12 +340,14 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
             label=VARIANT_LABELS[variant],
         )
         for percentage, score in zip(percentages, scores, strict=True):
+            label_offset = -14 if variant == SCRATCH else 9
             axes.annotate(
                 f"{score:.4f}",
                 (percentage, score),
                 textcoords="offset points",
-                xytext=(0, 9),
+                xytext=(0, label_offset),
                 ha="center",
+                va="top" if variant == SCRATCH else "bottom",
                 fontsize=8,
                 color=VARIANT_COLOURS[variant],
             )
@@ -366,17 +368,17 @@ def draw_performance(rows: Sequence[ExperimentRow], path: Path) -> Path:
                 bounds[0], bounds[1], color=VARIANT_COLOURS[PRETRAINED_ZERO_SHOT], alpha=0.12
             )
 
-    axes.set_title("Performance selon la taille du corpus d'entrainement")
+    axes.set_title("Performance selon la taille du corpus d'entraînement")
     axes.set_ylabel(f"{ROUGE_LABELS[REPORTED_VARIANT]} (F), IC 95 %")
     axes.grid(True, linestyle=":", alpha=0.5)
 
     if drawn:
-        axes.set_xlabel(f"Part du corpus d'entrainement (%)\n{CORPUS_NOTE}")
+        axes.set_xlabel(f"Part du corpus d'entraînement (%)\n{CORPUS_NOTE}")
         axes.set_xticks([10, 50, 100])
         axes.set_xticklabels(["10 %", "50 %", "100 %"])
-        # Upper left is the only quadrant no curve crosses: the reference line
-        # and its band sit low, and both curves climb from the left.
-        axes.legend(loc="upper left", frameon=True)
+        # The middle of the plot is empty; placing the legend there keeps it
+        # clear of the fine-tuned curve and its score labels.
+        axes.legend(loc="center left", bbox_to_anchor=(0.01, 0.60), frameon=True)
     else:
         empty(axes, "Aucun run complet : rien a tracer.")
 

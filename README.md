@@ -295,7 +295,7 @@ Le « 100 % » du corpus désigne le sous-ensemble de travail de 20 000 exemples
 
 ## Résultats
 
-Trois familles sont comparées à budget de paramètres égal : le Transformer écrit à la main pèse 60 575 744 paramètres, les deux `t5-small` en pèsent 60 506 624, soit 0,11 % d'écart. Seul le couple `random_t5_*` contre `pretrained_ft_*` partage l'architecture elle-même, et c'est donc le seul dont l'écart s'attribue au pré-entraînement seul. Les quatre runs pré-entraînés sont mesurés ; les huit autres sont déclarés et pas encore exécutés, ce que le tableau dit ligne par ligne.
+Trois familles sont comparées sous le même budget d'optimisation : le Transformer écrit à la main pèse 60 575 744 paramètres, les deux `t5-small` en pèsent 60 506 624, soit 0,11 % d'écart. Seul le couple `random_t5_*` contre `pretrained_ft_*` partage l'architecture elle-même, et c'est donc le seul dont l'écart s'attribue au pré-entraînement seul. Les douze expériences ont été exécutées avec succès ; la campagne complète cumule 151 minutes de calcul sur une RTX 5060 Laptop.
 
 <!-- syntra:begin headline -->
 <!-- Généré par python -m src.experiments.fragments. Ne pas éditer à la main. -->
@@ -314,13 +314,13 @@ Trois familles sont comparées à budget de paramètres égal : le Transformer �
 | Transformer from scratch | 10 % | 0,0343 | [0,0327, 0,0357] |
 <!-- syntra:end headline -->
 
-Les quatre mesures `t5-small` sont prises sous la révision `df1b051c`, épinglée dans les fichiers `pretrained_*`, et le corpus sous `dataset_version = 00c0ee4e` : les deux voyagent dans chaque enregistrement de run.
+Les sept mesures fondées sur `t5-small`, aléatoires ou pré-entraînées, utilisent la révision `df1b051c`. Le corpus porte `dataset_version = 00c0ee4e` ; les deux identifiants voyagent dans chaque enregistrement de run.
 
 ## Documentation
 
 Le [guide](GUIDE.md) explique **comment le code fonctionne**. Il suit un batch du fichier brut jusqu'au tableau de comparaison : corpus, tokenisation, T5 couche par couche, étape d'entraînement, métriques, MLflow.
 
-Le [rapport](RAPPORT.md) présente le corpus, les trois familles, le protocole d'évaluation et l'état des résultats. Les conclusions comparatives seront établies quand les runs `scratch_*` et `random_t5_*` auront tourné.
+Le [rapport](RAPPORT.md) présente le corpus, les trois familles, le protocole d'évaluation et les conclusions tirées des douze expériences terminées.
 
 Les quatre carnets demandent le groupe optionnel `eda`, et le kernel du dépôt :
 

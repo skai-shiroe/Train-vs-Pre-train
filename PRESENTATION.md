@@ -1,325 +1,250 @@
-# Présentation
+# Groupe 8 · Traduction/résumé automatique : entraînement vs modèle pré-entraîné
 
-Le projet compare deux instances de **la même architecture `t5-small`** sur la même tâche de résumé, avec le même corpus, le même tokenizer, le même entraînement et le même protocole d'évaluation :
+## 1. La question du projet
 
-| | from scratch | `t5-small` |
-| --- | --- | --- |
-| Poids au départ | tirés au hasard | pré-entraînés sur C4 |
-| Paramètres | 60 506 624 | 60 506 624 |
-| Dimension des vecteurs | 512 | 512 |
-| Couches | 6 encodeur, 6 décodeur | 6 encodeur, 6 décodeur |
-| Têtes d'attention | 8 | 8 |
+Pour produire un résumé, un modèle doit à la fois comprendre la langue et apprendre la tâche de résumé automatique. Deux stratégies sont possibles :
 
-Le nombre de paramètres dépend de l'architecture, pas des valeurs contenues dans les poids. Les deux modèles possèdent donc les mêmes matrices, aux mêmes formes ; seule leur valeur initiale change.
+- **entraîner from scratch** : partir de poids aléatoires et tout apprendre sur le corpus du projet ;
+- **utiliser un modèle pré-entraîné** : partir de connaissances linguistiques déjà acquises, puis adapter le modèle à la tâche.
 
-### Comment les deux modèles sont construits
+Notre question centrale est donc :
+
+> Avec un corpus limité, quel est l'apport réel du pré-entraînement, et davantage de données permettent-elles au Transformer from scratch de rattraper `t5-small` ?
+
+Pour y répondre, nous avons implémenté un Transformer encodeur-décodeur bloc par bloc, puis comparé trois familles de modèles sur **2 000, 10 000 et 20 000 exemples** de CNN/DailyMail.
+
+### Hypothèses de travail
+
+1. Le T5 pré-entraîné devrait être meilleur avec peu de données.
+2. Les modèles initialisés aléatoirement devraient davantage profiter d'un corpus plus grand.
+3. Augmenter la profondeur du Transformer devrait aider, mais moins que le pré-entraînement.
+
+Ces hypothèses opposent deux stratégies, mais deux modèles ne suffisent pas à les départager.
+
+## 2. Pourquoi avons-nous comparé trois modèles ?
+
+| Modèle | Point de départ | Rôle dans l'expérience | Paramètres |
+| --- | --- | --- | ---: |
+| Transformer from scratch | Poids aléatoires, architecture écrite à la main | Livrable principal | 60 575 744 |
+| `t5-small` aléatoire | Poids aléatoires, architecture T5 | Groupe témoin | 60 506 624 |
+| `t5-small` pré-entraîné | Poids appris auparavant sur C4 | Modèle de référence | 60 506 624 |
+
+C4 est un vaste corpus de pages web nettoyées. T5 y a appris des régularités de la langue avant d'être adapté à notre tâche de résumé.
+
+Le Transformer from scratch et T5 ont un **budget paramétrique presque identique** : leur nombre de paramètres ne diffère que de **0,11 %**. Cela rend la comparaison raisonnable, sans rendre leurs architectures identiques.
+
+Le T5 aléatoire est le contrôle essentiel de l'expérience :
+
+- **Transformer from scratch vs T5 pré-entraîné** compare les deux solutions complètes ; l'écart inclut le pré-entraînement et les différences d'architecture ;
+- **T5 aléatoire vs T5 pré-entraîné** conserve exactement la même architecture ; ce contraste isole donc l'effet des poids pré-entraînés dans notre protocole.
+
+> Sans le T5 aléatoire, un meilleur score de T5 ne pourrait pas être attribué clairement au pré-entraînement.
+
+## 3. Un protocole commun
+
+| Élément | Choix |
+| --- | --- |
+| Corpus | CNN/DailyMail 3.0.0 |
+| Corpus de travail | 20 000 entraînement, 1 000 validation, 1 000 test |
+| Sous-ensembles | 10 % = 2 000, 50 % = 10 000, 100 % = 20 000 |
+| Tokenisation | Tokenizer `t5-small` partagé par les trois familles |
+| Longueurs maximales | 512 tokens en entrée, 128 en sortie |
+| Entraînement | 3 époques, AdamW, taux d'apprentissage `1e-4` |
+| Taille de batch effective | 32 : batch de 8, gradients accumulés sur 4 pas |
+| Génération | Décodage par faisceaux : 4 hypothèses concurrentes |
+| Reproductibilité | Graine 42 |
+
+Les sous-ensembles sont **emboîtés** : les 2 000 exemples sont inclus dans les 10 000, eux-mêmes inclus dans les 20 000. Ainsi, augmenter la taille du corpus ajoute des exemples sans remplacer ceux déjà utilisés.
+
+Tous les modèles sont finalement évalués sur les **mêmes 1 000 articles de test**, avec les mêmes réglages de génération et les mêmes métriques.
+
+Une nuance importante : avec trois époques fixes, un corpus plus grand produit aussi davantage de mises à jour des poids. L'ablation mesure donc l'effet d'un corpus plus riche **dans ce budget d'entraînement**, et non l'effet de l'information indépendamment du temps de calcul.
+
+## 4. Le Transformer implémenté
 
 ```mermaid
-flowchart TB
-    ID["t5-small · révision df1b051c"] --> CFG["T5Config.from_pretrained<br/>charge la configuration, pas les poids"]
-    CFG --> R["T5ForConditionalGeneration(config)<br/>poids initialisés aléatoirement"]
-    ID --> P["T5ForConditionalGeneration.from_pretrained<br/>poids appris sur C4"]
-    R --> S["Branche from scratch<br/>60 506 624 paramètres"]
-    P --> F["Branche pré-entraînée<br/>60 506 624 paramètres"]
-    S --> SAME["Même entraînement · mêmes données · même évaluation"]
-    F --> SAME
+flowchart LR
+    A["Article<br/>512 tokens"] --> AE["Embedding × √512<br/>+ position sinusoïdale"]
+    AE --> E["Encodeur × 6<br/>auto-attention<br/>masque de padding"]
+    C["Résumé décalé<br/>d'un token"] --> CE["Embedding × √512<br/>+ position sinusoïdale"]
+    CE --> D["Décodeur × 6<br/>auto-attention causale<br/>puis attention croisée"]
+    E -->|"clés et valeurs"| D
+    D --> P["Projection de sortie<br/>table d'embedding réutilisée"]
+    P --> R["32 100 probabilités<br/>par position"]
 ```
 
-`from scratch` ne signifie donc pas que l'architecture T5 est réécrite à la main. Cela signifie que l'architecture officielle est instanciée **sans charger ses poids pré-entraînés**.
+L'auto-attention, par nature, ne tient pas compte de l'ordre des mots : sans signal de position, le modèle ne percevrait qu'un sac de mots. L'encodage sinusoïdal ajoute cette information directement aux embeddings, sans nécessiter de paramètres supplémentaires.
 
-### Architecture interne de `t5-small`
+| Hyperparamètre | Valeur |
+| --- | ---: |
+| Dimension du modèle | 512 |
+| Têtes d'attention | 8 |
+| Couches encodeur / décodeur | 6 / 6 |
+| Dimension du réseau feed-forward | 2 048 |
 
-```mermaid
-flowchart TB
-    TOK["Identifiants du tokenizer"] --> EMB["Embedding partagé<br/>32 128 × 512"]
-    subgraph EB["Bloc encodeur · répété 6 fois"]
-        EN1["T5LayerNorm"] --> EN2["Self-attention · 8 têtes<br/>d_kv = 64 · biais de position relatif"]
-        EN2 --> EN3["Résiduel"]
-        EN3 --> EN4["T5LayerNorm"]
-        EN4 --> EN5["Feed-forward ReLU<br/>512 → 2 048 → 512 + résiduel"]
-    end
-    EMB --> EN1
-    EN5 --> MEM["Mémoire de l'encodeur"]
-    subgraph DB["Bloc décodeur · répété 6 fois"]
-        DE1["T5LayerNorm + self-attention causale<br/>+ résiduel"] --> DE2["T5LayerNorm + cross-attention<br/>+ résiduel"]
-        DE2 --> DE3["T5LayerNorm + feed-forward ReLU<br/>512 → 2 048 → 512 + résiduel"]
-    end
-    TGT["Résumé décalé à droite"] --> DE1
-    MEM --> DE2
-    DE3 --> HEAD["Projection de sortie liée à l'embedding<br/>32 128 logits"]
-```
+Chaque couche combine cinq mécanismes :
 
-| Hyperparamètre architectural | Valeur |
-| --- | --- |
-| `d_model` | 512 |
-| Encodeur / décodeur | 6 blocs / 6 blocs |
-| Têtes / dimension par tête | 8 / 64 |
-| `d_ff` | 2 048 |
-| Position | biais relatif, 32 buckets |
-| Normalisation | `T5LayerNorm`, de type RMS sans biais |
-| Vocabulaire architectural | 32 128 entrées |
-| Embeddings | partagés entre encodeur, décodeur et projection finale |
-| Paramètres entraînables | 60 506 624 |
+- **Attention multi-têtes** : chaque mot regarde tous les autres pour comprendre leurs relations. Plusieurs têtes d'attention permettent de capter différents aspects du contexte.
+- **Masques de contrôle** : le masque de padding empêche le modèle de tenir compte des zones de remplissage ; le masque causal interdit au décodeur de voir les mots qu'il n'a pas encore générés.
+- **Pré-normalisation** : avant chaque sous-couche, une normalisation stabilise l'apprentissage et garde un chemin résiduel clair.
+- **Réseau feed-forward** : chaque mot est temporairement projeté dans un espace plus grand pour enrichir sa représentation, puis ramené à sa taille initiale.
+- **Table d'embedding partagée** : la même table sert pour l'entrée et la sortie, ce qui réduit le nombre de paramètres et assure une cohérence entre les représentations des mots lus et produits.
 
+Le décodeur utilise aussi une **attention croisée** : pendant qu'il produit le résumé, il consulte les représentations de l'article calculées par l'encodeur.
 
----
+À l'entraînement, le résumé attendu est décalé d'un token : le modèle apprend à prédire le mot suivant avec une perte de cross-entropy. Le masque causal garantit qu'il ne peut pas copier un mot futur.
 
-## Partie I. Le chemin d'un texte
+À la génération, la référence n'est plus fournie. Le modèle produit un token, le réutilise comme entrée, puis recommence : c'est une génération **auto-régressive**. Le décodage conserve quatre hypothèses concurrentes pour éviter de s'engager immédiatement sur un mauvais premier choix.
 
-### 1. Le préfixe de tâche
+Notre architecture et T5 ne sont pas strictement identiques. Les deux normalisent avant chaque sous-couche, mais T5 emploie une normalisation RMS sans aucun biais, et sa notion de position entre au niveau des scores d'attention sous forme d'une table apprise de 32 seaux de distance relative, là où notre encodage sinusoïdal ne coûte rien. Le nombre de paramètres contrôle donc le budget du modèle, pas l'identité de son fonctionnement interne.
 
-T5 est multi-tâches : il traduit, répond à des questions, classe, résume. La tâche n'est pas choisie par un drapeau, elle est écrite au début de l'entrée. `summarize:` signifie « résume ce qui suit ».
+## 5. Comment la qualité est-elle mesurée ?
 
-```text
-summarize: Three men have been arrested.
-```
+ROUGE compare le résumé produit au résumé de référence. Le score varie de 0 à 1 : plus il est élevé, plus le recouvrement textuel est important.
 
-Le modèle from scratch reçoit ce préfixe alors qu'il n'a qu'une seule tâche et que rien ne l'y oblige. C'est délibéré : les deux modèles doivent recevoir exactement la même chaîne, sans quoi un écart de score pourrait venir de l'entrée plutôt que des poids.
-
-### 2. Tokenisation
-
-Un modèle ne lit pas du texte, il lit des entiers. Le tokenizer T5 découpe le texte en sous-mots et rend un identifiant par sous-mot.
-
-```text
-"summarize: Three men have been arrested."
-
-21603   10    5245    1076   43      118     10195      5     1
-summarize  :   Three   men   have   been   arrested    .   </s>
-```
-
-Le préfixe compte deux identifiants et non un : `summarize` et `:` sont deux sous-mots distincts. Le `1` final marque la fin de séquence. Le vocabulaire compte 32 100 entrées, et le corpus en fait apparaître 24 480. Un mot rare est découpé en plusieurs morceaux, ce qui permet au vocabulaire de rester fini : il n'y a pas de mot inconnu, seulement des mots plus coûteux.
-
-**Les deux modèles partagent ce tokenizer** : même vocabulaire, même découpage, mêmes identifiants pour une phrase donnée. C'est ce qui rend la comparaison lisible, puisqu'un écart de score ne peut alors venir que des modèles.
-
-L'article est tronqué à 512 tokens et le résumé à 128. La première coupe touche 85 % des articles, la seconde 5,3 % des résumés.
-
-### 3. Embeddings et position relative
-
-Chaque identifiant sert d'index dans une table qui rend un vecteur de 512 dimensions dans les deux modèles. L'architecture réserve 32 128 lignes, même si le tokenizer expose 32 100 identifiants effectivement utilisables.
-
-Ce qu'un vecteur encode n'est pas décidé à la main, c'est l'entraînement qui le fixe, et c'est là que passe la différence entre les deux modèles :
-
-- from scratch : la table est tirée au hasard au premier pas, et tout ce qu'elle finira par encoder devra être appris sur 20 000 articles ;
-- `t5-small` : la table arrive déjà ajustée sur C4, un corpus sans commune mesure avec celui-ci.
-
-La même matrice d'embedding est partagée par l'encodeur, le décodeur et la projection finale vers le vocabulaire. Les deux modèles partagent sa forme, mais pas ses valeurs : aléatoires d'un côté, apprises sur C4 de l'autre.
-
-T5 n'ajoute pas d'encodage positionnel absolu aux embeddings. Il ajoute aux scores d'attention un **biais de position relatif**, appris selon la distance entre deux tokens et regroupé dans 32 buckets. L'ordre est donc représenté dans l'attention elle-même.
-
-### 4. Attention multi-têtes
-
-Chaque position projette son vecteur en trois : une requête, une clé, une valeur. Le produit d'une requête par toutes les clés donne un score par position ; le softmax en fait des poids qui somment à 1 ; la sortie est la moyenne des valeurs pondérée par ces poids. C'est ainsi qu'un token « regarde » les autres et décide lesquels comptent.
-
-Huit têtes travaillent en parallèle sur 64 dimensions chacune, puis leurs sorties sont recomposées. Une tête peut se spécialiser (relations locales, accord, reprise d'une entité nommée), mais rien ne le lui assigne : ce qu'une tête capte est un constat a posteriori, pas une consigne.
-
-Formes pour un batch de 8 et un article de `S` tokens, modèle from scratch :
-
-| Étape | Forme |
-| --- | --- |
-| Embedding | `(8, S, 512)` |
-| Découpage en têtes | `(8, 8, S, 64)` |
-| Scores d'attention | `(8, 8, S, S)` |
-| Contexte recomposé | `(8, S, 512)` |
-
-Le tenseur de scores est le seul dont la taille croît comme le **carré** de la longueur. C'est lui qui met un prix sur la troncature à 512 tokens.
-
-### 5. Encodeur, décodeur, masques
-
-L'encodeur lit l'article en entier, chaque position voyant toutes les autres. Le décodeur écrit le résumé et regarde deux choses : ce qu'il a déjà écrit, et la sortie de l'encodeur, par une attention croisée.
-
-Trois masques encadrent l'opération :
-
-| Masque | Ce qu'il empêche |
-| --- | --- |
-| Masque de padding | Que l'attention prenne les `<pad>` pour du texte |
-| Masque causal | Que le décodeur voie les tokens qu'il doit encore prédire |
-| `-100` dans les labels | Que la loss récompense la prédiction du padding |
-
-À l'entraînement, le résumé de référence est fourni d'un coup, décalé d'une position : la position `t` du décodeur contient le token `t - 1` de la cible, donc prédire le token `t` ne demande que ce que le masque causal autorise à voir. Le tokenizer T5 n'a pas de token de début de séquence, c'est donc l'identifiant de padding qui tient ce rôle, exactement comme dans T5.
-
-### 6. Génération
-
-À la génération, rien n'est fourni : le modèle produit un token, se le redonne, et recommence. C'est le régime **auto-régressif**.
-
-Le décodage retenu est un beam search à 4 faisceaux : à chaque pas, les 4 hypothèses les plus probables sont conservées, là où un choix glouton retient le seul token de tête et ne peut plus revenir dessus. La boucle s'arrête sur le token `</s>` ou à 128 tokens, et `no_repeat_ngram_size = 3` interdit de répéter un trigramme déjà écrit.
-
-Les sept expériences décodent avec les mêmes réglages : deux modèles décodés différemment ne se comparent pas.
-
-### 7. Détokenisation
-
-Les identifiants générés repassent par le tokenizer, qui rend du texte lisible. Le résumé est alors comparé à la référence par ROUGE (unigrammes communs, bigrammes communs, plus longue sous-séquence commune), sur les mêmes 1 000 documents de test pour tous les modèles.
-
-### Le chemin complet
-
-```text
-texte brut
-  ->  préfixe de tâche (summarize:)
-  ->  tokenisation (tokenizer T5, 32 100 entrées)
-  ->  identifiants, tronqués à 512
-  ->  embeddings partagés de 512 dimensions
-  ->  encodeur T5 × 6 (attention + biais de position relatif)
-  ->  décodeur T5 × 6 (attention causale + attention croisée)
-  ->  32 128 logits, liés à la table d'embedding
-  ->  beam search, token par token
-  ->  détokenisation
-  ->  résumé, comparé à la référence par ROUGE
-```
-
----
-
-## Partie II. L'entraînement
-
-Entrée, sortie, perte, mise à jour des poids : la boucle est la même pour les deux modèles, seul le point de départ change.
-
-### La boucle
-
-1. **Une paire par exemple.** En entrée `summarize: <article>`, en sortie attendue les highlights de référence du corpus.
-2. **Passe avant.** L'entrée traverse l'encodeur puis le décodeur, qui rend une distribution de probabilité sur les 32 128 entrées de la tête de sortie, à chaque position de la cible. Le résumé de référence étant fourni décalé, toutes les positions sont calculées d'un coup et non l'une après l'autre : c'est ce qui rend un pas d'entraînement bien plus rapide qu'une génération.
-3. **Perte.** Cross-entropy entre la distribution prédite et le token de référence :
-
-   ```text
-   Loss = - somme sur t de log p(token de référence à la position t)
-   ```
-
-   Les positions à `-100`, c'est-à-dire le padding, sont ignorées. La moyenne est pondérée par les tokens et non par les batchs : un batch de résumés courts ne doit pas peser autant qu'un batch de résumés longs.
-4. **Rétropropagation.** Le gradient de la perte est calculé pour chaque poids : dans quelle direction le déplacer, et de combien.
-5. **Mise à jour.** AdamW applique le pas, après écrêtage de la norme globale des gradients à 1,0 :
-
-   ```text
-   theta  <-  theta - eta * gradient(Loss, theta)
-   ```
-
-   AdamW garde deux moyennes mobiles par poids et applique la régularisation directement sur les poids, aux seules matrices, jamais aux biais ni aux gains de normalisation. Sans l'écrêtage, un Transformer entraîné de zéro diverge sur ses premières centaines de pas.
-6. **Fin d'époque.** Une passe de validation calcule la même perte sur le split de validation, décide si le checkpoint est le meilleur vu jusqu'ici et alimente l'arrêt anticipé. Les poids évalués à la fin sont relus depuis ce meilleur checkpoint, pas depuis le dernier.
-
-Deux réglages méritent un mot. Le **lissage de labels** retire 10 % de la masse au token de référence et l'étale sur le vocabulaire : le modèle est pénalisé s'il devient trop confiant, ce qui limite le surapprentissage sur un petit corpus. Le **taux d'apprentissage** n'est pas constant : il monte de zéro à son maximum sur les 6 % premiers pas, puis décroît linéairement. La montée évite qu'un premier pas mal orienté abîme des poids encore aléatoires, la descente laisse la fin de l'entraînement affiner plutôt que sauter.
-
-### Ce qui sépare les deux entraînements
-
-| | `scratch_100` | `pretrained_ft_100` |
+| Métrique | Comparaison | Lecture simple |
 | --- | --- | --- |
-| Poids initiaux | tirés au hasard | `t5-small`, révision `df1b051c` |
-| Architecture | `t5-small`, révision `df1b051c` | `t5-small`, révision `df1b051c` |
-| Paramètres | 60 506 624 | 60 506 624 |
-| Époques | 3 | 3 |
-| Taux d'apprentissage | 1e-4 | 1e-4 |
-| Patience d'arrêt anticipé | 2 | 2 |
-| Batch | 8, accumulé 4 fois | 8, accumulé 4 fois |
-| Corpus, tokenizer, optimiseur, décodage, métrique | identiques | identiques |
+| ROUGE-1 | Mots communs | Le contenu principal est-il retrouvé ? |
+| ROUGE-2 | Paires de mots consécutifs communes | Les expressions locales sont-elles reproduites ? |
+| ROUGE-L | Plus longue sous-séquence commune | Une partie importante est-elle reprise dans le même ordre ? |
 
-Le tableau est volontairement identique partout sauf sur la première ligne. Cela transforme la provenance des poids initiaux en **seule variable expérimentale**.
+Nous rapportons la **F-mesure**, qui équilibre :
 
-Le zero-shot, lui, ne s'entraîne pas du tout : ses poids ne bougent pas. Il saute l'étape d'entraînement, pas le reste de la chaîne.
+- la précision : quelle part du résumé produit se trouve dans la référence ;
+- le rappel : quelle part de la référence est retrouvée dans le résumé produit.
 
----
+La métrique principale est **ROUGE-L**. Chaque score est accompagné d'un intervalle de confiance à 95 %, estimé par bootstrap (c'est-à-dire par rééchantillonnage) sur les 1 000 exemples de test.
 
-## Partie III. Ce que le pré-entraînement change
+ROUGE ne mesure toutefois ni la véracité, ni la fluidité, ni la qualité sémantique complète. De plus, nous utilisons ROUGE-L et non ROUGE-Lsum : nos scores doivent donc être comparés **entre nos modèles**, pas directement aux scores publiés sur CNN/DailyMail.
 
-> **Moitié de campagne.** Les quatre runs pré-entraînés sont mesurés. Les trois runs from scratch sont déclarés et n'ont pas encore tourné : leurs lignes restent vides plutôt que d'être remplies par autre chose.
+## 6. Campagne expérimentale
 
-| Modèle | Corpus | ROUGE-L | IC 95 % | Statut |
-| --- | --- | --- | --- | --- |
-| `t5-small` fine-tuné | 100 % | **0,2914** | [0,2838, 0,2994] | `OK` |
-| `t5-small` fine-tuné | 50 % | 0,2896 | [0,2818, 0,2975] | `OK` |
-| `t5-small` fine-tuné | 10 % | 0,2861 | [0,2777, 0,2939] | `OK` |
-| `t5-small` zero-shot | sans objet | 0,2751 | [0,2672, 0,2829] | `OK` |
-| `t5-small` from scratch | 100 % | | | `NOT_RUN` |
-| `t5-small` from scratch | 50 % | | | `NOT_RUN` |
-| `t5-small` from scratch | 10 % | | | `NOT_RUN` |
+Les **douze expériences** ont terminé avec le statut `OK` :
 
-Ce que ces quatre lignes disent déjà : le fine-tunage sur ce corpus rapporte 0,016 de ROUGE-L au modèle pré-entraîné, et multiplier le corpus par dix lui en rapporte 0,005. Ce que la moitié manquante dira : combien vaut le fait de partir de poids appris plutôt que d'un tirage.
+- 9 expériences pour l'ablation sur la taille du corpus : 3 modèles × 3 tailles ;
+- 1 expérience T5 zero-shot, c'est-à-dire sans adaptation à CNN/DailyMail ;
+- 2 profondeurs supplémentaires pour le Transformer from scratch.
 
-### Livrable 1. Performance contre taille du corpus d'entraînement
+Le Transformer 6 + 6 est réutilisé dans les deux ablations. La campagne cumule **151 minutes de calcul** sur une RTX 5060 Laptop. Ce temps couvre nos entraînements et nos évaluations, pas le pré-entraînement initial de T5 sur C4.
 
-La figure est produite par `make figures` à partir des enregistrements de runs, et porte en note les expériences sans mesure reportable. Elle ne trace donc aujourd'hui que la famille pré-entraînée.
+### Résultat principal : ROUGE-L
 
-Les sous-ensembles restent emboîtés : 10 % est un préfixe de 50 %, lui-même préfixe de 100 %. Pour chaque proportion, les deux T5 reçoivent les mêmes exemples et les mêmes réglages.
+| Modèle | 2 000 exemples | 10 000 exemples | 20 000 exemples |
+| --- | ---: | ---: | ---: |
+| Transformer from scratch | 0,0343 | 0,1014 | 0,1156 |
+| `t5-small` aléatoire | 0,0771 | 0,0985 | 0,1172 |
+| `t5-small` pré-entraîné | **0,2867** | **0,2894** | **0,2915** |
 
-Le « 100 % » désigne ici les 20 000 exemples du corpus de travail, jamais CNN/DailyMail au complet, qui en compte 287 113.
+Le T5 pré-entraîné atteint aussi **0,2751 en zero-shot**, avant tout entraînement sur le corpus du projet.
 
-### Livrable 2. À partir de quelle taille le from scratch devient-il compétitif ?
+![Performance selon la taille du corpus d'entraînement](reports/figures/performance_vs_dataset_size.png)
 
-La question demande une pente, donc au moins deux points du côté from scratch. Il n'y en a aucun pour l'instant, et une extrapolation posée sur zéro point serait une illustration, pas une réponse. L'ordre de grandeur de l'écart à combler, lui, est mesuré : à 100 % du corpus le modèle voit environ 3 400 fois moins de texte que `t5-small` n'en a vu en pré-entraînement, et CNN/DailyMail au complet ne ramènerait ce facteur qu'à 240.
+## 7. Ce que montrent les résultats
 
-### Variantes du fine-tuning
+### 7.1 Le résultat demandé
 
-- **Full fine-tuning**, ce que fait ce projet : tous les poids bougent. Sur 60,5 M de paramètres, cela tient sur une carte de 8 Gio.
-- **PEFT et LoRA** : les poids d'origine sont gelés, seules de petites matrices de rang faible insérées à côté sont entraînées. Moins de mémoire d'optimiseur, et un adaptateur de quelques mégaoctets par tâche au lieu d'une copie complète du modèle. Hors périmètre ici : à cette taille de modèle, le full fine-tuning ne pose pas le problème que LoRA résout.
+À 20 000 exemples :
 
----
+```text
+Transformer from scratch   0,1156
+T5 pré-entraîné            0,2915
+Écart                      0,1759
+```
 
-## Partie IV. Ce qui garantit le protocole
+Le T5 pré-entraîné reste donc nettement devant. Cet écart compare les deux solutions complètes : il combine le pré-entraînement et les différences internes d'architecture.
 
-Les contrôles importants portent maintenant sur l'identité des deux architectures et des deux entraînements, avant même de regarder une courbe.
+### 7.2 L'effet du pré-entraînement
 
-| Répertoire | Fichiers | Portée |
+Pour isoler cet effet, nous comparons les deux T5 à 20 000 exemples :
+
+```text
+T5 aléatoire       0,1172
+T5 pré-entraîné    0,2915
+Écart              0,1744
+```
+
+Puisque l'architecture, les données et le protocole sont identiques, ce contraste mesure l'effet des poids pré-entraînés dans les conditions de l'expérience.
+
+À 20 000 exemples, le T5 aléatoire et le Transformer from scratch obtiennent des scores très proches, avec des intervalles de confiance qui se recouvrent. Nous ne détectons donc pas d'avantage clair de l'une de ces deux architectures lorsqu'elles partent toutes les deux de poids aléatoires.
+
+### 7.3 L'effet de la quantité de données
+
+Entre 2 000 et 20 000 exemples :
+
+| Modèle | Gain observé de ROUGE-L |
+| --- | ---: |
+| Transformer from scratch | **+0,0813** |
+| `t5-small` aléatoire | **+0,0401** |
+| `t5-small` pré-entraîné | **+0,0049** |
+
+Les modèles sans pré-entraînement profitent davantage des nouvelles données. Cette dynamique est cohérente avec le fait qu'ils doivent apprendre simultanément la langue et la tâche. Le T5 pré-entraîné commence beaucoup plus haut et sa courbe est presque plate.
+
+Ses intervalles de confiance se recouvrent fortement entre 2 000, 10 000 et 20 000 exemples. La faible hausse observée ne suffit donc pas à établir un gain statistiquement net entre ces trois tailles.
+
+> Le pré-entraînement apporte ici un bon point de départ ; les données supplémentaires apportent surtout aux modèles qui doivent encore tout apprendre.
+
+## 8. La profondeur suffit-elle à compenser ?
+
+| Couches encodeur + décodeur | Paramètres | ROUGE-L |
+| --- | ---: | ---: |
+| 2 + 2 | 31,2 M | 0,1067 |
+| 4 + 4 | 45,9 M | 0,1095 |
+| 6 + 6 | 60,6 M | **0,1156** |
+
+Avec la graine testée, le score observé augmente avec la profondeur, même si les intervalles de 2 + 2 et de 4 + 4 se recouvrent. Le gain entre 2 + 2 et 6 + 6 reste d'environ **0,0090**, très loin de l'écart de **0,1744** associé au pré-entraînement dans T5.
+
+La profondeur semble donc aider le Transformer from scratch, mais elle ne remplace pas les connaissances acquises pendant un pré-entraînement massif. Avec une seule graine, cette tendance reste toutefois indicative et non une loi générale.
+
+## 9. Quand le from scratch deviendrait-il compétitif ?
+
+Sur la plage mesurée, nous pouvons répondre avec certitude : **il ne l'est pas encore**.
+
+L'écart avec T5 pré-entraîné passe de **0,2524** à 2 000 exemples à **0,1759** à 20 000 exemples. Il se réduit donc, mais trois points sur une seule décade ne permettent pas d'estimer de manière fiable un point de croisement.
+
+Une extrapolation log-linéaire purement illustrative donnerait environ **quatre millions d'exemples**. Ce nombre n'est pas une prévision : il suppose une progression constante alors que la pente ralentit déjà dans nos mesures.
+
+Le split d'entraînement complet de CNN/DailyMail contient 287 113 exemples, soit environ 14 fois notre corpus actuel, et non les 200 fois suggérées par cet ordre de grandeur. Nous retenons donc :
+
+> Le Transformer from scratch progresse plus vite, mais notre expérience ne permet ni d'observer ni de prédire solidement son croisement avec T5 pré-entraîné.
+
+## 10. Limites et validité des conclusions
+
+| Limite | Conséquence |
+| --- | --- |
+| Une seule graine, 42 | La variabilité entre entraînements n'est pas mesurée |
+| Trois époques pour tous | Protocole identique, mais probablement insuffisant pour les modèles partis de zéro |
+| Plus de données = plus de pas d'optimisation | L'effet des exemples n'est pas totalement séparé de l'effet du calcul supplémentaire |
+| Entrées limitées à 512 tokens | 85,3 % des articles d'entraînement sont tronqués et environ la moitié du texte reste hors de l'encodeur |
+| 20 000 exemples sur 287 113 disponibles | Les conclusions portent uniquement sur la plage observée |
+| ROUGE-L seul comme mesure principale | Le recouvrement lexical ne garantit ni véracité ni qualité sémantique |
+| Coût du pré-entraînement non compté | La comparaison porte sur la performance finale, pas sur le coût total historique des modèles |
+
+Ces limites délimitent le domaine de validité des conclusions : **un petit corpus, trois époques et un budget matériel limité**.
+
+## 11. Conclusion
+
+Sur les 20 000 exemples du corpus de travail, le T5 pré-entraîné atteint **0,2915** contre **0,1156** pour le Transformer from scratch. Les trois hypothèses posées en section 1 sont confirmées.
+
+| Hypothèse de départ | Verdict | Ce qui la vérifie |
 | --- | --- | --- |
-| `tests/unit/` | 44 | Un composant à la fois, hors ligne, en une fraction de seconde |
-| `tests/integration/` | 8 | Deux composants qui tiennent ensemble, du fichier de configuration à la ligne de résultat |
+| 1. Le pré-entraîné est meilleur avec peu de données | confirmée, nettement | sur 2 000 exemples, 0,2867 contre 0,0771 pour le T5 aléatoire et 0,0343 pour le Transformer from scratch |
+| 2. Les modèles partis de zéro profitent davantage d'un corpus plus grand | confirmée | de 2 000 à 20 000 exemples, +0,0813 et +0,0401 contre +0,0049 pour le pré-entraîné |
+| 3. La profondeur aide, mais moins que le pré-entraînement | confirmée, sur une seule graine | +0,0090 de 2 + 2 à 6 + 6 couches, contre 0,1744 pour le pré-entraînement |
 
-`make test` lance les deux, `make coverage` y ajoute le seuil de 80 % de couverture de `src`. Quatre marqueurs sont déclarés (`unit`, `integration`, `slow`, `gpu`) et `--strict-markers` refuse tout marqueur non déclaré : une faute de frappe ne peut pas faire disparaître un test en silence.
+Le contrôle avec deux T5 identiques indique surtout que, dans notre protocole, le facteur déterminant n'est pas seulement le nombre de paramètres : c'est l'information déjà contenue dans leurs poids.
 
-### Les contrôles propres à la comparaison T5
+> **Message à retenir :** avec peu de données et peu d'époques, partir d'un modèle pré-entraîné permet d'atteindre une bien meilleure performance sur la tâche que de réapprendre la langue depuis zéro.
 
-| Contrôle | Garantie |
-| --- | --- |
-| Même `T5Config` épinglée | mêmes couches, dimensions, normalisations et biais relatifs |
-| Même classe `T5ForConditionalGeneration` | même graphe de calcul |
-| Mêmes clés et formes du `state_dict` | mêmes matrices, au même endroit |
-| Même nombre de paramètres | 60 506 624 dans les deux branches |
-| Configurations `scratch_*` comparées aux `pretrained_ft_*` | mêmes données, entraînement et évaluation pour chaque proportion |
-| Champ `initialization` enregistré | impossible de confondre poids aléatoires et pré-entraînés dans un run |
+### Pour aller plus loin
 
-### Ce que les autres tests épinglent
+- répéter les entraînements avec plusieurs graines ;
+- donner davantage d'époques aux modèles initialisés aléatoirement ;
+- tester le split d'entraînement complet de CNN/DailyMail ;
+- augmenter la longueur d'entrée si le budget mémoire le permet ;
+- compléter ROUGE par une évaluation sémantique et humaine.
 
-| Objet du test | Ce qu'il attrape |
-| --- | --- |
-| Retrait du token de départ à la génération | Un décalage d'une position entre prédiction et référence |
-| Budget `max_new_tokens` respecté, faisceau compris | Un décodage plus long d'un côté que de l'autre |
-| Absence de gradient et retour en mode évaluation après génération | Un dropout resté actif, donc un score non reproductible |
-| Le lissage de labels remplace bien la perte du modèle, et ignore le padding | Un lissage appliqué aux positions à `-100` |
-| Fine-tunage à travers le trainer partagé | Deux boucles d'entraînement divergentes entre les branches |
-| Précision pleine et rappel partiel sur une prédiction courte | L'ordre des arguments de ROUGE, que la F-mesure seule ne distingue pas |
-| Étanchéité des splits | Un document du test qui réapparaît dans l'entraînement, ce qui fabriquerait tous les scores |
-| `test_requirements.py` | Une divergence entre `pyproject.toml` et les trois `requirements*.txt` |
-| `test_notebooks.py` | Un kernel de carnet réassigné par l'éditeur |
+## Ressources du projet
 
-Un repère complète ces tests, hors suite : le carnet 03 mesure la perte du modèle non entraîné sur un vrai lot, environ 10,85 contre `ln(32 128) = 10,38` attendus pour une distribution uniforme. Franchement en dessous signalerait une fuite, franchement au-dessus un masque cassé.
-
-### Les huit tests d'intégration
-
-| Test | Le maillon couvert |
-| --- | --- |
-| `test_data_pipeline` | Nettoyage, tirage, validation, empreintes, manifeste, statistiques |
-| `test_tokenizer` | Le vrai tokenizer T5 : corpus vers tokenizer, tokenizer vers entrée du modèle |
-| `test_training_pipeline` | Dataset vers tokenizer, tokenizer vers modèle, modèle vers perte, perte vers checkpoint |
-| `test_evaluation_pipeline` | Modèle vers génération, génération vers métrique |
-| `test_experiment_pipeline` | Un fichier de configuration entre, une ligne de `reports/results/` sort |
-| `test_reproduce_chain` | Les cinq étapes de `make reproduce` en mode quick, jusqu'au markdown injecté |
-| `test_tracking_pipeline` | Qu'un vrai MLflow accepte une charge utile qu'un faux tracker avalerait |
-| `test_pretrained_baseline` | Que les poids téléchargés portent une vraie connaissance et que le tokenizer est littéralement partagé |
-
-**Aucun de ces tests ne produit un score.** Les corpus y sont synthétiques ou faits de quelques phrases écrites à la main, et les modèles assez petits pour s'entraîner à l'intérieur d'un test. Un chiffre mesuré là ne dirait rien de CNN/DailyMail, et les assertions le disent : la chaîne `reproduce` en mode quick doit rendre des enregistrements `PARTIAL` dont toutes les colonnes de score restent vides. Ce qui est vérifié est que la chaîne tient, pas qu'elle apprend.
-
-Les tests qui chargent les vrais poids `t5-small` portent le marqueur `slow` : ils demandent le cache Hugging Face et peuvent être écartés du cycle rapide par `-m "not slow"`.
-
----
-
-## Conclusion
-
-Le protocole contrôle maintenant la question posée : les deux branches partagent la classe `T5ForConditionalGeneration`, la révision, les 60 506 624 paramètres, les données et tous les hyperparamètres. **La seule différence est l'initialisation des poids.**
-
-La conclusion expérimentale reste ouverte jusqu'à la mesure des trois runs from scratch. Ce dépôt mesure pour l'instant l'effet du fine-tunage sur un modèle pré-entraîné, et une seule commande manque pour mesurer l'effet du pré-entraînement lui-même : `python -m src.experiments.run --all`.
-
-Après la nouvelle campagne, la comparaison pourra attribuer l'écart observé au pré-entraînement, sous deux réserves : une seule graine d'entraînement et une troncature à 512 tokens qui retire environ la moitié du texte source.
-
----
-
-## Pour aller voir
-
-| Où | Quoi |
-| --- | --- |
-| [src/models/pretrained/t5.py](src/models/pretrained/t5.py) | Les deux constructions : poids aléatoires et poids pré-entraînés |
-| [notebooks/03_transformer_walkthrough.ipynb](notebooks/03_transformer_walkthrough.ipynb) | Le T5 initialisé aléatoirement traversé par un vrai batch, forme par forme |
-| [GUIDE.md](GUIDE.md) | Le fichier qui fait chaque étape, du corpus à MLflow |
-| [RAPPORT.md](RAPPORT.md) | Les résultats, les ablations et les limites |
+- [RAPPORT.md](RAPPORT.md) : protocole, intervalles de confiance et discussion complète ;
+- [GUIDE.md](GUIDE.md) : fonctionnement du code et chemin des tenseurs ;
+- [src/models/scratch/](src/models/scratch/) : implémentation du Transformer.

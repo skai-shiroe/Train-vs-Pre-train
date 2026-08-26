@@ -13,7 +13,7 @@ Entraîner un Transformer encodeur-décodeur pour le résumé automatique, puis 
 
 L'énoncé laisse le choix entre BLEU et ROUGE. La mesure retenue est ROUGE, orientée rappel et usuelle en résumé automatique, quand BLEU mesure une précision pensée pour la traduction.
 
-> **État de la campagne.** Douze expériences sont déclarées. Les quatre runs `pretrained_*` sont mesurés. Les trois `random_t5_*`, les trois `scratch_*` et les deux profondeurs de l'ablation d'architecture portent le statut `NOT_RUN`, et les tableaux ci-dessous le disent ligne par ligne.
+> **État de la campagne.** Les douze expériences déclarées ont été exécutées et portent le statut `OK`. Elles cumulent 151 minutes de calcul sur une NVIDIA GeForce RTX 5060 Laptop GPU, sous la graine 42 et le corpus `00c0ee4e`.
 
 ## 1. Le corpus
 
@@ -25,7 +25,7 @@ La configuration `3.0.0` est épinglée. Le hub publie trois versions sous le m�
 
 Le projet compare trois familles de modèles sur les mêmes données ; il ne cherche pas à égaler un score publié. La comparaison exige que les trois familles voient exactement le même corpus, elle n'exige pas que ce corpus soit tout ce qui est disponible.
 
-Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des douze expériences avec lui. À 20 000 exemples, un modèle parti de zéro voit environ 9,9 millions de tokens source, soit à peu près 3 400 fois moins que ce que `t5-small` a vu en pré-entraînement ; à 287 113 exemples il en verrait 141 millions, soit 240 fois moins. Cela explique le choix budgétaire, mais ne remplace pas la mesure : les écarts finaux restent à établir.
+Le corpus complet multiplierait par 14 le coût de chaque run, et la campagne des douze expériences avec lui. À 20 000 exemples, un modèle parti de zéro voit environ 9,9 millions de tokens source, soit à peu près 3 400 fois moins que ce que `t5-small` a vu en pré-entraînement ; à 287 113 exemples il en verrait 141 millions, soit 240 fois moins. Cela explique le choix budgétaire ; les écarts mesurés sur ce sous-ensemble sont présentés section 5.
 
 Ce choix limite aussi la couverture lexicale : 76,0 % des identifiants utilisables du tokenizer apparaissent dans le corpus. Cela ne signifie toutefois pas que les autres lignes d'embedding ne reçoivent aucun gradient. La matrice est liée à la projection de sortie, et le softmax met à jour toutes les classes comme alternatives possibles. Les identifiants absents manquent surtout d'exemples positifs et d'usages directs dans l'entrée.
 
@@ -245,7 +245,7 @@ S'y ajoutent la vérification de la formule d'attention sur une entrée construi
 
 Les trois familles partagent le tokenizer, le corpus, le chargeur, la boucle d'entraînement, le décodage et la métrique. Le modèle zero-shot saute l'étape d'entraînement parce que ses poids ne bougent pas, pas parce qu'il emprunte un autre chemin.
 
-Les quatre mesures sont prises sous la révision `df1b051c49625cf57a3d0d8d3863ed4d13564fe4` de `t5-small`. Les poids fine-tunés sont les nôtres, mais l'architecture dans laquelle ils sont chargés vient du hub, et sans révision fixée elle peut changer sans que rien ne change dans le dépôt.
+Les sept mesures fondées sur `t5-small`, aléatoires ou pré-entraînées, utilisent la révision `df1b051c49625cf57a3d0d8d3863ed4d13564fe4`. Les poids fine-tunés sont les nôtres, mais l'architecture dans laquelle ils sont chargés vient du hub, et sans révision fixée elle peut changer sans que rien ne change dans le dépôt.
 
 ## 4. Protocole d'évaluation
 
@@ -282,13 +282,13 @@ Des runs mesurés différemment ne sont pas mis dans un même tableau ni sur une
 | `pretrained_zero_shot` | sans objet | sans objet | 0,2751 | [0,2672, 0,2829] |
 <!-- syntra:end dataset_size -->
 
-`t5-small` obtient 0,2751 en zero-shot et 0,2914 après fine-tuning sur les 20 000 exemples : le fine-tunage sur ce corpus lui rapporte 0,016 de ROUGE-L, et le passage de 2 000 à 20 000 exemples 0,005. Les six lignes `scratch` et `random_t5` sont déclarées et non exécutées ; elles gardent leur ligne et leurs cellules de score vides.
+`t5-small` obtient 0,2751 en zero-shot et 0,2915 après fine-tuning sur les 20 000 exemples : le fine-tunage sur ce corpus lui rapporte 0,0164 de ROUGE-L, et le passage de 2 000 à 20 000 exemples 0,0049. Sur la même décade de données, `random_t5` gagne 0,0401 et le Transformer from scratch 0,0813, mais ils restent respectivement à 0,1744 et 0,1759 du modèle pré-entraîné à 100 % du corpus.
 
 ### Performance contre taille du corpus d'entraînement
 
 ![Performance contre taille du corpus](reports/figures/performance_vs_dataset_size.png)
 
-La courbe pré-entraînée est déjà lisible, et elle est presque plate : multiplier le corpus par dix ne rapporte que 0,0053 de ROUGE-L, un écart inférieur à la largeur des intervalles de confiance. Sur cette plage de tailles, ce qui fait le score du modèle pré-entraîné n'est donc pas le corpus de travail. Reste à mesurer ce que coûte un départ aléatoire, et les deux tableaux qui suivent ne le mesurent pas de la même façon.
+La courbe pré-entraînée est presque plate : multiplier le corpus par dix ne rapporte que 0,0049 de ROUGE-L, un écart inférieur à la largeur des intervalles de confiance. Les deux courbes parties de zéro montent beaucoup plus, puisqu'elles apprennent simultanément la langue et la tâche, sans toutefois rejoindre le modèle pré-entraîné sur la plage mesurée.
 
 ### Le coût du départ aléatoire, à architecture identique
 
@@ -318,11 +318,11 @@ Ce tableau est le seul du rapport dont l'écart s'attribue au pré-entraînement
 
 Ici les deux colonnes pèsent le même nombre de paramètres à 0,11 % près, mais ne sont pas la même architecture. L'écart y mélange le pré-entraînement et les choix listés en 2.2, et la lecture qu'il autorise s'arrête à « à budget de paramètres et données égaux, le modèle pré-entraîné fait X de plus ».
 
-Les colonnes de gauche des deux tableaux, les écarts et leur tendance restent vides tant que les six runs n'ont pas tourné.
-
 ### À partir de quelle taille le from scratch devient-il compétitif ?
 
-La question demande une pente, donc au moins deux points mesurés du côté from scratch. Il n'y en a aucun pour l'instant, et une extrapolation posée sur zéro point ne serait pas une réponse mais une illustration. La section 1 donne cependant l'ordre de grandeur de l'écart à combler : à 100 % du corpus, un modèle parti de zéro voit environ 3 400 fois moins de texte que `t5-small` n'en a vu en pré-entraînement, et le corpus complet de CNN/DailyMail ne ramènerait ce facteur qu'à 240.
+La campagne fournit trois points par famille. Pour le Transformer écrit à la main, l'écart au T5 pré-entraîné se referme de 0,0765 quand les données sont multipliées par dix ; il reste 0,1759 à combler à 20 000 exemples. Une extrapolation log-linéaire placerait l'égalité vers quatre millions d'exemples. Pour `random_t5`, dont l'architecture est identique à celle du pré-entraîné, la fermeture n'est que de 0,0353 par décade et repousserait l'égalité vers l'ordre du milliard d'exemples.
+
+Ces ordres de grandeur ne sont pas des prévisions : trois points mesurés sur une seule décade ne justifient pas une extrapolation de deux à cinq décades, et les pentes varient déjà à l'intérieur de la plage observée. Ils indiquent seulement que le corpus complet de CNN/DailyMail, 287 113 exemples, resterait très probablement insuffisant pour combler l'écart sous ce protocole.
 
 ### Ablation d'architecture
 
@@ -342,7 +342,7 @@ Le temps d'entraînement est reporté à côté du score : une profondeur qui co
 
 ## 6. Analyse qualitative
 
-Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs. Les runs `scratch_*` et `random_t5_*` n'ayant pas tourné, la comparaison qualitative se lit pour l'instant entre les deux états du modèle pré-entraîné.
+Chaque run sélectionne son meilleur cas, son pire cas et un tirage aléatoire, de façon déterministe. Le tirage compte autant que les extrêmes, qui sont par construction les deux exemples les moins représentatifs. Les douze runs disposent de prédictions et participent donc à l'analyse qualitative.
 
 Le même article résumé par les deux (un mur de traces de dinosaures en Bolivie, document `dec77c4f`) :
 
@@ -376,7 +376,7 @@ Le zero-shot reprend de vraies phrases de l'article, en minuscules et sans les r
 | Références | 0,0 % |
 <!-- syntra:end capitalisation -->
 
-Le tableau ne porte ni ligne `scratch` ni ligne `random_t5` : un run non exécuté n'écrit pas de prédictions, donc rien à compter.
+La capitalisation seule ne mesure pas la qualité. `random_t5_*` commence presque toujours par une majuscule tout en restant très loin du score pré-entraîné ; inversement, les variantes `scratch_*` les plus profondes produisent majoritairement une minuscule. Ce tableau caractérise donc le format appris, en complément de ROUGE et de la longueur des sorties.
 
 ## 7. Traçage et magasin de modèles
 
@@ -406,7 +406,7 @@ Le corpus est un tirage de 20 000 exemples, pas CNN/DailyMail complet, qui en co
 
 Chaque configuration n'est entraînée que sous une graine, 42. Les intervalles publiés sont des intervalles bootstrap sur les 1 000 documents de test : ils mesurent l'échantillonnage du jeu d'évaluation, pas la variance d'entraînement.
 
-**La limite dominante reste que huit des douze runs n'ont pas tourné.** Tant que les `scratch_*` et les `random_t5_*` portent `NOT_RUN`, ce dépôt mesure l'effet du fine-tunage sur un modèle pré-entraîné, pas l'effet causal du pré-entraînement lui-même. Les tableaux et les figures le disent ligne par ligne, et la commande qui produit les points manquants est `python -m src.experiments.run --all`.
+**Les extrapolations de taille de corpus restent exploratoires.** Elles reposent sur trois proportions emboîtées, une seule graine d'entraînement et une seule décade de données observée. La campagne mesure solidement les écarts sur 2 000, 10 000 et 20 000 exemples ; elle ne démontre pas à quelle taille exacte les courbes se croiseraient.
 
 ## Pour reproduire
 
