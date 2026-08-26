@@ -8,6 +8,11 @@ prints and leaves every run where it was.
 The second is that a marked run is not a removed one. ``delete_run`` moves it
 out of sight, ``mlflow gc`` removes it, and a collection that failed must be
 reported rather than swallowed by an exit code of zero.
+
+The third is that a run is not the only thing a campaign leaves. A logged model
+and a registry version are entities of their own, which ``delete_run`` leaves
+and ``mlflow gc`` does not collect. A store emptied of its runs alone still
+lists every model of every campaign, pointing at runs that no longer exist.
 """
 
 from __future__ import annotations
@@ -30,14 +35,29 @@ DELETED = "deleted"
 class FakeClient:
     """Client over a store held in a dictionary."""
 
-    def __init__(self, runs: dict[str, list[str]]) -> None:
+    def __init__(
+        self,
+        runs: dict[str, list[str]],
+        models: dict[str, list[str]] | None = None,
+        registry: dict[str, list[tuple[str, str]]] | None = None,
+    ) -> None:
         # Une entree par experience, et par run son stade de vie : "active"
         # tant que rien ne l'a marque, "deleted" ensuite.
         self.runs = {name: dict.fromkeys(ids, ACTIVE) for name, ids in runs.items()}
         self.stages = dict.fromkeys(runs, ACTIVE)
+        # Les modeles enregistres par MLflow 3 a cote des runs, par experience.
+        self.models = {name: list(models.get(name, [])) for name in runs} if models else {}
+        # Le registre : par nom de modele, ses (version, run d'origine).
+        self.registry = dict(registry or {})
         self.deleted_runs: list[str] = []
         self.deleted_experiments: list[str] = []
+        self.deleted_models: list[str] = []
+        self.deleted_versions: list[tuple[str, str]] = []
+        self.deleted_registered: list[str] = []
         self.views: list[Any] = []
+        # L'ordre des suppressions : mlflow gc refuse de retirer un run qu'une
+        # version vivante designe encore, donc le registre passe en premier.
+        self.order: list[str] = []
 
     def search_experiments(self, view_type: Any = None) -> list[SimpleNamespace]:
         self.views.append(view_type)
@@ -58,9 +78,41 @@ class FakeClient:
 
     def delete_run(self, run_id: str) -> None:
         self.deleted_runs.append(run_id)
+        self.order.append("run")
         for runs in self.runs.values():
             if run_id in runs:
                 runs[run_id] = DELETED
+
+    def search_logged_models(self, experiment_ids: list[str]) -> list[SimpleNamespace]:
+        name = list(self.runs)[int(experiment_ids[0])]
+        return [SimpleNamespace(model_id=model) for model in self.models.get(name, [])]
+
+    def delete_logged_model(self, model_id: str) -> None:
+        self.deleted_models.append(model_id)
+        self.order.append("model")
+        for models in self.models.values():
+            if model_id in models:
+                models.remove(model_id)
+
+    def search_registered_models(self) -> list[SimpleNamespace]:
+        return [SimpleNamespace(name=name) for name in self.registry]
+
+    def search_model_versions(self, filter_string: str) -> list[SimpleNamespace]:
+        name = filter_string.split("'")[1]
+        return [
+            SimpleNamespace(name=name, version=version, run_id=run_id)
+            for version, run_id in self.registry.get(name, [])
+        ]
+
+    def delete_model_version(self, name: str, version: str) -> None:
+        self.deleted_versions.append((name, version))
+        self.order.append("version")
+        self.registry[name] = [pair for pair in self.registry[name] if pair[0] != version]
+
+    def delete_registered_model(self, name: str) -> None:
+        self.deleted_registered.append(name)
+        self.order.append("registered")
+        self.registry.pop(name, None)
 
     def delete_experiment(self, experiment_id: str) -> None:
         self.deleted_experiments.append(experiment_id)
@@ -160,6 +212,96 @@ def test_a_second_pass_marks_nothing_and_raises_nothing(
     assert store.deleted_runs == []
     assert store.deleted_experiments == []
     assert "3 already were" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# What a run leaves beside itself
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def store_with_models(monkeypatch: pytest.MonkeyPatch) -> FakeClient:
+    """Return a store whose runs left a logged model and a registry version."""
+    client = FakeClient(
+        {"syntra-summarization": ["a", "b", "c"], DEFAULT_MLFLOW_EXPERIMENT: []},
+        models={"syntra-summarization": ["m-1", "m-2"]},
+        registry={"syntra-a": [("1", "a")], "syntra-b": [("1", "b"), ("2", "b")]},
+    )
+    monkeypatch.setattr(purge_module, "build_client", lambda uri: client)
+    monkeypatch.setattr(purge_module, "resolve_tracking_uri", lambda: "postgresql://store")
+    monkeypatch.setattr(purge_module, "describe_store", lambda uri=None: "tracking postgresql://***")
+    monkeypatch.setattr(purge_module, "collect_garbage", lambda uri: (True, "3 runs removed"))
+    return client
+
+
+def test_a_logged_model_goes_with_the_run_that_produced_it(store_with_models: FakeClient) -> None:
+    # delete_run ne les emporte pas et mlflow gc ne les collecte pas : sans
+    # cette suppression l'interface liste encore les modeles de la campagne
+    # precedente, pointant sur des runs qui n'existent plus.
+    assert main(["--all", "--yes"]) == 0
+
+    assert store_with_models.deleted_models == ["m-1", "m-2"]
+
+
+def test_the_registry_versions_of_a_purged_run_go_too(store_with_models: FakeClient) -> None:
+    assert main(["--all", "--yes"]) == 0
+
+    assert store_with_models.deleted_versions == [
+        ("syntra-a", "1"),
+        ("syntra-b", "1"),
+        ("syntra-b", "2"),
+    ]
+    assert store_with_models.deleted_registered == ["syntra-a", "syntra-b"]
+
+
+def test_a_registered_model_that_keeps_a_version_is_kept(
+    store_with_models: FakeClient,
+) -> None:
+    # Une version produite par un run que la passe ne touche pas garde son
+    # modele : le nom reste utilisable, et son run est toujours la.
+    store_with_models.registry["syntra-b"] = [("1", "b"), ("2", "hors-campagne")]
+
+    assert main(["--all", "--yes"]) == 0
+
+    assert store_with_models.deleted_versions == [("syntra-a", "1"), ("syntra-b", "1")]
+    assert store_with_models.deleted_registered == ["syntra-a"]
+
+
+def test_the_registry_goes_before_the_runs(store_with_models: FakeClient) -> None:
+    # mlflow gc refuse de retirer un run qu'une version vivante designe encore.
+    # L'ordre n'est pas cosmetique : il decide si la collecte passe.
+    main(["--all", "--yes"])
+
+    order = store_with_models.order
+    assert order.index("version") < order.index("run")
+    assert order.index("model") < order.index("run")
+
+
+def test_the_listing_counts_the_models_it_would_take(
+    store_with_models: FakeClient, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["--all"]) == 0
+
+    output = capsys.readouterr().out
+    assert store_with_models.deleted_models == []
+    assert store_with_models.deleted_versions == []
+    assert "3 run(s), 2 logged model(s)" in output
+
+
+def test_a_client_without_the_entity_purges_the_runs_anyway(
+    store: FakeClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # La borne basse de la plage supportee est MLflow 2, qui ne connait ni le
+    # modele journalise ni cette facon de lire le registre. Un magasin ecrit
+    # par elle n'en porte simplement pas, et la commande doit vider ses runs
+    # plutot que de tomber sur une methode absente.
+    monkeypatch.delattr(FakeClient, "search_logged_models")
+    monkeypatch.delattr(FakeClient, "search_registered_models")
+
+    assert main(["--all", "--yes"]) == 0
+
+    assert store.deleted_runs == ["a", "b", "c"]
+    assert store.deleted_models == []
 
 
 def test_the_collection_is_told_where_the_store_is(monkeypatch: pytest.MonkeyPatch) -> None:
